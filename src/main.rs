@@ -1,9 +1,13 @@
 // https://www.sigbus.info/compilerbook
 
+mod token;
+
 use std::env;
 
+use crate::token::Tokens;
+
 fn main() {
-    let env: Vec<String> = env::args_os().map(|s| s.into_string().unwrap()).collect();
+    let mut env: Vec<String> = env::args_os().map(|s| s.into_string().unwrap()).collect();
     if env.len() != 2 {
         eprintln!("Wrong number of arguments!");
         return;
@@ -12,29 +16,23 @@ fn main() {
     println!(".intel_syntax noprefix");
     println!(".globl main");
     println!("main:");
-    let chars: Vec<_> = env[1].chars().collect();
-    let mut p = 0;
-    let n: String = chars.iter().take_while(|c| c.is_numeric()).collect();
-    println!("mov rax, {}", n.parse::<i32>().unwrap());
-    p += n.len();
 
-    while p < chars.len() {
-        let c = chars[p];
+    let mut tokens = Tokens::tokenize(env.pop().unwrap());
+
+    println!("  mov rax, {}", tokens.expect_number());
+
+    while !tokens.at_eof() {
+        let c: &str = &tokens.get_current_token_str();
         match c {
-            '+' => {
-                let n: String = chars[p+1..].iter().take_while(|c| c.is_numeric()).collect();
-                println!("add rax, {}", n.parse::<i32>().unwrap());
-                p += n.len() + 1;
+            "+" => {
+                tokens.expect('+');
+                println!("  add rax, {}", tokens.expect_number());
             }
-            '-' => {
-                let n: String = chars[p+1..].iter().take_while(|c| c.is_numeric()).collect();
-                println!("sub rax, {}", n.parse::<i32>().unwrap());
-                p += n.len() + 1;
+            "-" => {
+                tokens.expect('-');
+                println!("  sub rax, {}", tokens.expect_number());
             }
-            _ => {
-                eprintln!("unexpected character: {}", c);
-                return;
-            }
+            _ => panic!("unexpected character: {}", c),
         }
     }
 
