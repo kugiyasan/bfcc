@@ -1,1 +1,6 @@
 /target
+
+*.s
+*.o
+*.out
+tmp*
