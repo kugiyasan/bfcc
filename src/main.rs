@@ -1,10 +1,13 @@
 // https://www.sigbus.info/compilerbook
 
 mod token;
+mod ast;
+mod machine_code;
 
 use std::env;
 
 use crate::token::Tokens;
+use crate::ast::Ast;
 
 fn main() {
     let mut env: Vec<String> = env::args_os().map(|s| s.into_string().unwrap()).collect();
@@ -13,28 +16,11 @@ fn main() {
         return;
     }
 
-    println!(".intel_syntax noprefix");
-    println!(".globl main");
-    println!("main:");
+    let user_input = env.pop().unwrap();
 
-    let mut tokens = Tokens::tokenize(env.pop().unwrap());
+    let tokens = Tokens::tokenize(user_input);
+    let mut ast = Ast::new(tokens);
+    let node = ast.parse();
 
-    println!("  mov rax, {}", tokens.expect_number());
-
-    while !tokens.at_eof() {
-        let c: &str = &tokens.get_current_token_str();
-        match c {
-            "+" => {
-                tokens.expect('+');
-                println!("  add rax, {}", tokens.expect_number());
-            }
-            "-" => {
-                tokens.expect('-');
-                println!("  sub rax, {}", tokens.expect_number());
-            }
-            _ => panic!("unexpected character: {}", c),
-        }
-    }
-
-    println!("  ret");
+    machine_code::generate(node);
 }
