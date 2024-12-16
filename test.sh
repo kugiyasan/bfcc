@@ -33,5 +33,11 @@ assert 4 '(3+5)/2'
 # step 6
 assert 15 '-(-3*+5)'
 assert 10 '-10++20'
+# step 7
+assert 1 '2 == 2'
+assert 0 '2 != 2'
+assert 1 '2 >= 2'
+assert 0 '2 < 2'
+assert 1 '2 <= 2 == 1'
 
 echo OK

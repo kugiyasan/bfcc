@@ -1,12 +1,18 @@
 #[derive(Clone, Copy, Debug, PartialEq)]
 pub enum TokenKind {
-    LeftParen,
-    RightParen,
     Add,
     Sub,
     Mul,
     Div,
     Num(i32),
+    LeftParen,
+    RightParen,
+    LessThan,
+    LessEqual,
+    GreaterThan,
+    GreaterEqual,
+    Equal,
+    NotEqual,
     Eof,
 }
 
@@ -40,8 +46,6 @@ impl Tokens {
         while self.index < chars.len() {
             match chars[self.index] {
                 ' ' | '\n' => self.index += 1,
-                '(' => self.new_token(TokenKind::LeftParen, "("),
-                ')' => self.new_token(TokenKind::RightParen, ")"),
                 '+' => self.new_token(TokenKind::Add, "+"),
                 '-' => self.new_token(TokenKind::Sub, "-"),
                 '*' => self.new_token(TokenKind::Mul, "*"),
@@ -51,6 +55,36 @@ impl Tokens {
                     let (value, end) = self.parse_number(&chars[start..]);
                     let s = chars[start..end].iter().collect::<String>();
                     self.new_token(TokenKind::Num(value), &s);
+                }
+                '(' => self.new_token(TokenKind::LeftParen, "("),
+                ')' => self.new_token(TokenKind::RightParen, ")"),
+                '<' => {
+                    if chars[self.index + 1] == '=' {
+                        self.new_token(TokenKind::LessEqual, "<=")
+                    } else {
+                        self.new_token(TokenKind::LessThan, "<")
+                    }
+                }
+                '>' => {
+                    if chars[self.index + 1] == '=' {
+                        self.new_token(TokenKind::GreaterEqual, ">=")
+                    } else {
+                        self.new_token(TokenKind::GreaterThan, ">")
+                    }
+                }
+                '=' => {
+                    if chars[self.index + 1] == '=' {
+                        self.new_token(TokenKind::Equal, "!=")
+                    } else {
+                        panic!("can't tokenize");
+                    }
+                }
+                '!' => {
+                    if chars[self.index + 1] == '=' {
+                        self.new_token(TokenKind::NotEqual, "!=")
+                    } else {
+                        panic!("can't tokenize");
+                    }
                 }
                 _ => panic!("can't tokenize"),
             }

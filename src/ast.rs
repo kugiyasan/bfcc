@@ -23,10 +23,13 @@ impl Node {
     }
 }
 
-/// expr    = mul ("+" mul | "-" mul)*
-/// mul     = unary ("*" unary | "/" unary)*
-/// unary   = ("+" | "-")? primary
-/// primary = num | "(" expr ")"
+/// expr       = equality
+/// equality   = relational ("==" relational | "!=" relational)*
+/// relational = add ("<" add | "<=" add | ">" add | ">=" add)*
+/// add        = mul ("+" mul | "-" mul)*
+/// mul        = unary ("*" unary | "/" unary)*
+/// unary      = ("+" | "-")? primary
+/// primary    = num | "(" expr ")"
 impl Ast {
     pub fn new(tokens: Vec<TokenKind>) -> Self {
         Self { tokens, index: 0 }
@@ -37,6 +40,62 @@ impl Ast {
     }
 
     fn parse_expr(&mut self) -> Node {
+        self.parse_equality()
+    }
+
+    fn parse_equality(&mut self) -> Node {
+        let mut node = self.parse_relational();
+
+        loop {
+            match self.tokens[self.index] {
+                kind if kind == TokenKind::Equal || kind == TokenKind::NotEqual => {
+                    self.index += 1;
+                    node = Node {
+                        kind,
+                        left: Some(Box::new(node)),
+                        right: Some(Box::new(self.parse_relational())),
+                    };
+                }
+                _ => return node,
+            }
+        }
+    }
+
+    fn parse_relational(&mut self) -> Node {
+        let mut node = self.parse_add();
+
+        loop {
+            match self.tokens[self.index] {
+                kind if kind == TokenKind::LessThan || kind == TokenKind::LessEqual => {
+                    self.index += 1;
+                    node = Node {
+                        kind,
+                        left: Some(Box::new(node)),
+                        right: Some(Box::new(self.parse_add())),
+                    };
+                }
+                kind if kind == TokenKind::GreaterThan => {
+                    self.index += 1;
+                    node = Node {
+                        kind: TokenKind::LessThan,
+                        left: Some(Box::new(self.parse_add())),
+                        right: Some(Box::new(node)),
+                    };
+                }
+                kind if kind == TokenKind::GreaterEqual => {
+                    self.index += 1;
+                    node = Node {
+                        kind: TokenKind::LessEqual,
+                        left: Some(Box::new(self.parse_add())),
+                        right: Some(Box::new(node)),
+                    };
+                }
+                _ => return node,
+            }
+        }
+    }
+
+    fn parse_add(&mut self) -> Node {
         let mut node = self.parse_mul();
 
         loop {

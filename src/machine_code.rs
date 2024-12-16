@@ -21,6 +21,10 @@ fn _generate(node: Node) {
         TokenKind::Sub => println!("  sub rax, rdi"),
         TokenKind::Mul => println!("  imul rax, rdi"),
         TokenKind::Div => println!("  cqo\n  idiv rdi"),
+        TokenKind::LessThan => println!("  cmp rdi, rax\n  setl al\n  movzb rax, al"),
+        TokenKind::LessEqual => println!("  cmp rdi, rax\n  setle al\n  movzb rax, al"),
+        TokenKind::NotEqual => println!("  cmp rdi, rax\n  setne al\n  movzb rax, al"),
+        TokenKind::Equal => println!("  cmp rdi, rax\n  sete al\n  movzb rax, al"),
         n => panic!("Unknown node kind to generate: {:?}", n),
     };
 
