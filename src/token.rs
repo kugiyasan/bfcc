@@ -1,4 +1,4 @@
-#[derive(Clone, Copy, Debug, PartialEq)]
+#[derive(Clone, Debug, PartialEq)]
 pub enum TokenKind {
     Add,
     Sub,
@@ -7,12 +7,19 @@ pub enum TokenKind {
     Num(i32),
     LeftParen,
     RightParen,
+
     LessThan,
     LessEqual,
     GreaterThan,
     GreaterEqual,
     Equal,
     NotEqual,
+
+    Ident(String),
+    Stmt,
+    Assign,
+    SemiColon,
+
     Eof,
 }
 
@@ -35,9 +42,15 @@ impl Tokens {
         self.index += s.len();
     }
 
-    fn parse_number(&mut self, chars: &[char]) -> (i32, usize) {
-        let n: String = chars.iter().take_while(|c| c.is_numeric()).collect();
-        (n.parse().unwrap(), self.index + n.len())
+    fn parse_number(&mut self, chars: &[char]) {
+        let s: String = chars.iter().take_while(|c| c.is_numeric()).collect();
+        let value = s.parse().unwrap();
+        self.new_token(TokenKind::Num(value), &s);
+    }
+
+    fn parse_identifier(&mut self, chars: &[char]) {
+        let s: String = chars.iter().take_while(|c| c.is_alphanumeric()).collect();
+        self.new_token(TokenKind::Ident(s.clone()), &s);
     }
 
     fn _tokenize(&mut self, s: String) {
@@ -50,12 +63,7 @@ impl Tokens {
                 '-' => self.new_token(TokenKind::Sub, "-"),
                 '*' => self.new_token(TokenKind::Mul, "*"),
                 '/' => self.new_token(TokenKind::Div, "/"),
-                c if c.is_numeric() => {
-                    let start = self.index;
-                    let (value, end) = self.parse_number(&chars[start..]);
-                    let s = chars[start..end].iter().collect::<String>();
-                    self.new_token(TokenKind::Num(value), &s);
-                }
+                c if c.is_numeric() => self.parse_number(&chars[self.index..]),
                 '(' => self.new_token(TokenKind::LeftParen, "("),
                 ')' => self.new_token(TokenKind::RightParen, ")"),
                 '<' => {
@@ -74,9 +82,9 @@ impl Tokens {
                 }
                 '=' => {
                     if chars[self.index + 1] == '=' {
-                        self.new_token(TokenKind::Equal, "!=")
+                        self.new_token(TokenKind::Equal, "==")
                     } else {
-                        panic!("can't tokenize");
+                        self.new_token(TokenKind::Assign, "=")
                     }
                 }
                 '!' => {
@@ -86,6 +94,8 @@ impl Tokens {
                         panic!("can't tokenize");
                     }
                 }
+                c if c.is_alphabetic() => self.parse_identifier(&chars[self.index..]),
+                ';' => self.new_token(TokenKind::SemiColon, ";"),
                 _ => panic!("can't tokenize"),
             }
         }

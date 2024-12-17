@@ -10,7 +10,7 @@ use crate::token::Tokens;
 use crate::ast::Ast;
 
 fn main() {
-    let mut env: Vec<String> = env::args_os().map(|s| s.into_string().unwrap()).collect();
+    let mut env: Vec<_> = env::args_os().map(|s| s.into_string().unwrap()).collect();
     if env.len() != 2 {
         eprintln!("Wrong number of arguments!");
         return;
