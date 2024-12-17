@@ -1,7 +1,7 @@
-use crate::{ast::Node, token::TokenKind};
+use crate::ast::{Node, NodeKind};
 
 fn _generate(node: Node) {
-    if let TokenKind::Num(num) = node.kind {
+    if let NodeKind::Num(num) = node.kind {
         println!("  push {}", num);
         return;
     }
@@ -17,25 +17,31 @@ fn _generate(node: Node) {
     println!("  pop rax");
 
     match node.kind {
-        TokenKind::Add => println!("  add rax, rdi"),
-        TokenKind::Sub => println!("  sub rax, rdi"),
-        TokenKind::Mul => println!("  imul rax, rdi"),
-        TokenKind::Div => println!("  cqo\n  idiv rdi"),
-        TokenKind::LessThan => println!("  cmp rdi, rax\n  setl al\n  movzb rax, al"),
-        TokenKind::LessEqual => println!("  cmp rdi, rax\n  setle al\n  movzb rax, al"),
-        TokenKind::NotEqual => println!("  cmp rdi, rax\n  setne al\n  movzb rax, al"),
-        TokenKind::Equal => println!("  cmp rdi, rax\n  sete al\n  movzb rax, al"),
+        NodeKind::Add => println!("  add rax, rdi"),
+        NodeKind::Sub => println!("  sub rax, rdi"),
+        NodeKind::Mul => println!("  imul rax, rdi"),
+        NodeKind::Div => println!("  cqo\n  idiv rdi"),
+        NodeKind::LessThan => println!("  cmp rdi, rax\n  setl al\n  movzb rax, al"),
+        NodeKind::LessEqual => println!("  cmp rdi, rax\n  setle al\n  movzb rax, al"),
+        NodeKind::NotEqual => println!("  cmp rdi, rax\n  setne al\n  movzb rax, al"),
+        NodeKind::DoubleEqual => println!("  cmp rdi, rax\n  sete al\n  movzb rax, al"),
         n => panic!("Unknown node kind to generate: {:?}", n),
     };
 
     println!("  push rax");
 }
 
-pub fn generate(node: Node) {
+pub fn generate(node: Option<Node>) {
     println!(".intel_syntax noprefix");
     println!(".globl main");
     println!("main:");
-    _generate(node);
+
+    if let Some(n) = node {
+        _generate(n);
+    } else {
+        println!("  push 0");
+    }
+
     println!("  pop rax");
     println!("  ret");
 }

@@ -1,22 +1,40 @@
-use crate::token::TokenKind;
+use crate::token::{Token, TokenKind};
+
+#[derive(Clone, Debug, PartialEq)]
+pub enum NodeKind {
+    Add,
+    Sub,
+    Mul,
+    Div,
+    Num(i32),
+
+    LessThan,
+    LessEqual,
+    DoubleEqual,
+    NotEqual,
+
+    Ident(String),
+    Stmt,
+    Assign,
+}
 
 #[derive(Debug)]
 pub struct Node {
-    pub kind: TokenKind,
+    pub kind: NodeKind,
     pub left: Option<Box<Node>>,
     pub right: Option<Box<Node>>,
 }
 
 #[derive(Debug)]
 pub struct Ast {
-    tokens: Vec<TokenKind>,
+    tokens: Vec<Token>,
     index: usize,
 }
 
 impl Node {
     pub fn new_number(num: i32) -> Self {
         Self {
-            kind: TokenKind::Num(num),
+            kind: NodeKind::Num(num),
             left: None,
             right: None,
         }
@@ -24,7 +42,7 @@ impl Node {
 
     pub fn new_ident(ident: String) -> Self {
         Self {
-            kind: TokenKind::Ident(ident),
+            kind: NodeKind::Ident(ident),
             left: None,
             right: None,
         }
@@ -42,38 +60,39 @@ impl Node {
 /// unary      = ("+" | "-")? primary
 /// primary    = num | ident | "(" expr ")"
 impl Ast {
-    pub fn new(tokens: Vec<TokenKind>) -> Self {
+    pub fn new(tokens: Vec<Token>) -> Self {
         Self { tokens, index: 0 }
     }
 
-    pub fn parse(&mut self) -> Node {
-        self.parse_program()
+    pub fn parse(tokens: Vec<Token>) -> Option<Node> {
+        let mut ast = Ast::new(tokens);
+        ast.parse_program()
     }
 
     fn expect(&mut self, kind: &TokenKind) {
         let t = &self.tokens[self.index];
-        if t != kind {
+        if &t.kind != kind {
             panic!("Unexpected token: {:?}", t);
         }
         self.index += 1;
     }
 
-    fn parse_program(&mut self) -> Node {
-        let mut node = Node {
-            kind: TokenKind::Eof,
-            left: None,
-            right: None,
-        };
+    fn parse_program(&mut self) -> Option<Node> {
+        if self.tokens.len() == 0 {
+            return None;
+        }
+
+        let mut node = self.parse_stmt();
 
         while self.index < self.tokens.len() {
             node = Node {
-                kind: TokenKind::Stmt,
+                kind: NodeKind::Stmt,
                 left: Some(Box::new(self.parse_stmt())),
                 right: Some(Box::new(node)),
             }
         }
 
-        node
+        Some(node)
     }
 
     fn parse_stmt(&mut self) -> Node {
@@ -89,10 +108,10 @@ impl Ast {
     fn parse_assign(&mut self) -> Node {
         let mut node = self.parse_equality();
 
-        if self.tokens[self.index] == TokenKind::Assign {
+        if self.tokens[self.index].kind == TokenKind::Equal {
             self.index += 1;
             node = Node {
-                kind: TokenKind::Assign,
+                kind: NodeKind::Assign,
                 left: Some(Box::new(node)),
                 right: Some(Box::new(self.parse_assign())),
             };
@@ -105,11 +124,19 @@ impl Ast {
         let mut node = self.parse_relational();
 
         loop {
-            match &self.tokens[self.index] {
-                kind if *kind == TokenKind::Equal || *kind == TokenKind::NotEqual => {
+            match &self.tokens[self.index].kind {
+                TokenKind::DoubleEqual => {
                     self.index += 1;
                     node = Node {
-                        kind: kind.clone(),
+                        kind: NodeKind::DoubleEqual,
+                        left: Some(Box::new(node)),
+                        right: Some(Box::new(self.parse_relational())),
+                    };
+                }
+                TokenKind::NotEqual => {
+                    self.index += 1;
+                    node = Node {
+                        kind: NodeKind::NotEqual,
                         left: Some(Box::new(node)),
                         right: Some(Box::new(self.parse_relational())),
                     };
@@ -123,27 +150,35 @@ impl Ast {
         let mut node = self.parse_add();
 
         loop {
-            match &self.tokens[self.index] {
-                kind if *kind == TokenKind::LessThan || *kind == TokenKind::LessEqual => {
+            match &self.tokens[self.index].kind {
+                TokenKind::LessThan => {
                     self.index += 1;
                     node = Node {
-                        kind: kind.clone(),
+                        kind: NodeKind::LessThan,
                         left: Some(Box::new(node)),
                         right: Some(Box::new(self.parse_add())),
                     };
                 }
-                kind if *kind == TokenKind::GreaterThan => {
+                TokenKind::LessEqual => {
                     self.index += 1;
                     node = Node {
-                        kind: TokenKind::LessThan,
+                        kind: NodeKind::LessEqual,
+                        left: Some(Box::new(node)),
+                        right: Some(Box::new(self.parse_add())),
+                    };
+                }
+                TokenKind::GreaterThan => {
+                    self.index += 1;
+                    node = Node {
+                        kind: NodeKind::LessThan,
                         left: Some(Box::new(self.parse_add())),
                         right: Some(Box::new(node)),
                     };
                 }
-                kind if *kind == TokenKind::GreaterEqual => {
+                TokenKind::GreaterEqual => {
                     self.index += 1;
                     node = Node {
-                        kind: TokenKind::LessEqual,
+                        kind: NodeKind::LessEqual,
                         left: Some(Box::new(self.parse_add())),
                         right: Some(Box::new(node)),
                     };
@@ -157,11 +192,19 @@ impl Ast {
         let mut node = self.parse_mul();
 
         loop {
-            match &self.tokens[self.index] {
-                kind if *kind == TokenKind::Add || *kind == TokenKind::Sub => {
+            match &self.tokens[self.index].kind {
+                TokenKind::Plus => {
                     self.index += 1;
                     node = Node {
-                        kind: kind.clone(),
+                        kind: NodeKind::Add,
+                        left: Some(Box::new(node)),
+                        right: Some(Box::new(self.parse_mul())),
+                    };
+                }
+                TokenKind::Minus => {
+                    self.index += 1;
+                    node = Node {
+                        kind: NodeKind::Sub,
                         left: Some(Box::new(node)),
                         right: Some(Box::new(self.parse_mul())),
                     };
@@ -175,11 +218,19 @@ impl Ast {
         let mut node = self.parse_unary();
 
         loop {
-            match &self.tokens[self.index] {
-                kind if *kind == TokenKind::Mul || *kind == TokenKind::Div => {
+            match &self.tokens[self.index].kind {
+                TokenKind::Star => {
                     self.index += 1;
                     node = Node {
-                        kind: kind.clone(),
+                        kind: NodeKind::Mul,
+                        left: Some(Box::new(node)),
+                        right: Some(Box::new(self.parse_unary())),
+                    }
+                }
+                TokenKind::Slash => {
+                    self.index += 1;
+                    node = Node {
+                        kind: NodeKind::Div,
                         left: Some(Box::new(node)),
                         right: Some(Box::new(self.parse_unary())),
                     }
@@ -190,15 +241,15 @@ impl Ast {
     }
 
     fn parse_unary(&mut self) -> Node {
-        match self.tokens[self.index] {
-            TokenKind::Add => {
+        match self.tokens[self.index].kind {
+            TokenKind::Plus => {
                 self.index += 1;
                 self.parse_primary()
             }
-            TokenKind::Sub => {
+            TokenKind::Minus => {
                 self.index += 1;
                 Node {
-                    kind: TokenKind::Sub,
+                    kind: NodeKind::Sub,
                     left: Some(Box::new(Node::new_number(0))),
                     right: Some(Box::new(self.parse_primary())),
                 }
@@ -208,11 +259,10 @@ impl Ast {
     }
 
     fn parse_primary(&mut self) -> Node {
-        match &self.tokens[self.index] {
+        match &self.tokens[self.index].kind {
             TokenKind::LeftParen => {
                 self.index += 1;
                 let node = self.parse_expr();
-                let t = &self.tokens[self.index];
                 self.expect(&TokenKind::RightParen);
                 node
             }
@@ -221,7 +271,7 @@ impl Ast {
                 Node::new_number(*num)
             }
             TokenKind::Ident(ident) => {
-                self.index += ident.len();
+                self.index += 1;
                 Node::new_ident(ident.clone())
             }
 

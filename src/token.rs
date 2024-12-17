@@ -1,9 +1,9 @@
 #[derive(Clone, Debug, PartialEq)]
 pub enum TokenKind {
-    Add,
-    Sub,
-    Mul,
-    Div,
+    Plus,
+    Minus,
+    Star,
+    Slash,
     Num(i32),
     LeftParen,
     RightParen,
@@ -12,20 +12,22 @@ pub enum TokenKind {
     LessEqual,
     GreaterThan,
     GreaterEqual,
-    Equal,
+    DoubleEqual,
     NotEqual,
 
     Ident(String),
-    Stmt,
-    Assign,
+    Equal,
     SemiColon,
+}
 
-    Eof,
+#[derive(Debug)]
+pub struct Token {
+    pub kind: TokenKind,
 }
 
 #[derive(Debug)]
 pub struct Tokens {
-    tokens: Vec<TokenKind>,
+    tokens: Vec<Token>,
     index: usize,
 }
 
@@ -38,7 +40,7 @@ impl Tokens {
     }
 
     fn new_token(&mut self, kind: TokenKind, s: &str) {
-        self.tokens.push(kind);
+        self.tokens.push(Token { kind });
         self.index += s.len();
     }
 
@@ -59,10 +61,10 @@ impl Tokens {
         while self.index < chars.len() {
             match chars[self.index] {
                 ' ' | '\n' => self.index += 1,
-                '+' => self.new_token(TokenKind::Add, "+"),
-                '-' => self.new_token(TokenKind::Sub, "-"),
-                '*' => self.new_token(TokenKind::Mul, "*"),
-                '/' => self.new_token(TokenKind::Div, "/"),
+                '+' => self.new_token(TokenKind::Plus, "+"),
+                '-' => self.new_token(TokenKind::Minus, "-"),
+                '*' => self.new_token(TokenKind::Star, "*"),
+                '/' => self.new_token(TokenKind::Slash, "/"),
                 c if c.is_numeric() => self.parse_number(&chars[self.index..]),
                 '(' => self.new_token(TokenKind::LeftParen, "("),
                 ')' => self.new_token(TokenKind::RightParen, ")"),
@@ -82,9 +84,9 @@ impl Tokens {
                 }
                 '=' => {
                     if chars[self.index + 1] == '=' {
-                        self.new_token(TokenKind::Equal, "==")
+                        self.new_token(TokenKind::DoubleEqual, "==")
                     } else {
-                        self.new_token(TokenKind::Assign, "=")
+                        self.new_token(TokenKind::Equal, "=")
                     }
                 }
                 '!' => {
@@ -99,11 +101,9 @@ impl Tokens {
                 _ => panic!("can't tokenize"),
             }
         }
-
-        self.new_token(TokenKind::Eof, "");
     }
 
-    pub fn tokenize(s: String) -> Vec<TokenKind> {
+    pub fn tokenize(s: String) -> Vec<Token> {
         let mut tokens = Tokens::new();
         tokens._tokenize(s);
 
