@@ -1,3 +1,9 @@
+use phf::phf_map;
+
+static KEYWORDS: phf::Map<&str, TokenKind> = phf_map! {
+    "return" => TokenKind::Return,
+};
+
 #[derive(Clone, Debug, PartialEq)]
 pub enum TokenKind {
     Plus,
@@ -18,6 +24,7 @@ pub enum TokenKind {
     Ident(String),
     Equal,
     SemiColon,
+    Return,
 }
 
 #[derive(Debug)]
@@ -51,8 +58,16 @@ impl Tokens {
     }
 
     fn parse_identifier(&mut self, chars: &[char]) {
-        let s: String = chars.iter().take_while(|c| c.is_alphanumeric()).collect();
-        self.new_token(TokenKind::Ident(s.clone()), &s);
+        let s: String = chars
+            .iter()
+            .take_while(|&&c| c.is_ascii_alphanumeric() || c == '_')
+            .collect();
+
+        if let Some(kind) = KEYWORDS.get(&s) {
+            self.new_token(kind.clone(), &s);
+        } else {
+            self.new_token(TokenKind::Ident(s.clone()), &s);
+        }
     }
 
     fn _tokenize(&mut self, s: String) {
@@ -96,7 +111,7 @@ impl Tokens {
                         panic!("can't tokenize");
                     }
                 }
-                c if c.is_alphabetic() => self.parse_identifier(&chars[self.index..]),
+                c if c.is_ascii_alphabetic() => self.parse_identifier(&chars[self.index..]),
                 ';' => self.new_token(TokenKind::SemiColon, ";"),
                 _ => panic!("can't tokenize"),
             }

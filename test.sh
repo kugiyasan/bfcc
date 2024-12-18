@@ -56,5 +56,11 @@ bar = 2 + 3;
 foo + bar;'
 assert 10 '
 a=b=c=d=foo=bar=baz=10;'
+# step 11
+assert 5 'return 5;return 8;'
+assert 14 '
+a = 3;
+b = 5 * 6 - 8;
+return a + b / 2;'
 
 echo OK

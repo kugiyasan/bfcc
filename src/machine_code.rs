@@ -38,6 +38,12 @@ fn _generate(node: Node) {
             _generate(*node.right.unwrap());
             return;
         }
+        NodeKind::Return => {
+            _generate(*node.left.unwrap());
+            println!("  pop rax");
+            epilogue();
+            return;
+        }
         _ => (),
     };
 

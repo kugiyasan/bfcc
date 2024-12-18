@@ -18,6 +18,7 @@ pub enum NodeKind {
     LVar { offset: i32 },
     Stmt,
     Assign,
+    Return,
 }
 
 #[derive(Debug)]
@@ -78,7 +79,7 @@ impl Node {
 }
 
 /// program    = stmt*
-/// stmt       = expr ";"
+/// stmt       = expr ";" | "return" expr ";"
 /// expr       = assign
 /// assign     = equality ("=" assign)?
 /// equality   = relational ("==" relational | "!=" relational)*
@@ -131,6 +132,16 @@ impl Ast {
     }
 
     fn parse_stmt(&mut self) -> Node {
+        if self.tokens[self.index].kind == TokenKind::Return {
+            self.index += 1;
+            let node = Node {
+                kind: NodeKind::Return,
+                left: Some(Box::new(self.parse_expr())),
+                right: None,
+            };
+            self.expect(&TokenKind::SemiColon);
+            return node;
+        }
         let node = self.parse_expr();
         self.expect(&TokenKind::SemiColon);
         node
