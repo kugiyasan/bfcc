@@ -78,11 +78,11 @@ fn epilogue() {
     println!("  ret");
 }
 
-pub fn generate(node: Option<Node>) {
+pub fn generate(node: Option<Node>, offset: i32) {
     println!(".intel_syntax noprefix");
     println!(".globl main");
     println!("main:");
-    prologue(26 * 8);
+    prologue(offset);
 
     if let Some(n) = node {
         _generate(n);

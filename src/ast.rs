@@ -1,3 +1,5 @@
+use std::collections::HashMap;
+
 use crate::token::{Token, TokenKind};
 
 #[derive(Clone, Debug, PartialEq)]
@@ -19,6 +21,12 @@ pub enum NodeKind {
 }
 
 #[derive(Debug)]
+struct LocalVariables {
+    locals: HashMap<String, i32>,
+    last_offset: i32,
+}
+
+#[derive(Debug)]
 pub struct Node {
     pub kind: NodeKind,
     pub left: Option<Box<Node>>,
@@ -29,6 +37,26 @@ pub struct Node {
 pub struct Ast {
     tokens: Vec<Token>,
     index: usize,
+    locals: LocalVariables,
+}
+
+impl LocalVariables {
+    pub fn new() -> Self {
+        Self {
+            locals: HashMap::new(),
+            last_offset: 0,
+        }
+    }
+
+    pub fn get_lvar_offset(&mut self, ident: &str) -> i32 {
+        if let Some(offset) = self.locals.get(ident) {
+            return *offset;
+        }
+        self.last_offset += 8;
+        let offset = self.last_offset;
+        self.locals.insert(ident.to_string(), offset);
+        offset
+    }
 }
 
 impl Node {
@@ -40,10 +68,7 @@ impl Node {
         }
     }
 
-    pub fn new_ident(ident: String) -> Self {
-        let c = ident.bytes().next().unwrap();
-        let offset = (c - b'a' + 1) as i32 * 8;
-
+    pub fn new_ident(offset: i32) -> Self {
         Self {
             kind: NodeKind::LVar { offset },
             left: None,
@@ -64,12 +89,19 @@ impl Node {
 /// primary    = num | ident | "(" expr ")"
 impl Ast {
     pub fn new(tokens: Vec<Token>) -> Self {
-        Self { tokens, index: 0 }
+        Self {
+            tokens,
+            index: 0,
+            locals: LocalVariables::new(),
+        }
     }
 
-    pub fn parse(tokens: Vec<Token>) -> Option<Node> {
-        let mut ast = Ast::new(tokens);
-        ast.parse_program()
+    pub fn get_last_offset(&self) -> i32 {
+        self.locals.last_offset
+    }
+
+    pub fn parse(&mut self) -> Option<Node> {
+        self.parse_program()
     }
 
     fn expect(&mut self, kind: &TokenKind) {
@@ -275,7 +307,8 @@ impl Ast {
             }
             TokenKind::Ident(ident) => {
                 self.index += 1;
-                Node::new_ident(ident.clone())
+                let offset = self.locals.get_lvar_offset(ident);
+                Node::new_ident(offset)
             }
 
             t => panic!("Unexpected token: {:?}", t),

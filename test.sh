@@ -50,5 +50,11 @@ assert 6 '
 a = 1;
 b = 2 + 3;
 a + b;'
+assert 6 '
+foo = 1;
+bar = 2 + 3;
+foo + bar;'
+assert 10 '
+a=b=c=d=foo=bar=baz=10;'
 
 echo OK

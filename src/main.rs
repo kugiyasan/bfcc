@@ -43,7 +43,11 @@ fn main() {
     let tokens = Tokens::tokenize(user_input);
     let token_kinds = tokens.iter().map(|t| &t.kind).collect::<Vec<_>>();
     dbg!(token_kinds);
-    let node = Ast::parse(tokens);
+
+    let mut ast = Ast::new(tokens);
+    let node = ast.parse();
+    let last_offset = ast.get_last_offset();
     dbg_stmt(&node);
-    machine_code::generate(node);
+
+    machine_code::generate(node, last_offset);
 }
