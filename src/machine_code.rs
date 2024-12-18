@@ -1,10 +1,45 @@
 use crate::ast::{Node, NodeKind};
 
-fn _generate(node: Node) {
-    if let NodeKind::Num(num) = node.kind {
-        println!("  push {}", num);
+fn gen_lval(node: Node) {
+    if let NodeKind::LVar { offset } = node.kind {
+        println!("  mov rax, rbp");
+        println!("  sub rax, {}", offset);
+        println!("  push rax");
         return;
     }
+    panic!("Node is not an l-value: {node:?}");
+}
+
+fn _generate(node: Node) {
+    match node.kind {
+        NodeKind::Num(num) => {
+            println!("  push {}", num);
+            return;
+        }
+        NodeKind::LVar { offset: _ } => {
+            gen_lval(node);
+            println!("  pop rax");
+            println!("  mov rax, [rax]");
+            println!("  push rax");
+            return;
+        }
+        NodeKind::Assign => {
+            gen_lval(*node.left.unwrap());
+            _generate(*node.right.unwrap());
+            println!("  pop rdi");
+            println!("  pop rax");
+            println!("  mov [rax], rdi");
+            println!("  push rdi");
+            return;
+        }
+        NodeKind::Stmt => {
+            _generate(*node.left.unwrap());
+            println!("  pop rax");
+            _generate(*node.right.unwrap());
+            return;
+        }
+        _ => (),
+    };
 
     if let Some(left) = node.left {
         _generate(*left);
@@ -31,17 +66,28 @@ fn _generate(node: Node) {
     println!("  push rax");
 }
 
+fn prologue(offset: i32) {
+    println!("  push rbp");
+    println!("  mov rbp, rsp");
+    println!("  sub rsp, {}", offset);
+}
+
+fn epilogue() {
+    println!("  mov rsp, rbp");
+    println!("  pop rbp");
+    println!("  ret");
+}
+
 pub fn generate(node: Option<Node>) {
     println!(".intel_syntax noprefix");
     println!(".globl main");
     println!("main:");
+    prologue(26 * 8);
 
     if let Some(n) = node {
         _generate(n);
-    } else {
-        println!("  push 0");
+        println!("  pop rax");
     }
 
-    println!("  pop rax");
-    println!("  ret");
+    epilogue();
 }

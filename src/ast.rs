@@ -13,7 +13,7 @@ pub enum NodeKind {
     DoubleEqual,
     NotEqual,
 
-    Ident(String),
+    LVar { offset: i32 },
     Stmt,
     Assign,
 }
@@ -41,8 +41,11 @@ impl Node {
     }
 
     pub fn new_ident(ident: String) -> Self {
+        let c = ident.bytes().next().unwrap();
+        let offset = (c - b'a' + 1) as i32 * 8;
+
         Self {
-            kind: NodeKind::Ident(ident),
+            kind: NodeKind::LVar { offset },
             left: None,
             right: None,
         }
@@ -87,8 +90,8 @@ impl Ast {
         while self.index < self.tokens.len() {
             node = Node {
                 kind: NodeKind::Stmt,
-                left: Some(Box::new(self.parse_stmt())),
-                right: Some(Box::new(node)),
+                left: Some(Box::new(node)),
+                right: Some(Box::new(self.parse_stmt())),
             }
         }
 
