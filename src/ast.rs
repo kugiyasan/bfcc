@@ -108,11 +108,14 @@ pub enum Unary {
     Neg(Primary),
 }
 
-/// primary = num | ident | "(" expr ")"
+/// primary = num
+///         | ident ("(" ")")?
+///         | "(" expr ")"
 #[derive(Debug)]
 pub enum Primary {
     Num(i32),
     Ident(i32),
+    FunctionCall(String),
     Expr(Box<Expr>),
 }
 
@@ -332,8 +335,14 @@ impl Ast {
             }
             TokenKind::Ident(ident) => {
                 self.index += 1;
-                let offset = self.locals.get_lvar_offset(ident);
-                Primary::Ident(offset)
+                let ident = ident.clone();
+                if self.consume(&TokenKind::LeftParen) {
+                    self.expect(&TokenKind::RightParen);
+                    Primary::FunctionCall(ident)
+                } else {
+                    let offset = self.locals.get_lvar_offset(&ident);
+                    Primary::Ident(offset)
+                }
             }
 
             t => panic!("Unexpected token: {:?}", t),

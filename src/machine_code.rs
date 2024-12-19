@@ -284,6 +284,15 @@ impl Codegen {
                 println!("  mov rax, [rax]");
                 println!("  push rax");
             }
+            Primary::FunctionCall(name) => {
+                println!("  push rbp");
+                println!("  mov rbp, rsp");
+                println!("  and rsp, {}", u64::MAX - 15);
+                println!("  call {name}");
+                println!("  mov rsp, rbp");
+                println!("  pop rbp");
+                println!("  push rax");
+            }
             Primary::Expr(expr) => self.gen_expr(*expr),
         }
     }

@@ -4,12 +4,16 @@ RED='\033[0;31m'
 GREEN='\033[0;32m'
 NC='\033[0m'
 
+TESTS_DIR="$(dirname "$(realpath "$0")")"
+REPO_ROOT="$(dirname "$TESTS_DIR")"
+BFCC="$REPO_ROOT/target/debug/bfcc"
+
 assert() {
   expected="$1"
   input="$2"
 
-  ./target/debug/bfcc "$input" > tmp.s
-  cc -o tmp tmp.s
+  "$BFCC" "$input" > tmp.s
+  cc -o tmp tmp.s "$TESTS_DIR/foo.o"
   ./tmp
   actual="$?"
 
@@ -22,7 +26,12 @@ assert() {
   fi
 }
 
-cargo build
+build() {
+  cargo build
+  cc -c "$TESTS_DIR/foo.o" "$TESTS_DIR/foo.c"
+}
+
+build
 
 # step 1
 assert 0 '0;'
@@ -124,5 +133,7 @@ for (i = 0; i < 10; i = i + 1) {
 }
 return tot;
 '
+# step 14
+assert 0 'foo();'
 
 echo OK
