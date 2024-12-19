@@ -34,6 +34,9 @@ pub enum TokenKind {
     Else,
     While,
     For,
+
+    LeftBracket,
+    RightBracket,
 }
 
 #[derive(Debug)]
@@ -122,6 +125,8 @@ impl Tokens {
                 }
                 c if c.is_ascii_alphabetic() => self.parse_identifier(&chars[self.index..]),
                 ';' => self.new_token(TokenKind::SemiColon, ";"),
+                '{' => self.new_token(TokenKind::LeftBracket, "{"),
+                '}' => self.new_token(TokenKind::RightBracket, "}"),
                 _ => panic!("can't tokenize"),
             }
         }

@@ -39,6 +39,7 @@ impl LocalVariables {
 pub struct Program(pub Vec<Stmt>);
 
 /// stmt = expr ";"
+///      | "{" stmt* "}"
 ///      | "if" "(" expr ")" stmt ("else" stmt)?
 ///      | "while" "(" expr ")" stmt
 ///      | "for" "(" expr? ";" expr? ";" expr? ")" stmt
@@ -46,6 +47,7 @@ pub struct Program(pub Vec<Stmt>);
 #[derive(Debug)]
 pub enum Stmt {
     Expr(Expr),
+    Block(Vec<Stmt>),
     If(Expr, Box<Stmt>, Option<Box<Stmt>>),
     While(Expr, Box<Stmt>),
     For(Option<Expr>, Option<Expr>, Option<Expr>, Box<Stmt>),
@@ -172,7 +174,13 @@ impl Ast {
     }
 
     fn parse_stmt(&mut self) -> Stmt {
-        if self.consume(&TokenKind::If) {
+        if self.consume(&TokenKind::LeftBracket) {
+            let mut stmt = vec![];
+            while !self.consume(&TokenKind::RightBracket) {
+                stmt.push(self.parse_stmt());
+            }
+            Stmt::Block(stmt)
+        } else if self.consume(&TokenKind::If) {
             self.expect(&TokenKind::LeftParen);
             let expr = self.parse_expr();
             self.expect(&TokenKind::RightParen);

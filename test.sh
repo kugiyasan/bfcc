@@ -107,5 +107,22 @@ for (i = 0; i < 10; i = i + 1)
   tot = tot + i;
 return tot;
 '
+# step 13
+assert 45 '
+tot = 0;
+i = 0;
+while (i < 10) {
+  tot = tot + i;
+  i = i + 1;
+}
+return tot;
+'
+assert 45 '
+tot = 0;
+for (i = 0; i < 10; i = i + 1) {
+  tot = tot + i;
+}
+return tot;
+'
 
 echo OK

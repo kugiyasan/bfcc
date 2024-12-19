@@ -69,6 +69,15 @@ impl Codegen {
 
     fn gen_stmt(&mut self, stmt: Stmt) {
         match stmt {
+            Stmt::Expr(expr) => {
+                self.gen_expr(expr);
+                println!("  pop rax");
+            }
+            Stmt::Block(stmt) => {
+                for s in stmt {
+                    self.gen_stmt(s);
+                }
+            }
             Stmt::If(expr, stmt, None) => self.gen_if(expr, *stmt),
             Stmt::If(expr, stmt, Some(else_stmt)) => self.gen_if_else(expr, *stmt, *else_stmt),
             Stmt::While(expr, stmt) => self.gen_while(expr, *stmt),
@@ -77,10 +86,6 @@ impl Codegen {
                 self.gen_expr(expr);
                 println!("  pop rax");
                 epilogue();
-            }
-            Stmt::Expr(expr) => {
-                self.gen_expr(expr);
-                println!("  pop rax");
             }
         };
     }
