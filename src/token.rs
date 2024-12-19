@@ -2,6 +2,10 @@ use phf::phf_map;
 
 static KEYWORDS: phf::Map<&str, TokenKind> = phf_map! {
     "return" => TokenKind::Return,
+    "if" => TokenKind::If,
+    "else" => TokenKind::Else,
+    "while" => TokenKind::While,
+    "for" => TokenKind::For,
 };
 
 #[derive(Clone, Debug, PartialEq)]
@@ -25,6 +29,11 @@ pub enum TokenKind {
     Equal,
     SemiColon,
     Return,
+
+    If,
+    Else,
+    While,
+    For,
 }
 
 #[derive(Debug)]

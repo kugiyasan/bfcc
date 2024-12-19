@@ -19,6 +19,11 @@ pub enum NodeKind {
     Stmt,
     Assign,
     Return,
+
+    If,
+    Else,
+    While,
+    For,
 }
 
 #[derive(Debug)]
@@ -79,7 +84,11 @@ impl Node {
 }
 
 /// program    = stmt*
-/// stmt       = expr ";" | "return" expr ";"
+/// stmt       = expr ";"
+///            | "if" "(" expr ")" stmt ("else" stmt)?
+///            | "while" "(" expr ")" stmt
+///            | "for" "(" expr? ";" expr? ";" expr? ")" stmt
+///            | "return" expr ";"
 /// expr       = assign
 /// assign     = equality ("=" assign)?
 /// equality   = relational ("==" relational | "!=" relational)*
@@ -132,15 +141,32 @@ impl Ast {
     }
 
     fn parse_stmt(&mut self) -> Node {
-        if self.tokens[self.index].kind == TokenKind::Return {
-            self.index += 1;
-            let node = Node {
-                kind: NodeKind::Return,
-                left: Some(Box::new(self.parse_expr())),
-                right: None,
-            };
-            self.expect(&TokenKind::SemiColon);
-            return node;
+        match self.tokens[self.index].kind {
+            TokenKind::If => {
+                self.index += 1;
+                self.expect(&TokenKind::LeftParen);
+                let node = Node {
+                    kind: NodeKind::If,
+                    left: Some(Box::new(self.parse_expr())),
+                    right: None,
+                };
+                self.expect(&TokenKind::RightParen);
+                if self.tokens[self.index].kind == TokenKind::Else {
+                    self.index += 1;
+                }
+            }
+            TokenKind::While => {}
+            TokenKind::For => {}
+            TokenKind::Return => {
+                self.index += 1;
+                let node = Node {
+                    kind: NodeKind::Return,
+                    left: Some(Box::new(self.parse_expr())),
+                    right: None,
+                };
+                self.expect(&TokenKind::SemiColon);
+                return node;
+            }
         }
         let node = self.parse_expr();
         self.expect(&TokenKind::SemiColon);
