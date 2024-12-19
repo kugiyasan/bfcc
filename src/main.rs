@@ -24,9 +24,8 @@ fn main() {
 
     let mut ast = Ast::new(tokens);
     let program = ast.parse();
-    let last_offset = ast.get_last_offset();
     dbg!(&program);
 
     let mut codegen = Codegen::new();
-    codegen.generate(program, last_offset);
+    codegen.generate(program);
 }

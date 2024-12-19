@@ -40,7 +40,7 @@ pub enum TokenKind {
     Comma,
 }
 
-#[derive(Debug)]
+#[derive(Clone, Debug)]
 pub struct Token {
     pub kind: TokenKind,
 }

@@ -23,6 +23,11 @@ impl LocalVariables {
         }
     }
 
+    pub fn reset(&mut self) {
+        self.locals.clear();
+        self.last_offset = 0;
+    }
+
     pub fn get_lvar_offset(&mut self, ident: &str) -> usize {
         if let Some(offset) = self.locals.get(ident) {
             return *offset;
@@ -34,9 +39,18 @@ impl LocalVariables {
     }
 }
 
-/// program = stmt*
+/// program = func*
 #[derive(Debug)]
-pub struct Program(pub Vec<Stmt>);
+pub struct Program(pub Vec<Func>);
+
+// func = name "(" (expr (, expr)*)? ")" "{" stmt* "}"
+#[derive(Debug)]
+pub struct Func {
+    pub name: String,
+    pub args: Vec<usize>,
+    pub stmts: Vec<Stmt>,
+    pub local_offset: usize,
+}
 
 /// stmt = expr ";"
 ///      | "{" stmt* "}"
@@ -128,10 +142,6 @@ impl Ast {
         }
     }
 
-    pub fn get_last_offset(&self) -> usize {
-        self.locals.last_offset
-    }
-
     pub fn parse(&mut self) -> Program {
         self.parse_program()
     }
@@ -166,14 +176,74 @@ impl Ast {
         self.index += 1;
     }
 
+    fn expect_ident(&mut self) -> String {
+        if self.is_eof() {
+            panic!("Unexpected EOF");
+        }
+        let k = self.tokens[self.index].kind.clone();
+        if let TokenKind::Ident(name) = k {
+            self.index += 1;
+            return name;
+        }
+        panic!(
+            "Unexpected token at index {}: {:?} (was expecting Ident)",
+            self.index, k
+        );
+    }
+
     fn parse_program(&mut self) -> Program {
-        let mut stmt = vec![];
+        let mut funcs = vec![];
 
         while self.index < self.tokens.len() {
-            stmt.push(self.parse_stmt());
+            funcs.push(self.parse_func());
         }
 
-        Program(stmt)
+        Program(funcs)
+    }
+
+    fn parse_func(&mut self) -> Func {
+        self.locals.reset();
+
+        let t = self.tokens[self.index].clone();
+        if let TokenKind::Ident(name) = t.kind {
+            self.index += 1;
+
+            let args = self.parse_args();
+
+            let mut stmts = vec![];
+            self.expect(&TokenKind::LeftBracket);
+            while !self.consume(&TokenKind::RightBracket) {
+                stmts.push(self.parse_stmt());
+            }
+
+            Func {
+                name,
+                args,
+                stmts,
+                local_offset: self.locals.last_offset,
+            }
+        } else {
+            panic!("Expected function definition, got {:?}", t.kind);
+        }
+    }
+
+    fn parse_args(&mut self) -> Vec<usize> {
+        let mut args = vec![];
+        self.expect(&TokenKind::LeftParen);
+
+        if !self.consume(&TokenKind::RightParen) {
+            let ident = self.expect_ident();
+            let offset = self.locals.get_lvar_offset(&ident);
+            args.push(offset);
+            while self.consume(&TokenKind::Comma) {
+                let ident = self.expect_ident();
+                let offset = self.locals.get_lvar_offset(&ident);
+                args.push(offset);
+            }
+            self.expect(&TokenKind::RightParen);
+        }
+
+        args
     }
 
     fn parse_stmt(&mut self) -> Stmt {

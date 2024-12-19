@@ -1,4 +1,6 @@
-use crate::ast::{Add, Assign, Equality, Expr, Mul, Primary, Program, Relational, Stmt, Unary};
+use crate::ast::{
+    Add, Assign, Equality, Expr, Func, Mul, Primary, Program, Relational, Stmt, Unary,
+};
 
 const ARGUMENT_REGISTERS: [&str; 6] = ["rdi", "rsi", "rdx", "rcx", "r8", "r9"];
 
@@ -23,15 +25,11 @@ impl Codegen {
         Self { label_index: 0 }
     }
 
-    pub fn generate(&mut self, program: Program, offset: usize) {
+    pub fn generate(&mut self, program: Program) {
         println!(".intel_syntax noprefix");
         println!(".globl main");
         println!("main:");
-        prologue(offset);
-
         self.gen_program(program);
-
-        epilogue();
     }
 
     fn new_label(&mut self) -> String {
@@ -60,13 +58,21 @@ impl Codegen {
     }
 
     fn gen_program(&mut self, program: Program) {
-        if program.0.is_empty() {
-            return;
+        for func in program.0 {
+            self.gen_func(func);
         }
+    }
 
-        for stmt in program.0 {
-            self.gen_stmt(stmt);
+    fn gen_func(&mut self, Func { name, args, stmts, local_offset }: Func) {
+        let args_offset = args.len() * 8;
+        let offset = args_offset + local_offset;
+        println!(".{name}:");
+        prologue(offset);
+
+        for s in stmts {
+            self.gen_stmt(s);
         }
+        epilogue();
     }
 
     fn gen_stmt(&mut self, stmt: Stmt) {
