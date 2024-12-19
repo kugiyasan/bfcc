@@ -46,6 +46,7 @@ assert 0 '2 < 2;'
 assert 1 '2 <= 2 == 1;'
 # step 9
 assert 3 '0;1;2;3;'
+assert 6 'a = 6; a;'
 assert 6 '
 a = 1;
 b = 2 + 3;

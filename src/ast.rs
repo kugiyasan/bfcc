@@ -2,41 +2,10 @@ use std::collections::HashMap;
 
 use crate::token::{Token, TokenKind};
 
-#[derive(Clone, Debug, PartialEq)]
-pub enum NodeKind {
-    Add,
-    Sub,
-    Mul,
-    Div,
-    Num(i32),
-
-    LessThan,
-    LessEqual,
-    DoubleEqual,
-    NotEqual,
-
-    LVar { offset: i32 },
-    Stmt,
-    Assign,
-    Return,
-
-    If,
-    Else,
-    While,
-    For,
-}
-
 #[derive(Debug)]
 struct LocalVariables {
     locals: HashMap<String, i32>,
     last_offset: i32,
-}
-
-#[derive(Debug)]
-pub struct Node {
-    pub kind: NodeKind,
-    pub left: Option<Box<Node>>,
-    pub right: Option<Box<Node>>,
 }
 
 #[derive(Debug)]
@@ -65,38 +34,86 @@ impl LocalVariables {
     }
 }
 
-impl Node {
-    pub fn new_number(num: i32) -> Self {
-        Self {
-            kind: NodeKind::Num(num),
-            left: None,
-            right: None,
-        }
-    }
+/// program = stmt*
+#[derive(Debug)]
+pub struct Program(pub Vec<Stmt>);
 
-    pub fn new_ident(offset: i32) -> Self {
-        Self {
-            kind: NodeKind::LVar { offset },
-            left: None,
-            right: None,
-        }
-    }
+/// stmt = expr ";"
+///      | "if" "(" expr ")" stmt ("else" stmt)?
+///      | "while" "(" expr ")" stmt
+///      | "for" "(" expr? ";" expr? ";" expr? ")" stmt
+///      | "return" expr ";"
+#[derive(Debug)]
+pub enum Stmt {
+    Expr(Expr),
+    If(Expr, Box<Stmt>, Option<Box<Stmt>>),
+    While(Expr, Box<Stmt>),
+    For(Option<Expr>, Option<Expr>, Option<Expr>, Box<Stmt>),
+    Return(Expr),
 }
 
-/// program    = stmt*
-/// stmt       = expr ";"
-///            | "if" "(" expr ")" stmt ("else" stmt)?
-///            | "while" "(" expr ")" stmt
-///            | "for" "(" expr? ";" expr? ";" expr? ")" stmt
-///            | "return" expr ";"
-/// expr       = assign
-/// assign     = equality ("=" assign)?
-/// equality   = relational ("==" relational | "!=" relational)*
+/// expr = assign
+#[derive(Debug)]
+pub enum Expr {
+    Assign(Assign),
+}
+
+/// assign = equality ("=" assign)?
+#[derive(Debug)]
+pub struct Assign {
+    pub eq: Equality,
+    pub assign: Option<Box<Assign>>,
+}
+
+/// equality = relational ("==" relational | "!=" relational)*
+#[derive(Debug)]
+pub enum Equality {
+    Identity(Relational),
+    Equal(Relational, Box<Equality>),
+    NotEqual(Relational, Box<Equality>),
+}
+
 /// relational = add ("<" add | "<=" add | ">" add | ">=" add)*
-/// add        = mul ("+" mul | "-" mul)*
-/// mul        = unary ("*" unary | "/" unary)*
-/// unary      = ("+" | "-")? primary
-/// primary    = num | ident | "(" expr ")"
+#[derive(Debug)]
+pub enum Relational {
+    Identity(Add),
+    LessThan(Add, Box<Relational>),
+    LessEqual(Add, Box<Relational>),
+    GreaterThan(Add, Box<Relational>),
+    GreaterEqual(Add, Box<Relational>),
+}
+
+/// add = mul ("+" mul | "-" mul)*
+#[derive(Debug)]
+pub enum Add {
+    Identity(Mul),
+    Add(Mul, Box<Add>),
+    Sub(Mul, Box<Add>),
+}
+
+/// mul = unary ("*" unary | "/" unary)*
+#[derive(Debug)]
+pub enum Mul {
+    Identity(Unary),
+    Mul(Unary, Box<Mul>),
+    Div(Unary, Box<Mul>),
+}
+
+/// unary = ("+" | "-")? primary
+#[derive(Debug)]
+pub enum Unary {
+    Pos(Primary),
+    Neg(Primary),
+}
+
+/// primary = num | ident | "(" expr ")"
+#[derive(Debug)]
+pub enum Primary {
+    Num(i32),
+    Ident(i32),
+    Expr(Box<Expr>),
+}
+
 impl Ast {
     pub fn new(tokens: Vec<Token>) -> Self {
         Self {
@@ -110,11 +127,30 @@ impl Ast {
         self.locals.last_offset
     }
 
-    pub fn parse(&mut self) -> Option<Node> {
+    pub fn parse(&mut self) -> Program {
         self.parse_program()
     }
 
+    fn is_eof(&mut self) -> bool {
+        self.index >= self.tokens.len()
+    }
+
+    fn consume(&mut self, kind: &TokenKind) -> bool {
+        if self.is_eof() {
+            return false;
+        }
+        let t = &self.tokens[self.index];
+        if &t.kind != kind {
+            return false;
+        }
+        self.index += 1;
+        return true;
+    }
+
     fn expect(&mut self, kind: &TokenKind) {
+        if self.is_eof() {
+            panic!("Expected {:?}, however received EOF", kind);
+        }
         let t = &self.tokens[self.index];
         if &t.kind != kind {
             panic!("Unexpected token: {:?}", t);
@@ -122,230 +158,167 @@ impl Ast {
         self.index += 1;
     }
 
-    fn parse_program(&mut self) -> Option<Node> {
-        if self.tokens.len() == 0 {
-            return None;
-        }
-
-        let mut node = self.parse_stmt();
+    fn parse_program(&mut self) -> Program {
+        let mut stmt = vec![];
 
         while self.index < self.tokens.len() {
-            node = Node {
-                kind: NodeKind::Stmt,
-                left: Some(Box::new(node)),
-                right: Some(Box::new(self.parse_stmt())),
-            }
+            stmt.push(self.parse_stmt());
         }
 
-        Some(node)
+        Program(stmt)
     }
 
-    fn parse_stmt(&mut self) -> Node {
-        match self.tokens[self.index].kind {
-            TokenKind::If => {
-                self.index += 1;
-                self.expect(&TokenKind::LeftParen);
-                let node = Node {
-                    kind: NodeKind::If,
-                    left: Some(Box::new(self.parse_expr())),
-                    right: None,
-                };
-                self.expect(&TokenKind::RightParen);
-                if self.tokens[self.index].kind == TokenKind::Else {
-                    self.index += 1;
-                }
-            }
-            TokenKind::While => {}
-            TokenKind::For => {}
-            TokenKind::Return => {
-                self.index += 1;
-                let node = Node {
-                    kind: NodeKind::Return,
-                    left: Some(Box::new(self.parse_expr())),
-                    right: None,
-                };
-                self.expect(&TokenKind::SemiColon);
-                return node;
-            }
-        }
-        let node = self.parse_expr();
-        self.expect(&TokenKind::SemiColon);
-        node
-    }
-
-    fn parse_expr(&mut self) -> Node {
-        self.parse_assign()
-    }
-
-    fn parse_assign(&mut self) -> Node {
-        let mut node = self.parse_equality();
-
-        if self.tokens[self.index].kind == TokenKind::Equal {
-            self.index += 1;
-            node = Node {
-                kind: NodeKind::Assign,
-                left: Some(Box::new(node)),
-                right: Some(Box::new(self.parse_assign())),
+    fn parse_stmt(&mut self) -> Stmt {
+        if self.consume(&TokenKind::If) {
+            self.expect(&TokenKind::LeftParen);
+            let expr = self.parse_expr();
+            self.expect(&TokenKind::RightParen);
+            let stmt = self.parse_stmt();
+            let else_stmt = if self.consume(&TokenKind::Else) {
+                Some(Box::new(self.parse_stmt()))
+            } else {
+                None
             };
-        }
-
-        node
-    }
-
-    fn parse_equality(&mut self) -> Node {
-        let mut node = self.parse_relational();
-
-        loop {
-            match &self.tokens[self.index].kind {
-                TokenKind::DoubleEqual => {
-                    self.index += 1;
-                    node = Node {
-                        kind: NodeKind::DoubleEqual,
-                        left: Some(Box::new(node)),
-                        right: Some(Box::new(self.parse_relational())),
-                    };
-                }
-                TokenKind::NotEqual => {
-                    self.index += 1;
-                    node = Node {
-                        kind: NodeKind::NotEqual,
-                        left: Some(Box::new(node)),
-                        right: Some(Box::new(self.parse_relational())),
-                    };
-                }
-                _ => return node,
-            }
+            Stmt::If(expr, Box::new(stmt), else_stmt)
+        } else if self.consume(&TokenKind::While) {
+            self.expect(&TokenKind::LeftParen);
+            let expr = self.parse_expr();
+            self.expect(&TokenKind::RightParen);
+            let stmt = self.parse_stmt();
+            Stmt::While(expr, Box::new(stmt))
+        } else if self.consume(&TokenKind::For) {
+            self.parse_for()
+        } else if self.consume(&TokenKind::Return) {
+            let expr = self.parse_expr();
+            self.expect(&TokenKind::SemiColon);
+            Stmt::Return(expr)
+        } else {
+            let expr = self.parse_expr();
+            self.expect(&TokenKind::SemiColon);
+            Stmt::Expr(expr)
         }
     }
 
-    fn parse_relational(&mut self) -> Node {
-        let mut node = self.parse_add();
+    fn parse_for(&mut self) -> Stmt {
+        self.expect(&TokenKind::LeftParen);
+        let expr1 = if !self.consume(&TokenKind::SemiColon) {
+            Some(self.parse_expr())
+        } else {
+            None
+        };
+        let expr2 = if !self.consume(&TokenKind::SemiColon) {
+            Some(self.parse_expr())
+        } else {
+            None
+        };
+        let expr3 = if !self.consume(&TokenKind::RightParen) {
+            let expr = Some(self.parse_expr());
+            self.expect(&TokenKind::RightParen);
+            expr
+        } else {
+            None
+        };
+        let stmt = self.parse_stmt();
+        Stmt::For(expr1, expr2, expr3, Box::new(stmt))
+    }
 
-        loop {
-            match &self.tokens[self.index].kind {
-                TokenKind::LessThan => {
-                    self.index += 1;
-                    node = Node {
-                        kind: NodeKind::LessThan,
-                        left: Some(Box::new(node)),
-                        right: Some(Box::new(self.parse_add())),
-                    };
-                }
-                TokenKind::LessEqual => {
-                    self.index += 1;
-                    node = Node {
-                        kind: NodeKind::LessEqual,
-                        left: Some(Box::new(node)),
-                        right: Some(Box::new(self.parse_add())),
-                    };
-                }
-                TokenKind::GreaterThan => {
-                    self.index += 1;
-                    node = Node {
-                        kind: NodeKind::LessThan,
-                        left: Some(Box::new(self.parse_add())),
-                        right: Some(Box::new(node)),
-                    };
-                }
-                TokenKind::GreaterEqual => {
-                    self.index += 1;
-                    node = Node {
-                        kind: NodeKind::LessEqual,
-                        left: Some(Box::new(self.parse_add())),
-                        right: Some(Box::new(node)),
-                    };
-                }
-                _ => return node,
-            }
+    fn parse_expr(&mut self) -> Expr {
+        Expr::Assign(self.parse_assign())
+    }
+
+    fn parse_assign(&mut self) -> Assign {
+        let eq = self.parse_equality();
+        let assign = if self.consume(&TokenKind::Equal) {
+            Some(Box::new(self.parse_assign()))
+        } else {
+            None
+        };
+
+        Assign { eq, assign }
+    }
+
+    fn parse_equality(&mut self) -> Equality {
+        let rel = self.parse_relational();
+
+        if self.consume(&TokenKind::DoubleEqual) {
+            Equality::Equal(rel, Box::new(self.parse_equality()))
+        } else if self.consume(&TokenKind::NotEqual) {
+            Equality::NotEqual(rel, Box::new(self.parse_equality()))
+        } else {
+            Equality::Identity(rel)
         }
     }
 
-    fn parse_add(&mut self) -> Node {
-        let mut node = self.parse_mul();
+    fn parse_relational(&mut self) -> Relational {
+        let add = self.parse_add();
 
-        loop {
-            match &self.tokens[self.index].kind {
-                TokenKind::Plus => {
-                    self.index += 1;
-                    node = Node {
-                        kind: NodeKind::Add,
-                        left: Some(Box::new(node)),
-                        right: Some(Box::new(self.parse_mul())),
-                    };
-                }
-                TokenKind::Minus => {
-                    self.index += 1;
-                    node = Node {
-                        kind: NodeKind::Sub,
-                        left: Some(Box::new(node)),
-                        right: Some(Box::new(self.parse_mul())),
-                    };
-                }
-                _ => return node,
-            }
+        if self.consume(&TokenKind::LessThan) {
+            Relational::LessThan(add, Box::new(self.parse_relational()))
+        } else if self.consume(&TokenKind::LessEqual) {
+            Relational::LessEqual(add, Box::new(self.parse_relational()))
+        } else if self.consume(&TokenKind::GreaterThan) {
+            Relational::GreaterThan(add, Box::new(self.parse_relational()))
+        } else if self.consume(&TokenKind::GreaterEqual) {
+            Relational::GreaterEqual(add, Box::new(self.parse_relational()))
+        } else {
+            Relational::Identity(add)
         }
     }
 
-    fn parse_mul(&mut self) -> Node {
-        let mut node = self.parse_unary();
+    fn parse_add(&mut self) -> Add {
+        let mul = self.parse_mul();
 
-        loop {
-            match &self.tokens[self.index].kind {
-                TokenKind::Star => {
-                    self.index += 1;
-                    node = Node {
-                        kind: NodeKind::Mul,
-                        left: Some(Box::new(node)),
-                        right: Some(Box::new(self.parse_unary())),
-                    }
-                }
-                TokenKind::Slash => {
-                    self.index += 1;
-                    node = Node {
-                        kind: NodeKind::Div,
-                        left: Some(Box::new(node)),
-                        right: Some(Box::new(self.parse_unary())),
-                    }
-                }
-                _ => return node,
-            }
+        if self.consume(&TokenKind::Plus) {
+            Add::Add(mul, Box::new(self.parse_add()))
+        } else if self.consume(&TokenKind::Minus) {
+            Add::Sub(mul, Box::new(self.parse_add()))
+        } else {
+            Add::Identity(mul)
         }
     }
 
-    fn parse_unary(&mut self) -> Node {
+    fn parse_mul(&mut self) -> Mul {
+        let unary = self.parse_unary();
+
+        if self.consume(&TokenKind::Star) {
+            Mul::Mul(unary, Box::new(self.parse_mul()))
+        } else if self.consume(&TokenKind::Slash) {
+            Mul::Div(unary, Box::new(self.parse_mul()))
+        } else {
+            Mul::Identity(unary)
+        }
+    }
+
+    fn parse_unary(&mut self) -> Unary {
         match self.tokens[self.index].kind {
             TokenKind::Plus => {
                 self.index += 1;
-                self.parse_primary()
+                Unary::Pos(self.parse_primary())
             }
             TokenKind::Minus => {
                 self.index += 1;
-                Node {
-                    kind: NodeKind::Sub,
-                    left: Some(Box::new(Node::new_number(0))),
-                    right: Some(Box::new(self.parse_primary())),
-                }
+                Unary::Neg(self.parse_primary())
             }
-            _ => self.parse_primary(),
+            _ => Unary::Pos(self.parse_primary()),
         }
     }
 
-    fn parse_primary(&mut self) -> Node {
+    fn parse_primary(&mut self) -> Primary {
         match &self.tokens[self.index].kind {
             TokenKind::LeftParen => {
                 self.index += 1;
-                let node = self.parse_expr();
+                let expr = self.parse_expr();
                 self.expect(&TokenKind::RightParen);
-                node
+                Primary::Expr(Box::new(expr))
             }
             TokenKind::Num(num) => {
                 self.index += 1;
-                Node::new_number(*num)
+                Primary::Num(*num)
             }
             TokenKind::Ident(ident) => {
                 self.index += 1;
                 let offset = self.locals.get_lvar_offset(ident);
-                Node::new_ident(offset)
+                Primary::Ident(offset)
             }
 
             t => panic!("Unexpected token: {:?}", t),
