@@ -153,7 +153,10 @@ impl Ast {
         }
         let t = &self.tokens[self.index];
         if &t.kind != kind {
-            panic!("Unexpected token: {:?}", t);
+            panic!(
+                "Unexpected token at index {}: {:?} (was expecting {:?})",
+                self.index, t, kind
+            );
         }
         self.index += 1;
     }
@@ -202,12 +205,16 @@ impl Ast {
     fn parse_for(&mut self) -> Stmt {
         self.expect(&TokenKind::LeftParen);
         let expr1 = if !self.consume(&TokenKind::SemiColon) {
-            Some(self.parse_expr())
+            let expr = Some(self.parse_expr());
+            self.expect(&TokenKind::SemiColon);
+            expr
         } else {
             None
         };
         let expr2 = if !self.consume(&TokenKind::SemiColon) {
-            Some(self.parse_expr())
+            let expr = Some(self.parse_expr());
+            self.expect(&TokenKind::SemiColon);
+            expr
         } else {
             None
         };

@@ -63,5 +63,49 @@ assert 14 '
 a = 3;
 b = 5 * 6 - 8;
 return a + b / 2;'
+# step 12
+assert 4 '
+c = 3;
+if (1)
+  c = 4;
+return c;
+'
+assert 1 '
+return 1 < 2;
+'
+assert 4 '
+c = 3;
+if (1 < 2)
+  c = 4;
+return c;
+'
+assert 1 '
+a = 1;
+b = 2;
+if (a < b)
+  return a;
+else
+  return b;
+'
+assert 2 '
+a = 1;
+b = 2;
+if (a > b)
+  return a;
+else
+  return b;
+'
+assert 10 '
+i = 0;
+while (i < 10)
+  i = i + 1;
+return i;
+'
+assert 45 '
+tot = 0;
+for (i = 0; i < 10; i = i + 1)
+  tot = tot + i;
+return tot;
+'
 
 echo OK

@@ -6,6 +6,8 @@ mod token;
 
 use std::env;
 
+use machine_code::Codegen;
+
 use crate::ast::Ast;
 use crate::token::Tokens;
 
@@ -26,5 +28,6 @@ fn main() {
     let last_offset = ast.get_last_offset();
     dbg!(&program);
 
-    machine_code::generate(program, last_offset);
+    let mut codegen = Codegen::new();
+    codegen.generate(program, last_offset);
 }
