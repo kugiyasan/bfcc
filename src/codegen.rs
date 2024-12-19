@@ -1,5 +1,7 @@
 use crate::ast::{Add, Assign, Equality, Expr, Mul, Primary, Program, Relational, Stmt, Unary};
 
+const ARGUMENT_REGISTERS: [&str; 6] = ["rdi", "rsi", "rdx", "rcx", "r8", "r9"];
+
 pub struct Codegen {
     label_index: i32,
 }
@@ -284,13 +286,26 @@ impl Codegen {
                 println!("  mov rax, [rax]");
                 println!("  push rax");
             }
-            Primary::FunctionCall(name) => {
+            Primary::FunctionCall(name, args) => {
+                let n_args = args.len();
+                if n_args > 6 {
+                    panic!("Function has too many arguments (max 6), got {}", n_args);
+                }
+                for arg in args {
+                    self.gen_expr(arg);
+                }
+
+                for reg in ARGUMENT_REGISTERS.iter().take(n_args).rev() {
+                    println!("  pop {}", reg);
+                }
+
                 println!("  push rbp");
                 println!("  mov rbp, rsp");
                 println!("  and rsp, {}", u64::MAX - 15);
                 println!("  call {name}");
                 println!("  mov rsp, rbp");
                 println!("  pop rbp");
+                println!("  sub rsp, {}", 8 * n_args);
                 println!("  push rax");
             }
             Primary::Expr(expr) => self.gen_expr(*expr),

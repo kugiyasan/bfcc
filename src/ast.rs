@@ -109,13 +109,13 @@ pub enum Unary {
 }
 
 /// primary = num
-///         | ident ("(" ")")?
+///         | ident ("(" (expr (, expr)*)? ")")?
 ///         | "(" expr ")"
 #[derive(Debug)]
 pub enum Primary {
     Num(i32),
     Ident(i32),
-    FunctionCall(String),
+    FunctionCall(String, Vec<Expr>),
     Expr(Box<Expr>),
 }
 
@@ -160,7 +160,7 @@ impl Ast {
         if &t.kind != kind {
             panic!(
                 "Unexpected token at index {}: {:?} (was expecting {:?})",
-                self.index, t, kind
+                self.index, t.kind, kind
             );
         }
         self.index += 1;
@@ -335,17 +335,30 @@ impl Ast {
             }
             TokenKind::Ident(ident) => {
                 self.index += 1;
-                let ident = ident.clone();
-                if self.consume(&TokenKind::LeftParen) {
-                    self.expect(&TokenKind::RightParen);
-                    Primary::FunctionCall(ident)
-                } else {
-                    let offset = self.locals.get_lvar_offset(&ident);
-                    Primary::Ident(offset)
-                }
+                self.parse_ident(ident.clone())
             }
 
             t => panic!("Unexpected token: {:?}", t),
+        }
+    }
+
+    fn parse_ident(&mut self, name: String) -> Primary {
+        if self.consume(&TokenKind::LeftParen) {
+            let mut args = vec![];
+
+            if self.consume(&TokenKind::RightParen) {
+                Primary::FunctionCall(name, args)
+            } else {
+                args.push(self.parse_expr());
+                while self.consume(&TokenKind::Comma) {
+                    args.push(self.parse_expr());
+                }
+                self.expect(&TokenKind::RightParen);
+                Primary::FunctionCall(name, args)
+            }
+        } else {
+            let offset = self.locals.get_lvar_offset(&name);
+            Primary::Ident(offset)
         }
     }
 }

@@ -2,20 +2,25 @@
 
 RED='\033[0;31m'
 GREEN='\033[0;32m'
+PURPLE='\033[0;35m'
 NC='\033[0m'
 
 TESTS_DIR="$(dirname "$(realpath "$0")")"
 REPO_ROOT="$(dirname "$TESTS_DIR")"
 BFCC="$REPO_ROOT/target/debug/bfcc"
 
+cd "$TESTS_DIR" || exit
+
 assert() {
   expected="$1"
   input="$2"
 
   "$BFCC" "$input" > tmp.s
-  cc -o tmp tmp.s "$TESTS_DIR/foo.o"
+  cc -o tmp tmp.s foo.o
+  printf '%b' "$PURPLE"
   ./tmp
   actual="$?"
+  printf '%b' "$NC"
 
   if [ "$actual" = "$expected" ]; then
     printf "${GREEN}%s => %s${NC}\n" "$input" "$actual"
@@ -28,10 +33,10 @@ assert() {
 
 build() {
   cargo build
-  cc -c "$TESTS_DIR/foo.o" "$TESTS_DIR/foo.c"
+  cc -c foo.o foo.c
 }
 
-build
+build || exit
 
 # step 1
 assert 0 '0;'
@@ -135,5 +140,6 @@ return tot;
 '
 # step 14
 assert 0 'foo();'
+assert 0 'fooxy(3, 4);'
 
-echo OK
+echo 'All tests passed!'

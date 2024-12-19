@@ -37,6 +37,7 @@ pub enum TokenKind {
 
     LeftBracket,
     RightBracket,
+    Comma,
 }
 
 #[derive(Debug)]
@@ -127,6 +128,7 @@ impl Tokens {
                 ';' => self.new_token(TokenKind::SemiColon, ";"),
                 '{' => self.new_token(TokenKind::LeftBracket, "{"),
                 '}' => self.new_token(TokenKind::RightBracket, "}"),
+                ',' => self.new_token(TokenKind::Comma, ","),
                 _ => panic!("can't tokenize"),
             }
         }
