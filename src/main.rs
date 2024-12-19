@@ -1,14 +1,13 @@
 // https://www.sigbus.info/compilerbook
 
 mod ast;
-mod machine_code;
+mod codegen;
 mod token;
 
 use std::env;
 
-use machine_code::Codegen;
-
 use crate::ast::Ast;
+use crate::codegen::Codegen;
 use crate::token::Tokens;
 
 fn main() {
