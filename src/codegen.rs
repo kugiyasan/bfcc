@@ -3,10 +3,10 @@ use crate::ast::{Add, Assign, Equality, Expr, Mul, Primary, Program, Relational,
 const ARGUMENT_REGISTERS: [&str; 6] = ["rdi", "rsi", "rdx", "rcx", "r8", "r9"];
 
 pub struct Codegen {
-    label_index: i32,
+    label_index: usize,
 }
 
-fn prologue(offset: i32) {
+fn prologue(offset: usize) {
     println!("  push rbp");
     println!("  mov rbp, rsp");
     println!("  sub rsp, {}", offset);
@@ -23,7 +23,7 @@ impl Codegen {
         Self { label_index: 0 }
     }
 
-    pub fn generate(&mut self, program: Program, offset: i32) {
+    pub fn generate(&mut self, program: Program, offset: usize) {
         println!(".intel_syntax noprefix");
         println!(".globl main");
         println!("main:");
@@ -53,7 +53,7 @@ impl Codegen {
         println!("  push rax");
     }
 
-    fn gen_lval(&mut self, offset: i32) {
+    fn gen_lval(&mut self, offset: usize) {
         println!("  mov rax, rbp");
         println!("  sub rax, {}", offset);
         println!("  push rax");

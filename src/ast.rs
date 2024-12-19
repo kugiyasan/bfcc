@@ -4,8 +4,8 @@ use crate::token::{Token, TokenKind};
 
 #[derive(Debug)]
 struct LocalVariables {
-    locals: HashMap<String, i32>,
-    last_offset: i32,
+    locals: HashMap<String, usize>,
+    last_offset: usize,
 }
 
 #[derive(Debug)]
@@ -23,7 +23,7 @@ impl LocalVariables {
         }
     }
 
-    pub fn get_lvar_offset(&mut self, ident: &str) -> i32 {
+    pub fn get_lvar_offset(&mut self, ident: &str) -> usize {
         if let Some(offset) = self.locals.get(ident) {
             return *offset;
         }
@@ -114,7 +114,7 @@ pub enum Unary {
 #[derive(Debug)]
 pub enum Primary {
     Num(i32),
-    Ident(i32),
+    Ident(usize),
     FunctionCall(String, Vec<Expr>),
     Expr(Box<Expr>),
 }
@@ -128,7 +128,7 @@ impl Ast {
         }
     }
 
-    pub fn get_last_offset(&self) -> i32 {
+    pub fn get_last_offset(&self) -> usize {
         self.locals.last_offset
     }
 
