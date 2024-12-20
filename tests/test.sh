@@ -145,5 +145,56 @@ return tot;
 # step 14
 assertImplicitMain 0 'foo();'
 assertImplicitMain 0 'fooxy(3, 4);'
+# step 15
+assert 15 '
+ret() {
+  return 15;
+}
+
+main() {
+  return ret();
+}
+'
+assert 15 '
+id(x) {
+  return x;
+}
+
+main() {
+  return id(15);
+}
+'
+assert 15 '
+sub(a, b) {
+  return a - b;
+}
+
+main() {
+  return sub(20, 5);
+}
+'
+assert 55 '
+fib(n) {
+  if (n <= 2)
+    return 1;
+  return fib(n - 1) + fib(n - 2);
+}
+
+main() {
+  return fib(10);
+}
+'
+assert 55 '
+sum(m, n) {
+  acc = 0;
+  for (i = m; i <= n; i = i + 1)
+    acc = acc + i;
+  return acc;
+}
+
+main() {
+  return sum(1, 10);
+}
+'
 
 echo 'All tests passed!'

@@ -8,12 +8,6 @@ pub struct Codegen {
     label_index: usize,
 }
 
-fn prologue(offset: usize) {
-    println!("  push rbp");
-    println!("  mov rbp, rsp");
-    println!("  sub rsp, {}", offset);
-}
-
 fn epilogue() {
     println!("  mov rsp, rbp");
     println!("  pop rbp");
@@ -28,7 +22,6 @@ impl Codegen {
     pub fn generate(&mut self, program: Program) {
         println!(".intel_syntax noprefix");
         println!(".globl main");
-        println!("main:");
         self.gen_program(program);
     }
 
@@ -63,15 +56,27 @@ impl Codegen {
         }
     }
 
-    fn gen_func(&mut self, Func { name, args, stmts, local_offset }: Func) {
-        let args_offset = args.len() * 8;
-        let offset = args_offset + local_offset;
-        println!(".{name}:");
-        prologue(offset);
+    fn gen_func(
+        &mut self,
+        Func {
+            name,
+            args,
+            stmts,
+            local_offset,
+        }: Func,
+    ) {
+        println!("{name}:");
+        println!("  push rbp");
+        println!("  mov rbp, rsp");
+        for reg in ARGUMENT_REGISTERS.iter().take(args.len()) {
+            println!("  push {reg}");
+        }
+        println!("  sub rsp, {}", local_offset);
 
         for s in stmts {
             self.gen_stmt(s);
         }
+
         epilogue();
     }
 
@@ -311,7 +316,6 @@ impl Codegen {
                 println!("  call {name}");
                 println!("  mov rsp, rbp");
                 println!("  pop rbp");
-                println!("  sub rsp, {}", 8 * n_args);
                 println!("  push rax");
             }
             Primary::Expr(expr) => self.gen_expr(*expr),
