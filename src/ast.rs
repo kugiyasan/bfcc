@@ -39,11 +39,9 @@ impl LocalVariables {
     }
 }
 
-/// program = func*
 #[derive(Debug)]
 pub struct Program(pub Vec<Func>);
 
-// func = name "(" (expr (, expr)*)? ")" "{" stmt* "}"
 #[derive(Debug)]
 pub struct Func {
     pub name: String,
@@ -52,12 +50,6 @@ pub struct Func {
     pub local_offset: usize,
 }
 
-/// stmt = expr ";"
-///      | "{" stmt* "}"
-///      | "if" "(" expr ")" stmt ("else" stmt)?
-///      | "while" "(" expr ")" stmt
-///      | "for" "(" expr? ";" expr? ";" expr? ")" stmt
-///      | "return" expr ";"
 #[derive(Debug)]
 pub enum Stmt {
     Expr(Expr),
@@ -68,20 +60,17 @@ pub enum Stmt {
     Return(Expr),
 }
 
-/// expr = assign
 #[derive(Debug)]
 pub enum Expr {
     Assign(Assign),
 }
 
-/// assign = equality ("=" assign)?
 #[derive(Debug)]
 pub struct Assign {
     pub eq: Equality,
     pub assign: Option<Box<Assign>>,
 }
 
-/// equality = relational ("==" relational | "!=" relational)*
 #[derive(Debug)]
 pub enum Equality {
     Identity(Relational),
@@ -89,7 +78,6 @@ pub enum Equality {
     NotEqual(Relational, Box<Equality>),
 }
 
-/// relational = add ("<" add | "<=" add | ">" add | ">=" add)*
 #[derive(Debug)]
 pub enum Relational {
     Identity(Add),
@@ -99,7 +87,6 @@ pub enum Relational {
     GreaterEqual(Add, Box<Relational>),
 }
 
-/// add = mul ("+" mul | "-" mul)*
 #[derive(Debug)]
 pub enum Add {
     Identity(Mul),
@@ -107,7 +94,6 @@ pub enum Add {
     Sub(Mul, Box<Add>),
 }
 
-/// mul = unary ("*" unary | "/" unary)*
 #[derive(Debug)]
 pub enum Mul {
     Identity(Unary),
@@ -115,16 +101,12 @@ pub enum Mul {
     Div(Unary, Box<Mul>),
 }
 
-/// unary = ("+" | "-")? primary
 #[derive(Debug)]
 pub enum Unary {
     Pos(Primary),
     Neg(Primary),
 }
 
-/// primary = num
-///         | ident ("(" (expr (, expr)*)? ")")?
-///         | "(" expr ")"
 #[derive(Debug)]
 pub enum Primary {
     Num(i32),
@@ -191,6 +173,7 @@ impl Ast {
         );
     }
 
+    /// program = func*
     fn parse_program(&mut self) -> Program {
         let mut funcs = vec![];
 
@@ -201,6 +184,7 @@ impl Ast {
         Program(funcs)
     }
 
+    // func = name "(" (expr (, expr)*)? ")" "{" stmt* "}"
     fn parse_func(&mut self) -> Func {
         self.locals.reset();
 
@@ -246,6 +230,12 @@ impl Ast {
         args
     }
 
+    /// stmt = expr ";"
+    ///      | "{" stmt* "}"
+    ///      | "if" "(" expr ")" stmt ("else" stmt)?
+    ///      | "while" "(" expr ")" stmt
+    ///      | "for" "(" expr? ";" expr? ";" expr? ")" stmt
+    ///      | "return" expr ";"
     fn parse_stmt(&mut self) -> Stmt {
         if self.consume(&TokenKind::LeftBracket) {
             let mut stmt = vec![];
@@ -310,10 +300,12 @@ impl Ast {
         Stmt::For(expr1, expr2, expr3, Box::new(stmt))
     }
 
+    /// expr = assign
     fn parse_expr(&mut self) -> Expr {
         Expr::Assign(self.parse_assign())
     }
 
+    /// assign = equality ("=" assign)?
     fn parse_assign(&mut self) -> Assign {
         let eq = self.parse_equality();
         let assign = if self.consume(&TokenKind::Equal) {
@@ -325,6 +317,7 @@ impl Ast {
         Assign { eq, assign }
     }
 
+    /// equality = relational ("==" relational | "!=" relational)*
     fn parse_equality(&mut self) -> Equality {
         let rel = self.parse_relational();
 
@@ -337,6 +330,7 @@ impl Ast {
         }
     }
 
+    /// relational = add ("<" add | "<=" add | ">" add | ">=" add)*
     fn parse_relational(&mut self) -> Relational {
         let add = self.parse_add();
 
@@ -353,6 +347,7 @@ impl Ast {
         }
     }
 
+    /// add = mul ("+" mul | "-" mul)*
     fn parse_add(&mut self) -> Add {
         let mul = self.parse_mul();
 
@@ -365,6 +360,7 @@ impl Ast {
         }
     }
 
+    /// mul = unary ("*" unary | "/" unary)*
     fn parse_mul(&mut self) -> Mul {
         let unary = self.parse_unary();
 
@@ -377,6 +373,7 @@ impl Ast {
         }
     }
 
+    /// unary = ("+" | "-")? primary
     fn parse_unary(&mut self) -> Unary {
         match self.tokens[self.index].kind {
             TokenKind::Plus => {
@@ -391,6 +388,9 @@ impl Ast {
         }
     }
 
+    /// primary = num
+    ///         | ident ("(" (expr (, expr)*)? ")")?
+    ///         | "(" expr ")"
     fn parse_primary(&mut self) -> Primary {
         match &self.tokens[self.index].kind {
             TokenKind::LeftParen => {
