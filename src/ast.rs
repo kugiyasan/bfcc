@@ -105,6 +105,8 @@ pub enum Mul {
 pub enum Unary {
     Pos(Primary),
     Neg(Primary),
+    Ref(Box<Unary>),
+    Deref(Box<Unary>),
 }
 
 #[derive(Debug)]
@@ -373,7 +375,10 @@ impl Ast {
         }
     }
 
-    /// unary = ("+" | "-")? primary
+    /// unary = "+"? primary
+    ///       | "-"? primary
+    ///       | "*" unary
+    ///       | "&" unary
     fn parse_unary(&mut self) -> Unary {
         match self.tokens[self.index].kind {
             TokenKind::Plus => {
@@ -383,6 +388,14 @@ impl Ast {
             TokenKind::Minus => {
                 self.index += 1;
                 Unary::Neg(self.parse_primary())
+            }
+            TokenKind::Ampersand => {
+                self.index += 1;
+                Unary::Ref(Box::new(self.parse_unary()))
+            }
+            TokenKind::Star => {
+                self.index += 1;
+                Unary::Deref(Box::new(self.parse_unary()))
             }
             _ => Unary::Pos(self.parse_primary()),
         }

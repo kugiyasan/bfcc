@@ -38,6 +38,8 @@ pub enum TokenKind {
     LeftBracket,
     RightBracket,
     Comma,
+
+    Ampersand,
 }
 
 #[derive(Clone, Debug)]
@@ -129,6 +131,7 @@ impl Tokens {
                 '{' => self.new_token(TokenKind::LeftBracket, "{"),
                 '}' => self.new_token(TokenKind::RightBracket, "}"),
                 ',' => self.new_token(TokenKind::Comma, ","),
+                '&' => self.new_token(TokenKind::Ampersand, "&"),
                 _ => panic!("can't tokenize"),
             }
         }

@@ -285,6 +285,17 @@ impl Codegen {
                 self.gen_primary(primary);
                 self.gen_oneop("  neg rax");
             }
+            Unary::Ref(unary) => {
+                if let Unary::Pos(Primary::Ident(offset)) = *unary {
+                    self.gen_lval(offset);
+                }
+            }
+            Unary::Deref(unary) => {
+                self.gen_unary(*unary);
+                println!("  pop rax\n");
+                println!("  mov rax, [rax]\n");
+                println!("  push rax\n");
+            }
         }
     }
 

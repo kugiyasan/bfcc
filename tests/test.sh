@@ -196,5 +196,17 @@ main() {
   return sum(1, 10);
 }
 '
+# step 16
+assertImplicitMain 3 '
+x = 3;
+y = &x;
+return *y;
+'
+assertImplicitMain 3 '
+x = 3;
+y = 5;
+z = &y + 8;
+return *z;
+'
 
 echo 'All tests passed!'
