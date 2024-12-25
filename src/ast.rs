@@ -200,8 +200,8 @@ impl Ast {
         let args = self.parse_args();
 
         let mut stmts = vec![];
-        self.expect(&TokenKind::LeftBracket);
-        while !self.consume(&TokenKind::RightBracket) {
+        self.expect(&TokenKind::OpenCurlyBrace);
+        while !self.consume(&TokenKind::CloseCurlyBrace) {
             stmts.push(self.parse_stmt());
         }
 
@@ -216,9 +216,9 @@ impl Ast {
     /// args = ("int" ident ("," "int" ident)*)?
     fn parse_args(&mut self) -> Vec<usize> {
         let mut args = vec![];
-        self.expect(&TokenKind::LeftParen);
+        self.expect(&TokenKind::OpenParen);
 
-        if !self.consume(&TokenKind::RightParen) {
+        if !self.consume(&TokenKind::CloseParen) {
             self.expect(&TokenKind::Int);
             let ident = self.expect_ident();
             let offset = self.locals.get_lvar_offset(&ident);
@@ -229,7 +229,7 @@ impl Ast {
                 let offset = self.locals.get_lvar_offset(&ident);
                 args.push(offset);
             }
-            self.expect(&TokenKind::RightParen);
+            self.expect(&TokenKind::CloseParen);
         }
 
         args
@@ -242,16 +242,16 @@ impl Ast {
     ///      | "for" "(" expr? ";" expr? ";" expr? ")" stmt
     ///      | "return" expr ";"
     fn parse_stmt(&mut self) -> Stmt {
-        if self.consume(&TokenKind::LeftBracket) {
+        if self.consume(&TokenKind::OpenCurlyBrace) {
             let mut stmt = vec![];
-            while !self.consume(&TokenKind::RightBracket) {
+            while !self.consume(&TokenKind::CloseCurlyBrace) {
                 stmt.push(self.parse_stmt());
             }
             Stmt::Block(stmt)
         } else if self.consume(&TokenKind::If) {
-            self.expect(&TokenKind::LeftParen);
+            self.expect(&TokenKind::OpenParen);
             let expr = self.parse_expr();
-            self.expect(&TokenKind::RightParen);
+            self.expect(&TokenKind::CloseParen);
             let stmt = self.parse_stmt();
             let else_stmt = if self.consume(&TokenKind::Else) {
                 Some(Box::new(self.parse_stmt()))
@@ -260,9 +260,9 @@ impl Ast {
             };
             Stmt::If(expr, Box::new(stmt), else_stmt)
         } else if self.consume(&TokenKind::While) {
-            self.expect(&TokenKind::LeftParen);
+            self.expect(&TokenKind::OpenParen);
             let expr = self.parse_expr();
-            self.expect(&TokenKind::RightParen);
+            self.expect(&TokenKind::CloseParen);
             let stmt = self.parse_stmt();
             Stmt::While(expr, Box::new(stmt))
         } else if self.consume(&TokenKind::For) {
@@ -279,7 +279,7 @@ impl Ast {
     }
 
     fn parse_for(&mut self) -> Stmt {
-        self.expect(&TokenKind::LeftParen);
+        self.expect(&TokenKind::OpenParen);
         let expr1 = if !self.consume(&TokenKind::SemiColon) {
             let expr = Some(self.parse_expr());
             self.expect(&TokenKind::SemiColon);
@@ -294,9 +294,9 @@ impl Ast {
         } else {
             None
         };
-        let expr3 = if !self.consume(&TokenKind::RightParen) {
+        let expr3 = if !self.consume(&TokenKind::CloseParen) {
             let expr = Some(self.parse_expr());
-            self.expect(&TokenKind::RightParen);
+            self.expect(&TokenKind::CloseParen);
             expr
         } else {
             None
@@ -409,10 +409,10 @@ impl Ast {
     ///         | "(" expr ")"
     fn parse_primary(&mut self) -> Primary {
         match &self.tokens[self.index].kind {
-            TokenKind::LeftParen => {
+            TokenKind::OpenParen => {
                 self.index += 1;
                 let expr = self.parse_expr();
-                self.expect(&TokenKind::RightParen);
+                self.expect(&TokenKind::CloseParen);
                 Primary::Expr(Box::new(expr))
             }
             TokenKind::Num(num) => {
@@ -429,17 +429,17 @@ impl Ast {
     }
 
     fn parse_ident(&mut self, name: String) -> Primary {
-        if self.consume(&TokenKind::LeftParen) {
+        if self.consume(&TokenKind::OpenParen) {
             let mut args = vec![];
 
-            if self.consume(&TokenKind::RightParen) {
+            if self.consume(&TokenKind::CloseParen) {
                 Primary::FunctionCall(name, args)
             } else {
                 args.push(self.parse_expr());
                 while self.consume(&TokenKind::Comma) {
                     args.push(self.parse_expr());
                 }
-                self.expect(&TokenKind::RightParen);
+                self.expect(&TokenKind::CloseParen);
                 Primary::FunctionCall(name, args)
             }
         } else {

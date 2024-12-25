@@ -1,47 +1,205 @@
 use phf::phf_map;
 
 static KEYWORDS: phf::Map<&str, TokenKind> = phf_map! {
-    "return" => TokenKind::Return,
-    "if" => TokenKind::If,
+    "auto" => TokenKind::Auto,
+    "break" => TokenKind::Break,
+    "case" => TokenKind::Case,
+    "char" => TokenKind::Char,
+    "const" => TokenKind::Const,
+    "continue" => TokenKind::Continue,
+    "default" => TokenKind::Default,
+    "do" => TokenKind::Do,
+    "double" => TokenKind::Double,
     "else" => TokenKind::Else,
-    "while" => TokenKind::While,
+    "enum" => TokenKind::Enum,
+
+    "extern" => TokenKind::Extern,
+    "float" => TokenKind::Float,
     "for" => TokenKind::For,
+    "goto" => TokenKind::Goto,
+    "if" => TokenKind::If,
+    "inline" => TokenKind::Inline,
     "int" => TokenKind::Int,
+    "long" => TokenKind::Long,
+    "register" => TokenKind::Register,
+    "restrict" => TokenKind::Restrict,
+    "return" => TokenKind::Return,
+    "short" => TokenKind::Short,
+    "signed" => TokenKind::Signed,
+
+    "sizeof" => TokenKind::Sizeof,
+    "static" => TokenKind::Static,
+    "struct" => TokenKind::Struct,
+    "switch" => TokenKind::Switch,
+    "typedef" => TokenKind::Typedef,
+    "union" => TokenKind::Union,
+    "unsigned" => TokenKind::Unsigned,
+    "void" => TokenKind::Void,
+    "volatile" => TokenKind::Volatile,
+    "while" => TokenKind::While,
+    "_Complex" => TokenKind::Complex,
+    "_Imaginary" => TokenKind::Imaginary,
+};
+
+static ONE_SYMBOL_TOKENS: phf::Map<char, TokenKind> = phf_map! {
+    '?' => TokenKind::Question,
+    '=' => TokenKind::Equal,
+    '.' => TokenKind::Dot,
+    ',' => TokenKind::Comma,
+    ':' => TokenKind::Colon,
+    ';' => TokenKind::SemiColon,
+
+    '(' => TokenKind::OpenParen,
+    ')' => TokenKind::CloseParen,
+    '{' => TokenKind::OpenCurlyBrace,
+    '}' => TokenKind::CloseCurlyBrace,
+    '[' => TokenKind::OpenSquareBrace,
+    ']' => TokenKind::CloseSquareBrace,
+
+    '<' => TokenKind::LessThan,
+    '>' => TokenKind::GreaterThan,
+
+    '&' => TokenKind::Ampersand,
+    '|' => TokenKind::Pipe,
+    '^' => TokenKind::Hat,
+    '~' => TokenKind::Tilde,
+    '!' => TokenKind::Not,
+
+    '+' => TokenKind::Plus,
+    '-' => TokenKind::Minus,
+    '*' => TokenKind::Star,
+    '/' => TokenKind::Slash,
+    '%' => TokenKind::Percent,
+};
+
+static TWO_SYMBOLS_TOKENS: phf::Map<&str, TokenKind> = phf_map! {
+    "*=" => TokenKind::StarEqual,
+    "/=" => TokenKind::SlashEqual,
+    "%=" => TokenKind::PercentEqual,
+    "+=" => TokenKind::PlusEqual,
+    "-=" => TokenKind::MinusEqual,
+    "&=" => TokenKind::AmpersandEqual,
+    "^=" => TokenKind::HatEqual,
+    "|=" => TokenKind::PipeEqual,
+
+    "<=" => TokenKind::LessEqual,
+    ">=" => TokenKind::GreaterEqual,
+    "==" => TokenKind::DoubleEqual,
+    "!=" => TokenKind::NotEqual,
+
+    "||" => TokenKind::PipePipe,
+    "&&" => TokenKind::AmpersandAmpersand,
+    "<<" => TokenKind::LeftShift,
+    ">>" => TokenKind::RightShift,
+    "++" => TokenKind::PlusPlus,
+    "--" => TokenKind::MinusMinus,
+    "->" => TokenKind::Arrow,
+};
+
+static THREE_SYMBOLS_TOKENS: phf::Map<&str, TokenKind> = phf_map! {
+    ">>=" => TokenKind::RightShiftAssign,
+    "<<=" => TokenKind::LeftShiftAssign,
+    "..." => TokenKind::ThreeDots,
 };
 
 #[derive(Clone, Debug, PartialEq)]
 pub enum TokenKind {
+    Auto,
+    Break,
+    Case,
+    Char,
+    Const,
+    Continue,
+    Default,
+    Do,
+    Double,
+    Else,
+    Enum,
+
+    Extern,
+    Float,
+    For,
+    Goto,
+    If,
+    Inline,
+    Int,
+    Long,
+    Register,
+    Restrict,
+    Return,
+    Short,
+    Signed,
+
+    Sizeof,
+    Static,
+    Struct,
+    Switch,
+    Typedef,
+    Union,
+    Unsigned,
+    Void,
+    Volatile,
+    While,
+    Complex,
+    Imaginary,
+
+    Question,
+    Equal,
+    Dot,
+    Comma,
+    Colon,
+    SemiColon,
+
+    OpenParen,
+    CloseParen,
+    OpenCurlyBrace,
+    CloseCurlyBrace,
+    OpenSquareBrace,
+    CloseSquareBrace,
+
+    LessThan,
+    GreaterThan,
+
+    Ampersand,
+    Pipe,
+    Hat,
+    Tilde,
+    Not,
+
     Plus,
     Minus,
     Star,
     Slash,
-    Num(i32),
-    LeftParen,
-    RightParen,
+    Percent,
 
-    LessThan,
+    StarEqual,
+    SlashEqual,
+    PercentEqual,
+    PlusEqual,
+    MinusEqual,
+    AmpersandEqual,
+    HatEqual,
+    PipeEqual,
+
     LessEqual,
-    GreaterThan,
     GreaterEqual,
     DoubleEqual,
     NotEqual,
 
+    PipePipe,
+    AmpersandAmpersand,
+    LeftShift,
+    RightShift,
+    PlusPlus,
+    MinusMinus,
+    Arrow,
+
+    RightShiftAssign,
+    LeftShiftAssign,
+    ThreeDots,
+
+    Num(i32),
     Ident(String),
-    Equal,
-    SemiColon,
-    Return,
-
-    If,
-    Else,
-    While,
-    For,
-
-    LeftBracket,
-    RightBracket,
-    Comma,
-
-    Ampersand,
-    Int,
 }
 
 #[derive(Clone, Debug)]
@@ -91,50 +249,24 @@ impl Tokens {
         let chars: Vec<_> = s.chars().collect();
 
         while self.index < chars.len() {
-            match chars[self.index] {
-                ' ' | '\n' => self.index += 1,
-                '+' => self.new_token(TokenKind::Plus, "+"),
-                '-' => self.new_token(TokenKind::Minus, "-"),
-                '*' => self.new_token(TokenKind::Star, "*"),
-                '/' => self.new_token(TokenKind::Slash, "/"),
-                c if c.is_numeric() => self.parse_number(&chars[self.index..]),
-                '(' => self.new_token(TokenKind::LeftParen, "("),
-                ')' => self.new_token(TokenKind::RightParen, ")"),
-                '<' => {
-                    if chars[self.index + 1] == '=' {
-                        self.new_token(TokenKind::LessEqual, "<=")
-                    } else {
-                        self.new_token(TokenKind::LessThan, "<")
-                    }
-                }
-                '>' => {
-                    if chars[self.index + 1] == '=' {
-                        self.new_token(TokenKind::GreaterEqual, ">=")
-                    } else {
-                        self.new_token(TokenKind::GreaterThan, ">")
-                    }
-                }
-                '=' => {
-                    if chars[self.index + 1] == '=' {
-                        self.new_token(TokenKind::DoubleEqual, "==")
-                    } else {
-                        self.new_token(TokenKind::Equal, "=")
-                    }
-                }
-                '!' => {
-                    if chars[self.index + 1] == '=' {
-                        self.new_token(TokenKind::NotEqual, "!=")
-                    } else {
-                        panic!("can't tokenize");
-                    }
-                }
-                c if c.is_ascii_alphabetic() => self.parse_identifier(&chars[self.index..]),
-                ';' => self.new_token(TokenKind::SemiColon, ";"),
-                '{' => self.new_token(TokenKind::LeftBracket, "{"),
-                '}' => self.new_token(TokenKind::RightBracket, "}"),
-                ',' => self.new_token(TokenKind::Comma, ","),
-                '&' => self.new_token(TokenKind::Ampersand, "&"),
-                _ => panic!("can't tokenize"),
+            let c = chars[self.index];
+            let c2 = chars[self.index..].iter().take(2).collect::<String>();
+            let c3 = chars[self.index..].iter().take(3).collect::<String>();
+
+            if c == ' ' || c == '\n' {
+                self.index += 1;
+            } else if c.is_numeric() {
+                self.parse_number(&chars[self.index..]);
+            } else if c.is_ascii_alphabetic() {
+                self.parse_identifier(&chars[self.index..]);
+            } else if let Some(kind) = THREE_SYMBOLS_TOKENS.get(&c3) {
+                self.new_token(kind.clone(), &c3);
+            } else if let Some(kind) = TWO_SYMBOLS_TOKENS.get(&c2) {
+                self.new_token(kind.clone(), &c2);
+            } else if let Some(kind) = ONE_SYMBOL_TOKENS.get(&c) {
+                self.new_token(kind.clone(), &c.to_string());
+            } else {
+                panic!("can't tokenize");
             }
         }
     }

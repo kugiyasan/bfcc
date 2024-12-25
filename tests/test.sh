@@ -55,7 +55,7 @@ assertImplicitMain 15 '5*(9-6);'
 assertImplicitMain 4 '(3+5)/2;'
 # step 6
 assertImplicitMain 15 '-(-3*+5);'
-assertImplicitMain 10 '-10++20;'
+assertImplicitMain 10 '-10+ +20;'
 # step 7
 assertImplicitMain 1 '2 == 2;'
 assertImplicitMain 0 '2 != 2;'
