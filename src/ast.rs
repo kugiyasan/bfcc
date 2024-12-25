@@ -192,25 +192,24 @@ impl Ast {
         self.expect(&TokenKind::Int);
 
         let t = self.tokens[self.index].clone();
-        if let TokenKind::Ident(name) = t.kind {
-            self.index += 1;
-
-            let args = self.parse_args();
-
-            let mut stmts = vec![];
-            self.expect(&TokenKind::LeftBracket);
-            while !self.consume(&TokenKind::RightBracket) {
-                stmts.push(self.parse_stmt());
-            }
-
-            Func {
-                name,
-                args,
-                stmts,
-                local_offset: self.locals.last_offset,
-            }
-        } else {
+        let TokenKind::Ident(name) = t.kind else {
             panic!("Expected function definition, got {:?}", t.kind);
+        };
+
+        self.index += 1;
+        let args = self.parse_args();
+
+        let mut stmts = vec![];
+        self.expect(&TokenKind::LeftBracket);
+        while !self.consume(&TokenKind::RightBracket) {
+            stmts.push(self.parse_stmt());
+        }
+
+        Func {
+            name,
+            args,
+            stmts,
+            local_offset: self.locals.last_offset,
         }
     }
 
