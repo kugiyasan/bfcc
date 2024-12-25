@@ -186,9 +186,10 @@ impl Ast {
         Program(funcs)
     }
 
-    // func = name "(" (expr (, expr)*)? ")" "{" stmt* "}"
+    /// func = "int" name "(" args ")" "{" stmt* "}"
     fn parse_func(&mut self) -> Func {
         self.locals.reset();
+        self.expect(&TokenKind::Int);
 
         let t = self.tokens[self.index].clone();
         if let TokenKind::Ident(name) = t.kind {
@@ -213,15 +214,18 @@ impl Ast {
         }
     }
 
+    /// args = ("int" ident ("," "int" ident)*)?
     fn parse_args(&mut self) -> Vec<usize> {
         let mut args = vec![];
         self.expect(&TokenKind::LeftParen);
 
         if !self.consume(&TokenKind::RightParen) {
+            self.expect(&TokenKind::Int);
             let ident = self.expect_ident();
             let offset = self.locals.get_lvar_offset(&ident);
             args.push(offset);
             while self.consume(&TokenKind::Comma) {
+                self.expect(&TokenKind::Int);
                 let ident = self.expect_ident();
                 let offset = self.locals.get_lvar_offset(&ident);
                 args.push(offset);

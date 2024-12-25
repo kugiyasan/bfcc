@@ -6,6 +6,7 @@ static KEYWORDS: phf::Map<&str, TokenKind> = phf_map! {
     "else" => TokenKind::Else,
     "while" => TokenKind::While,
     "for" => TokenKind::For,
+    "int" => TokenKind::Int,
 };
 
 #[derive(Clone, Debug, PartialEq)]
@@ -40,6 +41,7 @@ pub enum TokenKind {
     Comma,
 
     Ampersand,
+    Int,
 }
 
 #[derive(Clone, Debug)]

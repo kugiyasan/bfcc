@@ -32,7 +32,7 @@ assert() {
 }
 
 assertImplicitMain() {
-  assert "$1" "main() { $2 }"
+  assert "$1" "int main() {$2}"
 }
 
 build() {
@@ -147,52 +147,52 @@ assertImplicitMain 0 'foo();'
 assertImplicitMain 0 'fooxy(3, 4);'
 # step 15
 assert 15 '
-ret() {
+int ret() {
   return 15;
 }
 
-main() {
+int main() {
   return ret();
 }
 '
 assert 15 '
-id(x) {
+int id(int x) {
   return x;
 }
 
-main() {
+int main() {
   return id(15);
 }
 '
 assert 15 '
-sub(a, b) {
+int sub(int a, int b) {
   return a - b;
 }
 
-main() {
+int main() {
   return sub(20, 5);
 }
 '
 assert 55 '
-fib(n) {
+int fib(int n) {
   if (n <= 2)
     return 1;
   return fib(n - 1) + fib(n - 2);
 }
 
-main() {
+int main() {
   return fib(10);
 }
 '
 assert 55 '
-sum(m, n) {
+int sum(int m, int n) {
   acc = 0;
   for (i = m; i <= n; i = i + 1)
     acc = acc + i;
   return acc;
 }
 
-main() {
+int main() {
   return sum(1, 10);
 }
 '
