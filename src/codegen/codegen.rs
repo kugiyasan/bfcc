@@ -172,8 +172,8 @@ impl Codegen {
     }
 
     fn gen_expr(&mut self, expr: Expr) {
-        match expr {
-            Expr::Assign(assign) => self.gen_assign(assign),
+        for assign in expr.0 {
+            self.gen_assign(assign);
         }
     }
 

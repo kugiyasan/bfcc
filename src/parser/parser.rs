@@ -200,9 +200,14 @@ impl Parser {
         Stmt::For(expr1, expr2, expr3, Box::new(stmt))
     }
 
-    /// expr = assign
+    /// expr = assign ("," assign)*
     fn parse_expr(&mut self) -> Expr {
-        Expr::Assign(self.parse_assign())
+        let mut assigns = vec![self.parse_assign()];
+        while self.consume(&TokenKind::Comma) {
+            assigns.push(self.parse_assign());
+        }
+
+        Expr(assigns)
     }
 
     /// assign = equality ("=" assign)?

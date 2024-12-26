@@ -73,8 +73,8 @@ impl SemanticVisitor {
     }
 
     fn visit_expr(&self, expr: &Expr) {
-        match expr {
-            Expr::Assign(assign) => self.visit_assign(assign),
+        for assign in expr.0.iter() {
+            self.visit_assign(assign);
         }
     }
 

@@ -20,9 +20,7 @@ pub enum Stmt {
 }
 
 #[derive(Debug)]
-pub enum Expr {
-    Assign(Assign),
-}
+pub struct Expr(pub Vec<Assign>);
 
 #[derive(Debug)]
 pub struct Assign {
