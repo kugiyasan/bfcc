@@ -3,9 +3,12 @@
 
 mod ast;
 mod codegen;
+mod semantic_visitor;
 mod token;
 
 use std::env;
+
+use semantic_visitor::SemanticVisitor;
 
 use crate::ast::Ast;
 use crate::codegen::Codegen;
@@ -26,6 +29,9 @@ fn main() {
     let mut ast = Ast::new(tokens);
     let program = ast.parse();
     dbg!(&program);
+
+    let visitor = SemanticVisitor::new();
+    visitor.visit_program(&program);
 
     let mut codegen = Codegen::new();
     codegen.generate(program);
