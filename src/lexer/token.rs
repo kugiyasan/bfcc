@@ -49,12 +49,12 @@ pub(super) static ONE_SYMBOL_TOKENS: phf::Map<char, TokenKind> = phf_map! {
     ':' => TokenKind::Colon,
     ';' => TokenKind::SemiColon,
 
-    '(' => TokenKind::OpenParen,
-    ')' => TokenKind::CloseParen,
-    '{' => TokenKind::OpenCurlyBrace,
-    '}' => TokenKind::CloseCurlyBrace,
-    '[' => TokenKind::OpenSquareBrace,
-    ']' => TokenKind::CloseSquareBrace,
+    '(' => TokenKind::LeftParen,
+    ')' => TokenKind::RightParen,
+    '{' => TokenKind::LeftCurlyBrace,
+    '}' => TokenKind::RightCurlyBrace,
+    '[' => TokenKind::LeftSquareBrace,
+    ']' => TokenKind::RightSquareBrace,
 
     '<' => TokenKind::LessThan,
     '>' => TokenKind::GreaterThan,
@@ -63,7 +63,7 @@ pub(super) static ONE_SYMBOL_TOKENS: phf::Map<char, TokenKind> = phf_map! {
     '|' => TokenKind::Pipe,
     '^' => TokenKind::Hat,
     '~' => TokenKind::Tilde,
-    '!' => TokenKind::Not,
+    '!' => TokenKind::Exclamation,
 
     '+' => TokenKind::Plus,
     '-' => TokenKind::Minus,
@@ -97,8 +97,8 @@ pub(super) static TWO_SYMBOLS_TOKENS: phf::Map<&str, TokenKind> = phf_map! {
 };
 
 pub(super) static THREE_SYMBOLS_TOKENS: phf::Map<&str, TokenKind> = phf_map! {
-    ">>=" => TokenKind::RightShiftAssign,
-    "<<=" => TokenKind::LeftShiftAssign,
+    ">>=" => TokenKind::RightShiftEqual,
+    "<<=" => TokenKind::LeftShiftEqual,
     "..." => TokenKind::ThreeDots,
 };
 
@@ -150,12 +150,12 @@ pub enum TokenKind {
     Colon,
     SemiColon,
 
-    OpenParen,
-    CloseParen,
-    OpenCurlyBrace,
-    CloseCurlyBrace,
-    OpenSquareBrace,
-    CloseSquareBrace,
+    LeftParen,
+    RightParen,
+    LeftCurlyBrace,
+    RightCurlyBrace,
+    LeftSquareBrace,
+    RightSquareBrace,
 
     LessThan,
     GreaterThan,
@@ -164,7 +164,7 @@ pub enum TokenKind {
     Pipe,
     Hat,
     Tilde,
-    Not,
+    Exclamation,
 
     Plus,
     Minus,
@@ -194,8 +194,8 @@ pub enum TokenKind {
     MinusMinus,
     Arrow,
 
-    RightShiftAssign,
-    LeftShiftAssign,
+    RightShiftEqual,
+    LeftShiftEqual,
     ThreeDots,
 
     Num(i32),
