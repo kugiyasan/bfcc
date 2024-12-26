@@ -133,47 +133,69 @@ pub enum InitDeclarator {
 pub struct Expr(pub Vec<Assign>);
 
 #[derive(Debug)]
-pub struct Assign {
-    pub eq: Equality,
-    pub assign: Option<Box<Assign>>,
+pub enum AssignOpKind {
+    Assign,
+    MulAssign,
+    DivAssign,
+    ModAssign,
+    AddAssign,
+    SubAssign,
+    LeftShiftAssign,
+    RightShiftAssign,
+    AndAssign,
+    XorAssign,
+    OrAssign,
 }
 
 #[derive(Debug)]
-pub enum Equality {
-    Identity(Relational),
-    Equal(Relational, Box<Equality>),
-    NotEqual(Relational, Box<Equality>),
+pub enum Assign {
+    Const(ConstantExpr),
+    Assign(Unary, AssignOpKind, Box<Assign>),
 }
 
 #[derive(Debug)]
-pub enum Relational {
-    Identity(Add),
-    LessThan(Add, Box<Relational>),
-    LessEqual(Add, Box<Relational>),
-    GreaterThan(Add, Box<Relational>),
-    GreaterEqual(Add, Box<Relational>),
+pub enum ConstantExpr {
+    Identity(ExprKind),
+    Ternary(ExprKind, Expr, Box<ConstantExpr>),
 }
 
 #[derive(Debug)]
-pub enum Add {
-    Identity(Mul),
-    Add(Mul, Box<Add>),
-    Sub(Mul, Box<Add>),
+pub enum BinOpKind {
+    LogicalOr,
+    LogicalAnd,
+    BitwiseOr,
+    BitwiseXor,
+    BitwiseAnd,
+    Equal,
+    NotEqual,
+    LessThan,
+    LessEqual,
+    GreaterThan,
+    GreaterEqual,
+    LeftShift,
+    RightShift,
+    Add,
+    Sub,
+    Mul,
+    Div,
+    Mod,
 }
 
 #[derive(Debug)]
-pub enum Mul {
-    Identity(Unary),
-    Mul(Unary, Box<Mul>),
-    Div(Unary, Box<Mul>),
+pub enum ExprKind {
+    Unary(Unary),
+    Binary(BinOpKind, Box<ExprKind>, Box<ExprKind>),
 }
 
 #[derive(Debug)]
 pub enum Unary {
     Identity(Primary),
+    Cast((), Box<Unary>), // todo
     Neg(Box<Unary>),
     Ref(Box<Unary>),
     Deref(Box<Unary>),
+    BitwiseNot(Box<Unary>),
+    LogicalNot(Box<Unary>),
 }
 
 #[derive(Debug)]

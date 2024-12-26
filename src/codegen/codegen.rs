@@ -1,6 +1,6 @@
 use crate::parser::{
-    Add, Assign, CompoundStmt, DeclarationOrStmt, Equality, Expr, FuncDef, Identifier, Mul,
-    Primary, Relational, Stmt, TranslationUnit, Unary,
+    Assign, AssignOpKind, BinOpKind, CompoundStmt, ConstantExpr, DeclarationOrStmt, Expr, ExprKind,
+    FuncDef, Identifier, Primary, Stmt, TranslationUnit, Unary,
 };
 
 const ARGUMENT_REGISTERS: [&str; 6] = ["rdi", "rsi", "rdx", "rcx", "r8", "r9"];
@@ -182,101 +182,65 @@ impl Codegen {
     }
 
     fn gen_assign(&mut self, assign: Assign) {
-        if let Some(a) = assign.assign {
-            if let Equality::Identity(Relational::Identity(Add::Identity(Mul::Identity(
-                Unary::Identity(Primary::Ident(Identifier { offset })),
-            )))) = assign.eq
-            {
-                self.gen_lval(offset);
-            } else {
-                panic!("Invalid l-value for assignment: {:?}", assign.eq);
-            }
-            self.gen_assign(*a);
-            println!("  pop rdi");
-            println!("  pop rax");
-            println!("  mov [rax], rdi");
-            println!("  push rdi");
-            return;
-        }
+        match assign {
+            Assign::Const(c) => self.gen_constant_expr(c),
+            Assign::Assign(unary, kind, a) => {
+                if let Unary::Identity(Primary::Ident(Identifier { offset })) = unary {
+                    self.gen_lval(offset);
+                } else {
+                    panic!("Invalid l-value for assignment: {:?}", unary);
+                }
+                self.gen_assign(*a);
 
-        self.gen_equality(assign.eq);
-    }
-
-    fn gen_equality(&mut self, equality: Equality) {
-        match equality {
-            Equality::Identity(rel) => {
-                self.gen_relational(rel);
-            }
-            Equality::Equal(rel, eq) => {
-                self.gen_relational(rel);
-                self.gen_equality(*eq);
-                self.gen_binop("  cmp rdi, rax\n  sete al\n  movzb rax, al");
-            }
-            Equality::NotEqual(rel, eq) => {
-                self.gen_relational(rel);
-                self.gen_equality(*eq);
-                self.gen_binop("  cmp rdi, rax\n  setne al\n  movzb rax, al");
+                match kind {
+                    AssignOpKind::Assign => {
+                        println!("  pop rdi");
+                        println!("  pop rax");
+                        println!("  mov [rax], rdi");
+                        println!("  push rdi");
+                    }
+                    _ => todo!(),
+                }
             }
         }
     }
 
-    fn gen_relational(&mut self, relational: Relational) {
-        match relational {
-            Relational::Identity(add) => {
-                self.gen_add(add);
-            }
-            Relational::LessThan(add, rel) => {
-                self.gen_add(add);
-                self.gen_relational(*rel);
-                self.gen_binop("  cmp rax, rdi\n  setl al\n  movzb rax, al");
-            }
-            Relational::LessEqual(add, rel) => {
-                self.gen_add(add);
-                self.gen_relational(*rel);
-                self.gen_binop("  cmp rax, rdi\n  setle al\n  movzb rax, al");
-            }
-            Relational::GreaterThan(add, rel) => {
-                self.gen_add(add);
-                self.gen_relational(*rel);
-                self.gen_binop("  cmp rax, rdi\n  setg al\n  movzb rax, al");
-            }
-            Relational::GreaterEqual(add, rel) => {
-                self.gen_add(add);
-                self.gen_relational(*rel);
-                self.gen_binop("  cmp rax, rdi\n  setge al\n  movzb rax, al");
-            }
+    fn gen_constant_expr(&mut self, c: ConstantExpr) {
+        match c {
+            ConstantExpr::Identity(expr_kind) => self.gen_expr_kind(expr_kind),
+            ConstantExpr::Ternary(_kind, _expr, _c) => todo!(),
         }
     }
 
-    fn gen_add(&mut self, add: Add) {
-        match add {
-            Add::Identity(mul) => self.gen_mul(mul),
-            Add::Add(mul, a) => {
-                self.gen_mul(mul);
-                self.gen_add(*a);
-                self.gen_binop("  add rax, rdi");
+    fn gen_expr_kind(&mut self, expr_kind: ExprKind) {
+        match expr_kind {
+            ExprKind::Binary(kind, left, right) => {
+                self.gen_expr_kind(*left);
+                self.gen_expr_kind(*right);
+                self.gen_bin_op_kind(kind);
             }
-            Add::Sub(mul, a) => {
-                self.gen_mul(mul);
-                self.gen_add(*a);
-                self.gen_binop("  sub rax, rdi");
-            }
+            ExprKind::Unary(unary) => self.gen_unary(unary),
         }
     }
 
-    fn gen_mul(&mut self, mul: Mul) {
-        match mul {
-            Mul::Identity(unary) => self.gen_unary(unary),
-            Mul::Mul(unary, m) => {
-                self.gen_unary(unary);
-                self.gen_mul(*m);
-                self.gen_binop("  imul rax, rdi");
+    fn gen_bin_op_kind(&mut self, kind: BinOpKind) {
+        match kind {
+            BinOpKind::Equal => self.gen_binop("  cmp rdi, rax\n  sete al\n  movzb rax, al"),
+            BinOpKind::NotEqual => self.gen_binop("  cmp rdi, rax\n  setne al\n  movzb rax, al"),
+
+            BinOpKind::LessThan => self.gen_binop("  cmp rax, rdi\n  setl al\n  movzb rax, al"),
+            BinOpKind::LessEqual => self.gen_binop("  cmp rax, rdi\n  setle al\n  movzb rax, al"),
+            BinOpKind::GreaterThan => self.gen_binop("  cmp rax, rdi\n  setg al\n  movzb rax, al"),
+            BinOpKind::GreaterEqual => {
+                self.gen_binop("  cmp rax, rdi\n  setge al\n  movzb rax, al")
             }
-            Mul::Div(unary, m) => {
-                self.gen_unary(unary);
-                self.gen_mul(*m);
-                self.gen_binop("  cqo\n  idiv rdi");
-            }
+
+            BinOpKind::Add => self.gen_binop("  add rax, rdi"),
+            BinOpKind::Sub => self.gen_binop("  sub rax, rdi"),
+            BinOpKind::Mul => self.gen_binop("  imul rax, rdi"),
+            BinOpKind::Div => self.gen_binop("  cqo\n  idiv rdi"),
+
+            _ => todo!(),
         }
     }
 
@@ -300,6 +264,7 @@ impl Codegen {
                 println!("  mov rax, [rax]\n");
                 println!("  push rax\n");
             }
+            _ => todo!(),
         }
     }
 

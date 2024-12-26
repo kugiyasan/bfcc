@@ -1,6 +1,6 @@
 use crate::parser::{
-    Add, Assign, CompoundStmt, Declaration, DeclarationOrStmt, Equality, Expr, FuncDef, Mul,
-    Primary, Relational, Stmt, TranslationUnit, Unary,
+    Assign, CompoundStmt, ConstantExpr, Declaration, DeclarationOrStmt, Expr, ExprKind, FuncDef,
+    Primary, Stmt, TranslationUnit, Unary,
 };
 
 pub struct SemanticVisitor {}
@@ -90,78 +90,33 @@ impl SemanticVisitor {
     }
 
     fn visit_assign(&self, assign: &Assign) {
-        if let Some(a) = assign.assign.as_ref() {
-            self.visit_assign(a);
-        }
-
-        self.visit_equality(&assign.eq);
-    }
-
-    fn visit_equality(&self, equality: &Equality) {
-        match equality {
-            Equality::Identity(rel) => {
-                self.visit_relational(rel);
-            }
-            Equality::Equal(rel, eq) => {
-                self.visit_relational(rel);
-                self.visit_equality(&eq);
-            }
-            Equality::NotEqual(rel, eq) => {
-                self.visit_relational(rel);
-                self.visit_equality(&eq);
-            }
-        }
-    }
-
-    fn visit_relational(&self, relational: &Relational) {
-        match relational {
-            Relational::Identity(add) => {
-                self.visit_add(add);
-            }
-            Relational::LessThan(add, rel) => {
-                self.visit_add(add);
-                self.visit_relational(&rel);
-            }
-            Relational::LessEqual(add, rel) => {
-                self.visit_add(add);
-                self.visit_relational(&rel);
-            }
-            Relational::GreaterThan(add, rel) => {
-                self.visit_add(add);
-                self.visit_relational(&rel);
-            }
-            Relational::GreaterEqual(add, rel) => {
-                self.visit_add(add);
-                self.visit_relational(&rel);
-            }
-        }
-    }
-
-    fn visit_add(&self, add: &Add) {
-        match add {
-            Add::Identity(mul) => self.visit_mul(mul),
-            Add::Add(mul, a) => {
-                self.visit_mul(mul);
-                self.visit_add(&a);
-            }
-            Add::Sub(mul, a) => {
-                self.visit_mul(mul);
-                self.visit_add(&a);
-            }
-        }
-    }
-
-    fn visit_mul(&self, mul: &Mul) {
-        match mul {
-            Mul::Identity(unary) => self.visit_unary(unary),
-            Mul::Mul(unary, m) => {
+        match assign {
+            Assign::Const(c) => self.visit_constant_expr(c),
+            Assign::Assign(unary, _kind, a) => {
                 self.visit_unary(unary);
-                self.visit_mul(&m);
+                self.visit_assign(a);
             }
-            Mul::Div(unary, m) => {
-                self.visit_unary(unary);
-                self.visit_mul(&m);
+        }
+    }
+
+    fn visit_constant_expr(&self, c: &ConstantExpr) {
+        match c {
+            ConstantExpr::Identity(e) => self.visit_expr_kind(e),
+            ConstantExpr::Ternary(expr_kind, expr, constant_expr) => {
+                self.visit_expr_kind(expr_kind);
+                self.visit_expr(expr);
+                self.visit_constant_expr(constant_expr);
             }
+        }
+    }
+
+    fn visit_expr_kind(&self, expr_kind: &ExprKind) {
+        match expr_kind {
+            ExprKind::Binary(_kind, left, right) => {
+                self.visit_expr_kind(left);
+                self.visit_expr_kind(right);
+            }
+            ExprKind::Unary(unary) => self.visit_unary(unary),
         }
     }
 
@@ -171,6 +126,7 @@ impl SemanticVisitor {
             Unary::Neg(unary) => self.visit_unary(&unary),
             Unary::Ref(unary) => self.visit_unary(&unary),
             Unary::Deref(unary) => self.visit_unary(&unary),
+            _ => todo!(),
         }
     }
 

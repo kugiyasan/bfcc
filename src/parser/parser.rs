@@ -1,10 +1,10 @@
 use crate::lexer::{Token, TokenKind};
 
 use super::{
-    local_variables::LocalVariables, Add, Assign, CompoundStmt, Declaration, DeclarationOrStmt,
-    DeclarationSpecifier, Declarator, DirectDeclarator, Equality, Expr, FuncDef, Identifier,
-    InitDeclarator, Mul, ParamDeclaration, ParamList, Pointer, Primary, Relational, Stmt,
-    StorageClassSpecifier, TranslationUnit, TypeQualifier, TypeSpecifier, Unary,
+    local_variables::LocalVariables, Assign, AssignOpKind, BinOpKind, CompoundStmt, ConstantExpr,
+    Declaration, DeclarationOrStmt, DeclarationSpecifier, Declarator, DirectDeclarator, Expr,
+    ExprKind, FuncDef, Identifier, InitDeclarator, ParamDeclaration, ParamList, Pointer, Primary,
+    Stmt, StorageClassSpecifier, TranslationUnit, TypeQualifier, TypeSpecifier, Unary,
 };
 
 #[derive(Debug)]
@@ -422,72 +422,177 @@ impl Parser {
         Expr(assigns)
     }
 
-    /// assign = equality ("=" assign)?
+    /// assign = constant-expr
+    ///        | unary "="   assign
+    ///        | unary "*="  assign
+    ///        | unary "/="  assign
+    ///        | unary "%="  assign
+    ///        | unary "+="  assign
+    ///        | unary "-="  assign
+    ///        | unary "<<=" assign
+    ///        | unary ">>=" assign
+    ///        | unary "&="  assign
+    ///        | unary "^="  assign
+    ///        | unary "|="  assign
     fn parse_assign(&mut self) -> Assign {
-        let eq = self.parse_equality();
-        let assign = if self.consume(&TokenKind::Equal) {
-            Some(Box::new(self.parse_assign()))
+        let c = self.parse_constant_expr();
+        if let Some(kind) = self.parse_assign_op_kind() {
+            let ConstantExpr::Identity(ExprKind::Unary(unary)) = c else {
+                panic!(
+                    "Unexpected non-unary expression on the left hand of an assignment: {:?}",
+                    c
+                );
+            };
+            Assign::Assign(unary, kind, Box::new(self.parse_assign()))
         } else {
-            None
-        };
-
-        Assign { eq, assign }
+            Assign::Const(c)
+        }
     }
 
-    /// equality = relational ("==" relational | "!=" relational)*
-    fn parse_equality(&mut self) -> Equality {
+    fn parse_assign_op_kind(&mut self) -> Option<AssignOpKind> {
+        if self.consume(&TokenKind::Equal) {
+            Some(AssignOpKind::Assign)
+        } else if self.consume(&TokenKind::StarEqual) {
+            Some(AssignOpKind::MulAssign)
+        } else if self.consume(&TokenKind::SlashEqual) {
+            Some(AssignOpKind::DivAssign)
+        } else if self.consume(&TokenKind::PercentEqual) {
+            Some(AssignOpKind::ModAssign)
+        } else if self.consume(&TokenKind::PlusEqual) {
+            Some(AssignOpKind::AddAssign)
+        } else if self.consume(&TokenKind::MinusEqual) {
+            Some(AssignOpKind::SubAssign)
+        } else if self.consume(&TokenKind::LeftShiftAssign) {
+            Some(AssignOpKind::LeftShiftAssign)
+        } else if self.consume(&TokenKind::RightShiftAssign) {
+            Some(AssignOpKind::RightShiftAssign)
+        } else if self.consume(&TokenKind::AmpersandEqual) {
+            Some(AssignOpKind::AndAssign)
+        } else if self.consume(&TokenKind::HatEqual) {
+            Some(AssignOpKind::XorAssign)
+        } else if self.consume(&TokenKind::PipeEqual) {
+            Some(AssignOpKind::OrAssign)
+        } else {
+            None
+        }
+    }
+
+    fn parse_constant_expr(&mut self) -> ConstantExpr {
+        let eq = self.parse_equality();
+
+        if self.consume(&TokenKind::Question) {
+            let expr = self.parse_expr();
+            self.expect(&TokenKind::Colon);
+            let constant_expr = self.parse_constant_expr();
+            ConstantExpr::Ternary(eq, expr, Box::new(constant_expr))
+        } else {
+            ConstantExpr::Identity(eq)
+        }
+    }
+
+    /// equality = relational
+    ///          | "==" equality
+    ///          | "!=" equality
+    fn parse_equality(&mut self) -> ExprKind {
         let rel = self.parse_relational();
 
         if self.consume(&TokenKind::DoubleEqual) {
-            Equality::Equal(rel, Box::new(self.parse_equality()))
+            ExprKind::Binary(
+                BinOpKind::Equal,
+                Box::new(rel),
+                Box::new(self.parse_equality()),
+            )
         } else if self.consume(&TokenKind::NotEqual) {
-            Equality::NotEqual(rel, Box::new(self.parse_equality()))
+            ExprKind::Binary(
+                BinOpKind::NotEqual,
+                Box::new(rel),
+                Box::new(self.parse_equality()),
+            )
         } else {
-            Equality::Identity(rel)
+            rel
         }
     }
 
-    /// relational = add ("<" add | "<=" add | ">" add | ">=" add)*
-    fn parse_relational(&mut self) -> Relational {
+    /// relational = add
+    ///            | "<"  relational
+    ///            | "<=" relational
+    ///            | ">"  relational
+    ///            | ">=" relational
+    fn parse_relational(&mut self) -> ExprKind {
         let add = self.parse_add();
 
         if self.consume(&TokenKind::LessThan) {
-            Relational::LessThan(add, Box::new(self.parse_relational()))
+            ExprKind::Binary(
+                BinOpKind::LessThan,
+                Box::new(add),
+                Box::new(self.parse_relational()),
+            )
         } else if self.consume(&TokenKind::LessEqual) {
-            Relational::LessEqual(add, Box::new(self.parse_relational()))
+            ExprKind::Binary(
+                BinOpKind::LessEqual,
+                Box::new(add),
+                Box::new(self.parse_relational()),
+            )
         } else if self.consume(&TokenKind::GreaterThan) {
-            Relational::GreaterThan(add, Box::new(self.parse_relational()))
+            ExprKind::Binary(
+                BinOpKind::GreaterThan,
+                Box::new(add),
+                Box::new(self.parse_relational()),
+            )
         } else if self.consume(&TokenKind::GreaterEqual) {
-            Relational::GreaterEqual(add, Box::new(self.parse_relational()))
+            ExprKind::Binary(
+                BinOpKind::GreaterEqual,
+                Box::new(add),
+                Box::new(self.parse_relational()),
+            )
         } else {
-            Relational::Identity(add)
+            add
         }
     }
 
-    /// add = mul ("+" mul | "-" mul)*
-    fn parse_add(&mut self) -> Add {
+    /// add = mul
+    ///     | add "+" mul
+    ///     | add "-" mul
+    fn parse_add(&mut self) -> ExprKind {
         let mul = self.parse_mul();
 
         if self.consume(&TokenKind::Plus) {
-            Add::Add(mul, Box::new(self.parse_add()))
+            ExprKind::Binary(BinOpKind::Add, Box::new(mul), Box::new(self.parse_add()))
         } else if self.consume(&TokenKind::Minus) {
-            Add::Sub(mul, Box::new(self.parse_add()))
+            ExprKind::Binary(BinOpKind::Sub, Box::new(mul), Box::new(self.parse_add()))
         } else {
-            Add::Identity(mul)
+            mul
         }
     }
 
-    /// mul = unary ("*" unary | "/" unary)*
-    fn parse_mul(&mut self) -> Mul {
-        let unary = self.parse_unary();
+    /// mul = unary
+    ///     | mul "*" unary
+    ///     | mul "/" unary
+    ///     | mul "%" unary
+    fn parse_mul(&mut self) -> ExprKind {
+        let unary = self.parse_cast();
 
         if self.consume(&TokenKind::Star) {
-            Mul::Mul(unary, Box::new(self.parse_mul()))
+            ExprKind::Binary(
+                BinOpKind::Mul,
+                Box::new(ExprKind::Unary(unary)),
+                Box::new(self.parse_mul()),
+            )
         } else if self.consume(&TokenKind::Slash) {
-            Mul::Div(unary, Box::new(self.parse_mul()))
+            ExprKind::Binary(
+                BinOpKind::Div,
+                Box::new(ExprKind::Unary(unary)),
+                Box::new(self.parse_mul()),
+            )
         } else {
-            Mul::Identity(unary)
+            ExprKind::Unary(unary)
         }
+    }
+
+    /// cast = unary
+    ///      | "(" typename ")" cast
+    fn parse_cast(&mut self) -> Unary {
+        self.parse_unary()
     }
 
     /// unary = primary
@@ -495,25 +600,23 @@ impl Parser {
     ///       | "-" unary
     ///       | "*" unary
     ///       | "&" unary
+    ///       | "~" unary
+    ///       | "!" unary
     fn parse_unary(&mut self) -> Unary {
-        match self.tokens[self.index].kind {
-            TokenKind::Plus => {
-                self.index += 1;
-                self.parse_unary()
-            }
-            TokenKind::Minus => {
-                self.index += 1;
-                Unary::Neg(Box::new(self.parse_unary()))
-            }
-            TokenKind::Ampersand => {
-                self.index += 1;
-                Unary::Ref(Box::new(self.parse_unary()))
-            }
-            TokenKind::Star => {
-                self.index += 1;
-                Unary::Deref(Box::new(self.parse_unary()))
-            }
-            _ => Unary::Identity(self.parse_primary()),
+        if self.consume(&TokenKind::Plus) {
+            self.parse_unary()
+        } else if self.consume(&TokenKind::Minus) {
+            Unary::Neg(Box::new(self.parse_unary()))
+        } else if self.consume(&TokenKind::Ampersand) {
+            Unary::Ref(Box::new(self.parse_unary()))
+        } else if self.consume(&TokenKind::Star) {
+            Unary::Deref(Box::new(self.parse_unary()))
+        } else if self.consume(&TokenKind::Tilde) {
+            Unary::BitwiseNot(Box::new(self.parse_unary()))
+        } else if self.consume(&TokenKind::Not) {
+            Unary::LogicalNot(Box::new(self.parse_unary()))
+        } else {
+            Unary::Identity(self.parse_primary())
         }
     }
 
