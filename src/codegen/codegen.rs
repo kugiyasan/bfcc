@@ -1,5 +1,6 @@
 use crate::parser::{
-    Add, Assign, Equality, Expr, FuncDef, Mul, Primary, Relational, Stmt, TranslationUnit, Unary,
+    Add, Assign, Equality, Expr, FuncDef, Identifier, Mul, Primary, Relational, Stmt,
+    TranslationUnit, Unary,
 };
 
 const ARGUMENT_REGISTERS: [&str; 6] = ["rdi", "rsi", "rdx", "rcx", "r8", "r9"];
@@ -100,6 +101,7 @@ impl Codegen {
                 println!("  pop rax");
                 epilogue();
             }
+            _ => todo!(),
         };
     }
 
@@ -180,7 +182,7 @@ impl Codegen {
     fn gen_assign(&mut self, assign: Assign) {
         if let Some(a) = assign.assign {
             if let Equality::Identity(Relational::Identity(Add::Identity(Mul::Identity(
-                Unary::Identity(Primary::Ident(offset)),
+                Unary::Identity(Primary::Ident(Identifier { offset })),
             )))) = assign.eq
             {
                 self.gen_lval(offset);
@@ -286,7 +288,7 @@ impl Codegen {
                 self.gen_oneop("  neg rax");
             }
             Unary::Ref(unary) => {
-                if let Unary::Identity(Primary::Ident(offset)) = *unary {
+                if let Unary::Identity(Primary::Ident(Identifier { offset })) = *unary {
                     self.gen_lval(offset);
                 }
             }
@@ -302,7 +304,7 @@ impl Codegen {
     fn gen_primary(&mut self, primary: Primary) {
         match primary {
             Primary::Num(num) => println!("  push {}", num),
-            Primary::Ident(offset) => {
+            Primary::Ident(Identifier { offset }) => {
                 self.gen_lval(offset);
                 println!("  pop rax");
                 println!("  mov rax, [rax]");

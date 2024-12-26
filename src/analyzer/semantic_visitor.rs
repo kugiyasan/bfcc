@@ -34,6 +34,7 @@ impl SemanticVisitor {
             Stmt::While(expr, stmt) => self.visit_while(expr, &stmt),
             Stmt::For(expr1, expr2, expr3, stmt) => self.visit_for(expr1, expr2, expr3, &stmt),
             Stmt::Return(expr) => self.visit_expr(expr),
+            _ => todo!(),
         };
     }
 

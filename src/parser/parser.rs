@@ -1,8 +1,8 @@
 use crate::lexer::{Token, TokenKind};
 
 use super::{
-    local_variables::LocalVariables, Add, Assign, Equality, Expr, FuncDef, Mul, Primary,
-    Relational, Stmt, TranslationUnit, Unary,
+    local_variables::LocalVariables, Add, Assign, Equality, Expr, FuncDef, Identifier, Mul,
+    Primary, Relational, Stmt, TranslationUnit, Unary,
 };
 
 #[derive(Debug)]
@@ -345,7 +345,7 @@ impl Parser {
             }
         } else {
             let offset = self.locals.get_lvar_offset(&name);
-            Primary::Ident(offset)
+            Primary::Ident(Identifier { offset })
         }
     }
 }

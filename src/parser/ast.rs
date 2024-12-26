@@ -11,11 +11,23 @@ pub struct FuncDef {
 
 #[derive(Debug)]
 pub enum Stmt {
+    Label(Identifier, Box<Stmt>),
+    Case(Expr, Box<Stmt>),
+    Default(Expr, Box<Stmt>),
+
     Expr(Expr),
     Block(Vec<Stmt>),
+
     If(Expr, Box<Stmt>, Option<Box<Stmt>>),
+    Switch(Expr, Box<Stmt>),
+
     While(Expr, Box<Stmt>),
+    DoWhile(Box<Stmt>, Expr),
     For(Option<Expr>, Option<Expr>, Option<Expr>, Box<Stmt>),
+
+    Goto(Identifier),
+    Continue,
+    Break,
     Return(Expr),
 }
 
@@ -69,7 +81,12 @@ pub enum Unary {
 #[derive(Debug)]
 pub enum Primary {
     Num(i32),
-    Ident(usize),
+    Ident(Identifier),
     FunctionCall(String, Vec<Expr>),
     Expr(Box<Expr>),
+}
+
+#[derive(Debug)]
+pub struct Identifier {
+    pub offset: usize,
 }
