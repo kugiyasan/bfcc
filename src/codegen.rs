@@ -1,5 +1,5 @@
 use crate::ast::{
-    Add, Assign, Equality, Expr, Func, Mul, Primary, Program, Relational, Stmt, Unary,
+    Add, Assign, Equality, Expr, FuncDef, Mul, Primary, TranslationUnit, Relational, Stmt, Unary,
 };
 
 const ARGUMENT_REGISTERS: [&str; 6] = ["rdi", "rsi", "rdx", "rcx", "r8", "r9"];
@@ -19,7 +19,7 @@ impl Codegen {
         Self { label_index: 0 }
     }
 
-    pub fn generate(&mut self, program: Program) {
+    pub fn generate(&mut self, program: TranslationUnit) {
         println!(".intel_syntax noprefix");
         println!(".globl main");
         self.gen_program(program);
@@ -50,20 +50,20 @@ impl Codegen {
         println!("  push rax");
     }
 
-    fn gen_program(&mut self, program: Program) {
-        for func in program.0 {
-            self.gen_func(func);
+    fn gen_program(&mut self, translation_unit: TranslationUnit) {
+        for func_def in translation_unit.0 {
+            self.gen_func(func_def);
         }
     }
 
     fn gen_func(
         &mut self,
-        Func {
+        FuncDef {
             name,
             args,
             stmts,
             local_offset,
-        }: Func,
+        }: FuncDef,
     ) {
         println!("{name}:");
         println!("  push rbp");

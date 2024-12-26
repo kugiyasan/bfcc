@@ -40,10 +40,10 @@ impl LocalVariables {
 }
 
 #[derive(Debug)]
-pub struct Program(pub Vec<Func>);
+pub struct TranslationUnit(pub Vec<FuncDef>);
 
 #[derive(Debug)]
-pub struct Func {
+pub struct FuncDef {
     pub name: String,
     pub args: Vec<usize>,
     pub stmts: Vec<Stmt>,
@@ -126,7 +126,7 @@ impl Ast {
         }
     }
 
-    pub fn parse(&mut self) -> Program {
+    pub fn parse(&mut self) -> TranslationUnit {
         self.parse_program()
     }
 
@@ -176,18 +176,18 @@ impl Ast {
     }
 
     /// program = func*
-    fn parse_program(&mut self) -> Program {
+    fn parse_program(&mut self) -> TranslationUnit {
         let mut funcs = vec![];
 
         while self.index < self.tokens.len() {
             funcs.push(self.parse_func());
         }
 
-        Program(funcs)
+        TranslationUnit(funcs)
     }
 
     /// func = "int" name "(" args ")" "{" stmt* "}"
-    fn parse_func(&mut self) -> Func {
+    fn parse_func(&mut self) -> FuncDef {
         self.locals.reset();
         self.expect(&TokenKind::Int);
 
@@ -205,7 +205,7 @@ impl Ast {
             stmts.push(self.parse_stmt());
         }
 
-        Func {
+        FuncDef {
             name,
             args,
             stmts,
