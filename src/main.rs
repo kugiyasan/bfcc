@@ -1,17 +1,17 @@
 // https://www.sigbus.info/compilerbook
 // https://cs.wmich.edu/~gupta/teaching/cs4850/sumII06/The%20syntax%20of%20C%20in%20Backus-Naur%20form.htm
 
-mod lexer;
-mod parser;
 mod analyzer;
 mod codegen;
+mod lexer;
+mod parser;
 
 use std::env;
 
-use crate::lexer::Tokens;
-use crate::parser::Ast;
 use crate::analyzer::SemanticVisitor;
 use crate::codegen::Codegen;
+use crate::lexer::Lexer;
+use crate::parser::Parser;
 
 fn main() {
     let mut env: Vec<_> = env::args_os().map(|s| s.into_string().unwrap()).collect();
@@ -21,11 +21,11 @@ fn main() {
     }
 
     let user_input = env.pop().unwrap();
-    let tokens = Tokens::tokenize(user_input);
+    let tokens = Lexer::tokenize(user_input);
     let token_kinds = tokens.iter().map(|t| &t.kind).collect::<Vec<_>>();
     dbg!(token_kinds);
 
-    let mut ast = Ast::new(tokens);
+    let mut ast = Parser::new(tokens);
     let program = ast.parse();
     dbg!(&program);
 
