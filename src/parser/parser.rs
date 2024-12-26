@@ -1,8 +1,10 @@
 use crate::lexer::{Token, TokenKind};
 
 use super::{
-    local_variables::LocalVariables, Add, Assign, Equality, Expr, FuncDef, Identifier, Mul,
-    Primary, Relational, Stmt, TranslationUnit, Unary,
+    local_variables::LocalVariables, Add, Assign, CompoundStmt, Declaration, DeclarationOrStmt,
+    DeclarationSpecifier, Declarator, DirectDeclarator, Equality, Expr, FuncDef, Identifier,
+    InitDeclarator, Mul, ParamDeclaration, ParamList, Pointer, Primary, Relational, Stmt,
+    StorageClassSpecifier, TranslationUnit, TypeQualifier, TypeSpecifier, Unary,
 };
 
 #[derive(Debug)]
@@ -34,11 +36,26 @@ impl Parser {
             return false;
         }
         let t = &self.tokens[self.index];
+        // todo: std::mem::discriminant
         if &t.kind != kind {
             return false;
         }
         self.index += 1;
         return true;
+    }
+
+    fn consume_ident(&mut self) -> Option<String> {
+        if self.is_eof() {
+            return None;
+        }
+        let t = self.tokens[self.index].clone();
+        // todo: std::mem::discriminant
+        if let TokenKind::Ident(name) = t.kind {
+            self.index += 1;
+            Some(name)
+        } else {
+            None
+        }
     }
 
     fn expect(&mut self, kind: &TokenKind) {
@@ -97,13 +114,13 @@ impl Parser {
         let mut stmts = vec![];
         self.expect(&TokenKind::OpenCurlyBrace);
         while !self.consume(&TokenKind::CloseCurlyBrace) {
-            stmts.push(self.parse_stmt());
+            stmts.push(self.parse_declaration_or_stmt());
         }
 
         FuncDef {
             name,
             args,
-            stmts,
+            stmt: CompoundStmt(stmts),
             local_offset: self.locals.get_last_offset(),
         }
     }
@@ -138,11 +155,11 @@ impl Parser {
     ///      | "return" expr ";"
     fn parse_stmt(&mut self) -> Stmt {
         if self.consume(&TokenKind::OpenCurlyBrace) {
-            let mut stmt = vec![];
+            let mut stmts = vec![];
             while !self.consume(&TokenKind::CloseCurlyBrace) {
-                stmt.push(self.parse_stmt());
+                stmts.push(self.parse_declaration_or_stmt());
             }
-            Stmt::Block(stmt)
+            Stmt::Compound(CompoundStmt(stmts))
         } else if self.consume(&TokenKind::If) {
             self.expect(&TokenKind::OpenParen);
             let expr = self.parse_expr();
@@ -170,6 +187,201 @@ impl Parser {
             let expr = self.parse_expr();
             self.expect(&TokenKind::SemiColon);
             Stmt::Expr(expr)
+        }
+    }
+
+    fn parse_declaration_or_stmt(&mut self) -> DeclarationOrStmt {
+        if let Some(d) = self.parse_declaration() {
+            DeclarationOrStmt::Declaration(d)
+        } else {
+            DeclarationOrStmt::Stmt(self.parse_stmt())
+        }
+    }
+
+    fn parse_declaration(&mut self) -> Option<Declaration> {
+        let Some(ds) = self.parse_declaration_specifier() else {
+            return None;
+        };
+        let mut specs = vec![ds];
+        while let Some(ds) = self.parse_declaration_specifier() {
+            specs.push(ds);
+        }
+
+        let mut inits = vec![];
+        // todo: replaced while with if, this disables recursive init declarator
+        if let Some(i) = self.parse_init_declarator() {
+            inits.push(i);
+        }
+
+        self.expect(&TokenKind::SemiColon);
+        Some(Declaration { specs, inits })
+    }
+
+    fn parse_init_declarator(&mut self) -> Option<InitDeclarator> {
+        Some(InitDeclarator::Declarator(self.parse_declarator()))
+    }
+
+    fn parse_declarator(&mut self) -> Declarator {
+        Declarator {
+            pointer: self.parse_pointer(),
+            direct: self.parse_direct_declarator(),
+        }
+    }
+
+    fn parse_pointer(&mut self) -> Option<Pointer> {
+        if !self.consume(&TokenKind::Star) {
+            return None;
+        };
+
+        let mut types = vec![];
+        while let Some(t) = self.parse_type_qualifier() {
+            types.push(t);
+        }
+
+        Some(Pointer {
+            types,
+            pointer: Box::new(self.parse_pointer()),
+        })
+    }
+
+    fn parse_direct_declarator(&mut self) -> DirectDeclarator {
+        if let Some(name) = self.consume_ident() {
+            DirectDeclarator::Ident(Identifier {
+                offset: self.locals.get_lvar_offset(&name),
+            })
+        } else if self.consume(&TokenKind::OpenParen) {
+            let d = self.parse_declarator();
+            self.expect(&TokenKind::CloseParen);
+            DirectDeclarator::Declarator(Box::new(d))
+        } else {
+            let d = Box::new(self.parse_direct_declarator());
+            if self.consume(&TokenKind::OpenSquareBrace) {
+                let expr = Some(self.parse_expr());
+                self.expect(&TokenKind::CloseSquareBrace);
+                return DirectDeclarator::Array(d, expr);
+            }
+            self.expect(&TokenKind::OpenParen);
+            if let Some(param_list) = self.parse_param_list() {
+                self.expect(&TokenKind::CloseParen);
+                return DirectDeclarator::ParamList(d, param_list);
+            }
+            let mut identifiers = vec![];
+            while let Some(name) = self.consume_ident() {
+                let offset = self.locals.get_lvar_offset(&name);
+                identifiers.push(Identifier { offset });
+            }
+            self.expect(&TokenKind::CloseParen);
+            DirectDeclarator::Identifiers(d, identifiers)
+        }
+    }
+
+    fn parse_param_list(&mut self) -> Option<ParamList> {
+        let Some(pd) = self.parse_param_declaration() else {
+            return None;
+        };
+
+        let mut pds = vec![pd];
+        while self.consume(&TokenKind::Comma) {
+            if let Some(pd) = self.parse_param_declaration() {
+                pds.push(pd);
+            };
+            if self.consume(&TokenKind::ThreeDots) {
+                return Some(ParamList {
+                    params: pds,
+                    variadic: true,
+                });
+            }
+        }
+
+        Some(ParamList {
+            params: pds,
+            variadic: false,
+        })
+    }
+
+    fn parse_param_declaration(&mut self) -> Option<ParamDeclaration> {
+        let Some(ds) = self.parse_declaration_specifier() else {
+            return None;
+        };
+
+        let mut specs = vec![ds];
+        while let Some(ds) = self.parse_declaration_specifier() {
+            specs.push(ds);
+        }
+
+        Some(ParamDeclaration::Identity(specs))
+        // if let Some(d) = self.parse_declarator() {
+        //     Some(ParamDeclaration::Declarator(specs, Box::new(d)))
+        // } else {
+        //     Some(ParamDeclaration::Identity(specs))
+        // }
+    }
+
+    fn parse_declaration_specifier(&mut self) -> Option<DeclarationSpecifier> {
+        if let Some(s) = self.parse_storage_class_specifier() {
+            Some(DeclarationSpecifier::StorageClassSpecifier(s))
+        } else if let Some(s) = self.parse_type_specifier() {
+            Some(DeclarationSpecifier::TypeSpecifier(s))
+        } else if let Some(q) = self.parse_type_qualifier() {
+            Some(DeclarationSpecifier::TypeQualifier(q))
+        } else {
+            None
+        }
+    }
+
+    fn parse_storage_class_specifier(&mut self) -> Option<StorageClassSpecifier> {
+        if self.consume(&TokenKind::Auto) {
+            Some(StorageClassSpecifier::Auto)
+        } else if self.consume(&TokenKind::Register) {
+            Some(StorageClassSpecifier::Register)
+        } else if self.consume(&TokenKind::Static) {
+            Some(StorageClassSpecifier::Static)
+        } else if self.consume(&TokenKind::Extern) {
+            Some(StorageClassSpecifier::Extern)
+        } else if self.consume(&TokenKind::Typedef) {
+            Some(StorageClassSpecifier::Typedef)
+        } else {
+            None
+        }
+    }
+
+    fn parse_type_specifier(&mut self) -> Option<TypeSpecifier> {
+        if self.consume(&TokenKind::Void) {
+            Some(TypeSpecifier::Void)
+        } else if self.consume(&TokenKind::Char) {
+            Some(TypeSpecifier::Char)
+        } else if self.consume(&TokenKind::Short) {
+            Some(TypeSpecifier::Short)
+        } else if self.consume(&TokenKind::Int) {
+            Some(TypeSpecifier::Int)
+        } else if self.consume(&TokenKind::Long) {
+            Some(TypeSpecifier::Long)
+        } else if self.consume(&TokenKind::Float) {
+            Some(TypeSpecifier::Float)
+        } else if self.consume(&TokenKind::Double) {
+            Some(TypeSpecifier::Double)
+        } else if self.consume(&TokenKind::Signed) {
+            Some(TypeSpecifier::Signed)
+        } else if self.consume(&TokenKind::Unsigned) {
+            Some(TypeSpecifier::Unsigned)
+        } else if self.consume(&TokenKind::Struct) {
+            Some(TypeSpecifier::StructOrUnionSpecifier())
+        } else if self.consume(&TokenKind::Enum) {
+            Some(TypeSpecifier::EnumSpecifier())
+        } else if self.consume(&TokenKind::Typedef) {
+            Some(TypeSpecifier::TypedefName())
+        } else {
+            None
+        }
+    }
+
+    fn parse_type_qualifier(&mut self) -> Option<TypeQualifier> {
+        if self.consume(&TokenKind::Const) {
+            Some(TypeQualifier::Const)
+        } else if self.consume(&TokenKind::Volatile) {
+            Some(TypeQualifier::Volatile)
+        } else {
+            None
         }
     }
 
@@ -331,17 +543,12 @@ impl Parser {
 
     fn parse_ident(&mut self, name: String) -> Primary {
         if self.consume(&TokenKind::OpenParen) {
-            let mut args = vec![];
-
             if self.consume(&TokenKind::CloseParen) {
-                Primary::FunctionCall(name, args)
+                Primary::FunctionCall(name, None)
             } else {
-                args.push(self.parse_expr());
-                while self.consume(&TokenKind::Comma) {
-                    args.push(self.parse_expr());
-                }
+                let expr = self.parse_expr();
                 self.expect(&TokenKind::CloseParen);
-                Primary::FunctionCall(name, args)
+                Primary::FunctionCall(name, Some(expr))
             }
         } else {
             let offset = self.locals.get_lvar_offset(&name);

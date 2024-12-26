@@ -1,5 +1,6 @@
 use crate::parser::{
-    Add, Assign, Equality, Expr, FuncDef, Mul, Primary, Relational, Stmt, TranslationUnit, Unary,
+    Add, Assign, CompoundStmt, Declaration, DeclarationOrStmt, Equality, Expr, FuncDef, Mul,
+    Primary, Relational, Stmt, TranslationUnit, Unary,
 };
 
 pub struct SemanticVisitor {}
@@ -16,17 +17,17 @@ impl SemanticVisitor {
     }
 
     pub fn visit_func_def(&self, func_def: &FuncDef) {
-        for stmt in func_def.stmts.iter() {
-            self.visit_stmt(stmt);
+        for ds in func_def.stmt.0.iter() {
+            self.visit_declaration_or_stmt(ds);
         }
     }
 
     fn visit_stmt(&self, stmt: &Stmt) {
         match stmt {
             Stmt::Expr(expr) => self.visit_expr(expr),
-            Stmt::Block(stmt) => {
-                for s in stmt {
-                    self.visit_stmt(s);
+            Stmt::Compound(CompoundStmt(stmts)) => {
+                for ds in stmts {
+                    self.visit_declaration_or_stmt(ds);
                 }
             }
             Stmt::If(expr, stmt, None) => self.visit_if(expr, &stmt),
@@ -37,6 +38,15 @@ impl SemanticVisitor {
             _ => todo!(),
         };
     }
+
+    fn visit_declaration_or_stmt(&self, ds: &DeclarationOrStmt) {
+        match ds {
+            DeclarationOrStmt::Declaration(d) => self.visit_declaration(d),
+            DeclarationOrStmt::Stmt(s) => self.visit_stmt(s),
+        }
+    }
+
+    fn visit_declaration(&self, declaration: &Declaration) {}
 
     fn visit_if(&self, expr: &Expr, stmt: &Stmt) {
         self.visit_expr(expr);
@@ -168,11 +178,8 @@ impl SemanticVisitor {
         match primary {
             Primary::Num(_num) => (),
             Primary::Ident(_offset) => (),
-            Primary::FunctionCall(_name, args) => {
-                for arg in args {
-                    self.visit_expr(arg);
-                }
-            }
+            Primary::FunctionCall(_name, None) => (),
+            Primary::FunctionCall(_name, Some(expr)) => self.visit_expr(expr),
             Primary::Expr(expr) => self.visit_expr(&expr),
         }
     }

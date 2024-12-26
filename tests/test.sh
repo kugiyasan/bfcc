@@ -36,11 +36,11 @@ assertImplicitMain() {
 }
 
 build() {
-  cargo build
+  cargo build || exit
   cc -c foo.o foo.c
 }
 
-build || exit
+build
 
 # step 1
 assertImplicitMain 0 '0;'
@@ -66,23 +66,36 @@ assertImplicitMain 1 '2 <= 2 == 1;'
 assertImplicitMain 3 '0;1;2;3;'
 assertImplicitMain 6 'a = 6; a;'
 assertImplicitMain 6 '
+int a;
+int b;
 a = 1;
 b = 2 + 3;
 a + b;'
 assertImplicitMain 6 '
+int foo;
+int bar;
 foo = 1;
 bar = 2 + 3;
 foo + bar;'
 assertImplicitMain 10 '
+int a;
+int b;
+int c;
+int foo;
+int bar;
+int baz;
 a=b=c=d=foo=bar=baz=10;'
 # step 11
 assertImplicitMain 5 'return 5;return 8;'
 assertImplicitMain 14 '
+int a;
+int b;
 a = 3;
 b = 5 * 6 - 8;
 return a + b / 2;'
 # step 12
 assertImplicitMain 4 '
+int c;
 c = 3;
 if (1)
   c = 4;
@@ -92,12 +105,15 @@ assertImplicitMain 1 '
 return 1 < 2;
 '
 assertImplicitMain 4 '
+int c;
 c = 3;
 if (1 < 2)
   c = 4;
 return c;
 '
 assertImplicitMain 1 '
+int a;
+int b;
 a = 1;
 b = 2;
 if (a < b)
@@ -106,6 +122,8 @@ else
   return b;
 '
 assertImplicitMain 2 '
+int a;
+int b;
 a = 1;
 b = 2;
 if (a > b)
@@ -114,12 +132,15 @@ else
   return b;
 '
 assertImplicitMain 10 '
+int i;
 i = 0;
 while (i < 10)
   i = i + 1;
 return i;
 '
 assertImplicitMain 45 '
+int tot;
+int i;
 tot = 0;
 for (i = 0; i < 10; i = i + 1)
   tot = tot + i;
@@ -127,6 +148,9 @@ return tot;
 '
 # step 13
 assertImplicitMain 45 '
+int tot;
+int i;
+
 tot = 0;
 i = 0;
 while (i < 10) {
@@ -136,6 +160,8 @@ while (i < 10) {
 return tot;
 '
 assertImplicitMain 45 '
+int tot;
+int i;
 tot = 0;
 for (i = 0; i < 10; i = i + 1) {
   tot = tot + i;
@@ -186,6 +212,8 @@ int main() {
 '
 assert 55 '
 int sum(int m, int n) {
+  int acc;
+  int i;
   acc = 0;
   for (i = m; i <= n; i = i + 1)
     acc = acc + i;
@@ -198,11 +226,16 @@ int main() {
 '
 # step 16
 assertImplicitMain 3 '
+int x;
+int y;
 x = 3;
 y = &x;
 return *y;
 '
 assertImplicitMain 3 '
+int x;
+int y;
+int z;
 x = 3;
 y = 5;
 z = &y + 8;

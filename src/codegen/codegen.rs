@@ -1,6 +1,6 @@
 use crate::parser::{
-    Add, Assign, Equality, Expr, FuncDef, Identifier, Mul, Primary, Relational, Stmt,
-    TranslationUnit, Unary,
+    Add, Assign, CompoundStmt, DeclarationOrStmt, Equality, Expr, FuncDef, Identifier, Mul,
+    Primary, Relational, Stmt, TranslationUnit, Unary,
 };
 
 const ARGUMENT_REGISTERS: [&str; 6] = ["rdi", "rsi", "rdx", "rcx", "r8", "r9"];
@@ -62,7 +62,7 @@ impl Codegen {
         FuncDef {
             name,
             args,
-            stmts,
+            stmt,
             local_offset,
         }: FuncDef,
     ) {
@@ -74,10 +74,7 @@ impl Codegen {
         }
         println!("  sub rsp, {}", local_offset);
 
-        for s in stmts {
-            self.gen_stmt(s);
-        }
-
+        self.gen_compound_stmt(stmt);
         epilogue();
     }
 
@@ -87,11 +84,7 @@ impl Codegen {
                 self.gen_expr(expr);
                 println!("  pop rax");
             }
-            Stmt::Block(stmt) => {
-                for s in stmt {
-                    self.gen_stmt(s);
-                }
-            }
+            Stmt::Compound(stmt) => self.gen_compound_stmt(stmt),
             Stmt::If(expr, stmt, None) => self.gen_if(expr, *stmt),
             Stmt::If(expr, stmt, Some(else_stmt)) => self.gen_if_else(expr, *stmt, *else_stmt),
             Stmt::While(expr, stmt) => self.gen_while(expr, *stmt),
@@ -103,6 +96,15 @@ impl Codegen {
             }
             _ => todo!(),
         };
+    }
+
+    fn gen_compound_stmt(&mut self, stmt: CompoundStmt) {
+        for ds in stmt.0 {
+            match ds {
+                DeclarationOrStmt::Stmt(s) => self.gen_stmt(s),
+                DeclarationOrStmt::Declaration(_) => (),
+            }
+        }
     }
 
     fn gen_if(&mut self, expr: Expr, stmt: Stmt) {
@@ -310,13 +312,14 @@ impl Codegen {
                 println!("  mov rax, [rax]");
                 println!("  push rax");
             }
-            Primary::FunctionCall(name, args) => {
+            Primary::FunctionCall(name, expr) => {
+                let args = if let Some(a) = expr { a.0 } else { vec![] };
                 let n_args = args.len();
                 if n_args > 6 {
                     panic!("Function has too many arguments (max 6), got {}", n_args);
                 }
                 for arg in args {
-                    self.gen_expr(arg);
+                    self.gen_assign(arg);
                 }
 
                 for reg in ARGUMENT_REGISTERS.iter().take(n_args).rev() {

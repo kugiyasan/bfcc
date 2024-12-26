@@ -23,13 +23,19 @@ impl LocalVariables {
         self.last_offset
     }
 
-    pub fn get_lvar_offset(&mut self, ident: &str) -> usize {
-        if let Some(offset) = self.locals.get(ident) {
+    pub fn declare(&mut self, name: &str) {
+        self.last_offset += 8;
+        let offset = self.last_offset;
+        self.locals.insert(name.to_string(), offset);
+    }
+
+    pub fn get_lvar_offset(&mut self, name: &str) -> usize {
+        if let Some(offset) = self.locals.get(name) {
             return *offset;
         }
         self.last_offset += 8;
         let offset = self.last_offset;
-        self.locals.insert(ident.to_string(), offset);
+        self.locals.insert(name.to_string(), offset);
         offset
     }
 }
