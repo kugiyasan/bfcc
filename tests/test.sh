@@ -208,5 +208,7 @@ y = 5;
 z = &y + 8;
 return *z;
 '
+# step 17
+assertImplicitMain 1 'return - - - - 1;'
 
 echo 'All tests passed!'

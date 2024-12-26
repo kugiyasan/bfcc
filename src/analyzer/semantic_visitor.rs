@@ -156,8 +156,8 @@ impl SemanticVisitor {
 
     fn visit_unary(&self, unary: &Unary) {
         match unary {
-            Unary::Pos(primary) => self.visit_primary(primary),
-            Unary::Neg(primary) => self.visit_primary(primary),
+            Unary::Identity(primary) => self.visit_primary(primary),
+            Unary::Neg(unary) => self.visit_unary(&unary),
             Unary::Ref(unary) => self.visit_unary(&unary),
             Unary::Deref(unary) => self.visit_unary(&unary),
         }

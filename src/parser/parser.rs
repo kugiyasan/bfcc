@@ -273,19 +273,20 @@ impl Parser {
         }
     }
 
-    /// unary = "+"? primary
-    ///       | "-"? primary
+    /// unary = primary
+    ///       | "+" unary
+    ///       | "-" unary
     ///       | "*" unary
     ///       | "&" unary
     fn parse_unary(&mut self) -> Unary {
         match self.tokens[self.index].kind {
             TokenKind::Plus => {
                 self.index += 1;
-                Unary::Pos(self.parse_primary())
+                self.parse_unary()
             }
             TokenKind::Minus => {
                 self.index += 1;
-                Unary::Neg(self.parse_primary())
+                Unary::Neg(Box::new(self.parse_unary()))
             }
             TokenKind::Ampersand => {
                 self.index += 1;
@@ -295,7 +296,7 @@ impl Parser {
                 self.index += 1;
                 Unary::Deref(Box::new(self.parse_unary()))
             }
-            _ => Unary::Pos(self.parse_primary()),
+            _ => Unary::Identity(self.parse_primary()),
         }
     }
 

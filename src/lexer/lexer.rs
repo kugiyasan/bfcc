@@ -54,7 +54,7 @@ impl Lexer {
             let c2 = chars[self.index..].iter().take(2).collect::<String>();
             let c3 = chars[self.index..].iter().take(3).collect::<String>();
 
-            if c == ' ' || c == '\n' {
+            if c == ' ' || c == '\n' || c == '\t' {
                 self.index += 1;
             } else if c.is_numeric() {
                 self.parse_number(&chars[self.index..]);
@@ -67,7 +67,7 @@ impl Lexer {
             } else if let Some(kind) = ONE_SYMBOL_TOKENS.get(&c) {
                 self.new_token(kind.clone(), &c.to_string());
             } else {
-                panic!("can't tokenize");
+                panic!("can't tokenize {:?}", c);
             }
         }
     }

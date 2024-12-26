@@ -180,7 +180,7 @@ impl Codegen {
     fn gen_assign(&mut self, assign: Assign) {
         if let Some(a) = assign.assign {
             if let Equality::Identity(Relational::Identity(Add::Identity(Mul::Identity(
-                Unary::Pos(Primary::Ident(offset)),
+                Unary::Identity(Primary::Ident(offset)),
             )))) = assign.eq
             {
                 self.gen_lval(offset);
@@ -278,15 +278,15 @@ impl Codegen {
 
     fn gen_unary(&mut self, unary: Unary) {
         match unary {
-            Unary::Pos(primary) => {
+            Unary::Identity(primary) => {
                 self.gen_primary(primary);
             }
-            Unary::Neg(primary) => {
-                self.gen_primary(primary);
+            Unary::Neg(unary) => {
+                self.gen_unary(*unary);
                 self.gen_oneop("  neg rax");
             }
             Unary::Ref(unary) => {
-                if let Unary::Pos(Primary::Ident(offset)) = *unary {
+                if let Unary::Identity(Primary::Ident(offset)) = *unary {
                     self.gen_lval(offset);
                 }
             }

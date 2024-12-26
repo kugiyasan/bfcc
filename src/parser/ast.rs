@@ -62,8 +62,8 @@ pub enum Mul {
 
 #[derive(Debug)]
 pub enum Unary {
-    Pos(Primary),
-    Neg(Primary),
+    Identity(Primary),
+    Neg(Box<Unary>),
     Ref(Box<Unary>),
     Deref(Box<Unary>),
 }
