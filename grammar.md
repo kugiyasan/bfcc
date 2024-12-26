@@ -139,15 +139,13 @@ expression:
   assignment-expression
   expression , assignment-expression
 assignment-expression:
-  conditional-expression
+  constant-expression
   unary-expression assignment-operator assignment-expression
 assignment-operator: one of
   = *= /= %= += -= <<= >>= &= ^= |=
-conditional-expression:
-  logical-OR-expression
-logical-OR-expression ? expression : conditional-expression
 constant-expression:
-  conditional-expression
+  logical-OR-expression
+  logical-OR-expression ? expression : constant-expression
 logical-OR-expression:
   logical-AND-expression
   logical-OR-expression || logical-AND-expression
@@ -182,25 +180,26 @@ additive-expression:
   additive-expression + multiplicative-expression
   additive-expression - multiplicative-expression
 multiplicative-expression:
+  cast-expression
   multiplicative-expression * cast-expression
   multiplicative-expression / cast-expression
   multiplicative-expression % cast-expression
 cast-expression:
-  unary expression
+  unary-expression
   (type-name) cast-expression
 unary-expression:
   postfix expression
-  ++unary expression
-  --unary expression
+  ++unary-expression
+  --unary-expression
   unary-operator cast-expression
   sizeof unary-expression
   sizeof (type-name)
-unary operator: one of
+unary-operator: one of
   & * + - ~ !
 postfix-expression:
   primary-expression
   postfix-expression[expression]
-  postfix-expression(argument-expression-list_opt)
+  postfix-expression(expression_opt)
   postfix-expression.identifier
   postfix-expression->+identifier
   postfix-expression++
@@ -211,9 +210,6 @@ primary-expression:
   string
   (expression)
 
-argument-expression-list:
-  assignment-expression
-  assignment-expression-list , assignment-expression
 constant:
   integer-constant
   character-constant
