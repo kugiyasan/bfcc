@@ -1,6 +1,6 @@
 use std::collections::HashMap;
 
-use crate::token::{Token, TokenKind};
+use crate::lexer::{Token, TokenKind};
 
 #[derive(Debug)]
 struct LocalVariables {

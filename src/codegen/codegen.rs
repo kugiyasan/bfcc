@@ -1,5 +1,5 @@
-use crate::ast::{
-    Add, Assign, Equality, Expr, FuncDef, Mul, Primary, TranslationUnit, Relational, Stmt, Unary,
+use crate::parser::{
+    Add, Assign, Equality, Expr, FuncDef, Mul, Primary, Relational, Stmt, TranslationUnit, Unary,
 };
 
 const ARGUMENT_REGISTERS: [&str; 6] = ["rdi", "rsi", "rdx", "rcx", "r8", "r9"];
