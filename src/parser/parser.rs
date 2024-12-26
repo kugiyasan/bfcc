@@ -423,17 +423,7 @@ impl Parser {
     }
 
     /// assign = constant-expr
-    ///        | unary "="   assign
-    ///        | unary "*="  assign
-    ///        | unary "/="  assign
-    ///        | unary "%="  assign
-    ///        | unary "+="  assign
-    ///        | unary "-="  assign
-    ///        | unary "<<=" assign
-    ///        | unary ">>=" assign
-    ///        | unary "&="  assign
-    ///        | unary "^="  assign
-    ///        | unary "|="  assign
+    ///        | unary assign-op-kind   assign
     fn parse_assign(&mut self) -> Assign {
         let c = self.parse_constant_expr();
         if let Some(kind) = self.parse_assign_op_kind() {
@@ -449,6 +439,7 @@ impl Parser {
         }
     }
 
+    /// assign-op-kind = "=" | "*=" | "/=" | "%=" | "+=" | "-=" | "<<=" | ">>=" | "&=" | "^=" | "|="
     fn parse_assign_op_kind(&mut self) -> Option<AssignOpKind> {
         if self.consume(&TokenKind::Equal) {
             Some(AssignOpKind::Assign)
