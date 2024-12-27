@@ -25,8 +25,7 @@ impl SemanticVisitor {
     }
 
     pub fn visit_func_def(&mut self, func_def: &FuncDef) {
-        // todo: symbol_table per scope
-        // self.symbol_table.reset();
+        self.symbol_table.declare_func(func_def.declarator.direct.get_name());
 
         for d in func_def.declarations.iter() {
             self.visit_declaration(d);
@@ -65,7 +64,7 @@ impl SemanticVisitor {
         for init in declaration.inits.iter() {
             if let InitDeclarator::Declarator(d) = init {
                 if let DirectDeclarator::Ident(Identifier { name }) = &d.direct {
-                    self.symbol_table.declare(name.to_string());
+                    self.symbol_table.declare_var(declaration.specs.clone(), d.clone());
                 }
             }
         }

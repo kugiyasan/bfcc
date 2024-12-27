@@ -69,12 +69,14 @@ impl Codegen {
     fn gen_func(
         &mut self,
         FuncDef {
-            specs,
+            specs: _,
             declarator,
             declarations,
             stmt,
         }: FuncDef,
     ) {
+        self.symbol_table.set_current_func(declarator.direct.get_name());
+
         let DirectDeclarator::Ident(Identifier { name }) = declarator.direct else {
             panic!(
                 "Function name is not an identifier: {:?}",
@@ -87,7 +89,7 @@ impl Codegen {
         for reg in ARGUMENT_REGISTERS.iter().take(declarations.len()) {
             println!("  push {reg}");
         }
-        let local_offset = 8 * 10; // todo
+        let local_offset = self.symbol_table.get_offset(&name);
         println!("  sub rsp, {}", local_offset);
 
         self.gen_compound_stmt(stmt);
