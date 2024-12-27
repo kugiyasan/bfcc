@@ -29,9 +29,10 @@ fn main() {
     let program = ast.parse();
     dbg!(&program);
 
-    let visitor = SemanticVisitor::new();
-    visitor.visit_program(&program);
+    let mut visitor = SemanticVisitor::new();
+    let symbol_table = visitor.visit_translation_unit(&program);
+    dbg!(&symbol_table);
 
-    let mut codegen = Codegen::new();
+    let mut codegen = Codegen::new(symbol_table);
     codegen.generate(program);
 }

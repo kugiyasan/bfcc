@@ -1,30 +1,24 @@
 use crate::lexer::{Token, TokenKind};
 
 use super::{
-    local_variables::LocalVariables, Assign, AssignOpKind, BinOpKind, CompoundStmt, ConstantExpr,
-    Declaration, DeclarationOrStmt, DeclarationSpecifier, Declarator, DirectDeclarator, Expr,
-    ExprKind, FuncDef, Identifier, InitDeclarator, ParamDeclaration, ParamList, Pointer, Primary,
-    Stmt, StorageClassSpecifier, TranslationUnit, TypeQualifier, TypeSpecifier, Unary,
+    Assign, AssignOpKind, BinOpKind, CompoundStmt, ConstantExpr, Declaration, DeclarationOrStmt,
+    DeclarationSpecifier, Declarator, DirectDeclarator, Expr, ExprKind, FuncDef, Identifier,
+    InitDeclarator, ParamDeclaration, ParamList, Pointer, Primary, Stmt, StorageClassSpecifier,
+    TranslationUnit, TypeQualifier, TypeSpecifier, Unary,
 };
 
-#[derive(Debug)]
 pub struct Parser {
     tokens: Vec<Token>,
     index: usize,
-    locals: LocalVariables,
 }
 
 impl Parser {
     pub fn new(tokens: Vec<Token>) -> Self {
-        Self {
-            tokens,
-            index: 0,
-            locals: LocalVariables::new(),
-        }
+        Self { tokens, index: 0 }
     }
 
     pub fn parse(&mut self) -> TranslationUnit {
-        self.parse_program()
+        self.parse_translation_unit()
     }
 
     fn is_eof(&mut self) -> bool {
@@ -87,29 +81,34 @@ impl Parser {
         );
     }
 
-    /// program = func*
-    fn parse_program(&mut self) -> TranslationUnit {
+    /// translation-unit = func-def*
+    fn parse_translation_unit(&mut self) -> TranslationUnit {
         let mut funcs = vec![];
 
         while self.index < self.tokens.len() {
-            funcs.push(self.parse_func());
+            funcs.push(self.parse_func_def());
         }
 
         TranslationUnit(funcs)
     }
 
-    /// func = "int" name "(" args ")" "{" stmt* "}"
-    fn parse_func(&mut self) -> FuncDef {
-        self.locals.reset();
-        self.expect(&TokenKind::Int);
+    /// func-def = declaration-specifiers? declarator "(" args ")" compound-stmt
+    fn parse_func_def(&mut self) -> FuncDef {
+        let specs = self.parse_declaration_specifiers();
+        let declarator = self.parse_declarator();
 
-        let t = self.tokens[self.index].clone();
-        let TokenKind::Ident(name) = t.kind else {
-            panic!("Expected function definition, got {:?}", t.kind);
-        };
+        let mut declarations = vec![];
+        self.expect(&TokenKind::LeftParen);
+        if !self.consume(&TokenKind::RightParen) {
+            let d = self.parse_declaration().expect("Can'T parse declaration");
+            declarations.push(d);
 
-        self.index += 1;
-        let args = self.parse_args();
+            while self.consume(&TokenKind::Comma) {
+                let d = self.parse_declaration().expect("Can'T parse declaration");
+                declarations.push(d);
+            }
+            self.expect(&TokenKind::RightParen);
+        }
 
         let mut stmts = vec![];
         self.expect(&TokenKind::LeftCurlyBrace);
@@ -118,33 +117,11 @@ impl Parser {
         }
 
         FuncDef {
-            name,
-            args,
+            specs,
+            declarator,
+            declarations,
             stmt: CompoundStmt(stmts),
-            local_offset: self.locals.get_last_offset(),
         }
-    }
-
-    /// args = ("int" ident ("," "int" ident)*)?
-    fn parse_args(&mut self) -> Vec<usize> {
-        let mut args = vec![];
-        self.expect(&TokenKind::LeftParen);
-
-        if !self.consume(&TokenKind::RightParen) {
-            self.expect(&TokenKind::Int);
-            let ident = self.expect_ident();
-            let offset = self.locals.get_lvar_offset(&ident);
-            args.push(offset);
-            while self.consume(&TokenKind::Comma) {
-                self.expect(&TokenKind::Int);
-                let ident = self.expect_ident();
-                let offset = self.locals.get_lvar_offset(&ident);
-                args.push(offset);
-            }
-            self.expect(&TokenKind::RightParen);
-        }
-
-        args
     }
 
     /// stmt = expr ";"
@@ -192,6 +169,7 @@ impl Parser {
 
     fn parse_declaration_or_stmt(&mut self) -> DeclarationOrStmt {
         if let Some(d) = self.parse_declaration() {
+            self.expect(&TokenKind::SemiColon);
             DeclarationOrStmt::Declaration(d)
         } else {
             DeclarationOrStmt::Stmt(self.parse_stmt())
@@ -213,7 +191,6 @@ impl Parser {
             inits.push(i);
         }
 
-        self.expect(&TokenKind::SemiColon);
         Some(Declaration { specs, inits })
     }
 
@@ -246,9 +223,7 @@ impl Parser {
 
     fn parse_direct_declarator(&mut self) -> DirectDeclarator {
         if let Some(name) = self.consume_ident() {
-            DirectDeclarator::Ident(Identifier {
-                offset: self.locals.get_lvar_offset(&name),
-            })
+            DirectDeclarator::Ident(Identifier { name })
         } else if self.consume(&TokenKind::LeftParen) {
             let d = self.parse_declarator();
             self.expect(&TokenKind::RightParen);
@@ -267,8 +242,7 @@ impl Parser {
             }
             let mut identifiers = vec![];
             while let Some(name) = self.consume_ident() {
-                let offset = self.locals.get_lvar_offset(&name);
-                identifiers.push(Identifier { offset });
+                identifiers.push(Identifier { name });
             }
             self.expect(&TokenKind::RightParen);
             DirectDeclarator::Identifiers(d, identifiers)
@@ -315,6 +289,16 @@ impl Parser {
         // } else {
         //     Some(ParamDeclaration::Identity(specs))
         // }
+    }
+
+    fn parse_declaration_specifiers(&mut self) -> Vec<DeclarationSpecifier> {
+        let mut declaration_specifiers = vec![];
+
+        while let Some(ds) = self.parse_declaration_specifier() {
+            declaration_specifiers.push(ds);
+        }
+
+        declaration_specifiers
     }
 
     fn parse_declaration_specifier(&mut self) -> Option<DeclarationSpecifier> {
@@ -645,8 +629,7 @@ impl Parser {
                 Primary::FunctionCall(name, Some(expr))
             }
         } else {
-            let offset = self.locals.get_lvar_offset(&name);
-            Primary::Ident(Identifier { offset })
+            Primary::Ident(Identifier { name })
         }
     }
 }

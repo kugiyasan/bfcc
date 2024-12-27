@@ -1,28 +1,43 @@
 use crate::parser::{
-    Assign, CompoundStmt, ConstantExpr, Declaration, DeclarationOrStmt, Expr, ExprKind, FuncDef,
-    Primary, Stmt, TranslationUnit, Unary,
+    Assign, CompoundStmt, ConstantExpr, Declaration, DeclarationOrStmt, DirectDeclarator, Expr,
+    ExprKind, FuncDef, Identifier, InitDeclarator, Primary, Stmt, TranslationUnit, Unary,
 };
 
-pub struct SemanticVisitor {}
+use super::symbol_table::SymbolTable;
+
+pub struct SemanticVisitor {
+    symbol_table: SymbolTable,
+}
 
 impl SemanticVisitor {
     pub fn new() -> Self {
-        Self {}
-    }
-
-    pub fn visit_program(&self, translation_unit: &TranslationUnit) {
-        for func_def in translation_unit.0.iter() {
-            self.visit_func_def(func_def);
+        Self {
+            symbol_table: SymbolTable::new(),
         }
     }
 
-    pub fn visit_func_def(&self, func_def: &FuncDef) {
+    pub fn visit_translation_unit(&mut self, translation_unit: &TranslationUnit) -> SymbolTable {
+        for func_def in translation_unit.0.iter() {
+            self.visit_func_def(func_def);
+        }
+
+        self.symbol_table.clone()
+    }
+
+    pub fn visit_func_def(&mut self, func_def: &FuncDef) {
+        // todo: symbol_table per scope
+        // self.symbol_table.reset();
+
+        for d in func_def.declarations.iter() {
+            self.visit_declaration(d);
+        }
+
         for ds in func_def.stmt.0.iter() {
             self.visit_declaration_or_stmt(ds);
         }
     }
 
-    fn visit_stmt(&self, stmt: &Stmt) {
+    fn visit_stmt(&mut self, stmt: &Stmt) {
         match stmt {
             Stmt::Expr(expr) => self.visit_expr(expr),
             Stmt::Compound(CompoundStmt(stmts)) => {
@@ -39,33 +54,41 @@ impl SemanticVisitor {
         };
     }
 
-    fn visit_declaration_or_stmt(&self, ds: &DeclarationOrStmt) {
+    fn visit_declaration_or_stmt(&mut self, ds: &DeclarationOrStmt) {
         match ds {
             DeclarationOrStmt::Declaration(d) => self.visit_declaration(d),
             DeclarationOrStmt::Stmt(s) => self.visit_stmt(s),
         }
     }
 
-    fn visit_declaration(&self, declaration: &Declaration) {}
+    fn visit_declaration(&mut self, declaration: &Declaration) {
+        for init in declaration.inits.iter() {
+            if let InitDeclarator::Declarator(d) = init {
+                if let DirectDeclarator::Ident(Identifier { name }) = &d.direct {
+                    self.symbol_table.declare(name.to_string());
+                }
+            }
+        }
+    }
 
-    fn visit_if(&self, expr: &Expr, stmt: &Stmt) {
+    fn visit_if(&mut self, expr: &Expr, stmt: &Stmt) {
         self.visit_expr(expr);
         self.visit_stmt(stmt);
     }
 
-    fn visit_if_else(&self, expr: &Expr, stmt: &Stmt, else_stmt: &Stmt) {
+    fn visit_if_else(&mut self, expr: &Expr, stmt: &Stmt, else_stmt: &Stmt) {
         self.visit_expr(expr);
         self.visit_stmt(stmt);
         self.visit_stmt(else_stmt);
     }
 
-    fn visit_while(&self, expr: &Expr, stmt: &Stmt) {
+    fn visit_while(&mut self, expr: &Expr, stmt: &Stmt) {
         self.visit_expr(expr);
         self.visit_stmt(stmt);
     }
 
     fn visit_for(
-        &self,
+        &mut self,
         expr1: &Option<Expr>,
         expr2: &Option<Expr>,
         expr3: &Option<Expr>,
@@ -83,13 +106,13 @@ impl SemanticVisitor {
         self.visit_stmt(stmt);
     }
 
-    fn visit_expr(&self, expr: &Expr) {
+    fn visit_expr(&mut self, expr: &Expr) {
         for assign in expr.0.iter() {
             self.visit_assign(assign);
         }
     }
 
-    fn visit_assign(&self, assign: &Assign) {
+    fn visit_assign(&mut self, assign: &Assign) {
         match assign {
             Assign::Const(c) => self.visit_constant_expr(c),
             Assign::Assign(unary, _kind, a) => {
@@ -99,7 +122,7 @@ impl SemanticVisitor {
         }
     }
 
-    fn visit_constant_expr(&self, c: &ConstantExpr) {
+    fn visit_constant_expr(&mut self, c: &ConstantExpr) {
         match c {
             ConstantExpr::Identity(e) => self.visit_expr_kind(e),
             ConstantExpr::Ternary(expr_kind, expr, constant_expr) => {
@@ -110,7 +133,7 @@ impl SemanticVisitor {
         }
     }
 
-    fn visit_expr_kind(&self, expr_kind: &ExprKind) {
+    fn visit_expr_kind(&mut self, expr_kind: &ExprKind) {
         match expr_kind {
             ExprKind::Binary(_kind, left, right) => {
                 self.visit_expr_kind(left);
@@ -120,7 +143,7 @@ impl SemanticVisitor {
         }
     }
 
-    fn visit_unary(&self, unary: &Unary) {
+    fn visit_unary(&mut self, unary: &Unary) {
         match unary {
             Unary::Identity(primary) => self.visit_primary(primary),
             Unary::Neg(unary) => self.visit_unary(&unary),
@@ -130,7 +153,7 @@ impl SemanticVisitor {
         }
     }
 
-    fn visit_primary(&self, primary: &Primary) {
+    fn visit_primary(&mut self, primary: &Primary) {
         match primary {
             Primary::Num(_num) => (),
             Primary::Ident(_offset) => (),

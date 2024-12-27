@@ -1,12 +1,12 @@
 use std::collections::HashMap;
 
-#[derive(Debug)]
-pub(super) struct LocalVariables {
+#[derive(Clone, Debug)]
+pub struct SymbolTable {
     locals: HashMap<String, usize>,
     last_offset: usize,
 }
 
-impl LocalVariables {
+impl SymbolTable {
     pub fn new() -> Self {
         Self {
             locals: HashMap::new(),
@@ -23,19 +23,16 @@ impl LocalVariables {
         self.last_offset
     }
 
-    pub fn declare(&mut self, name: &str) {
+    pub fn declare(&mut self, name: String) {
         self.last_offset += 8;
         let offset = self.last_offset;
-        self.locals.insert(name.to_string(), offset);
+        self.locals.insert(name, offset);
     }
 
     pub fn get_lvar_offset(&mut self, name: &str) -> usize {
         if let Some(offset) = self.locals.get(name) {
             return *offset;
         }
-        self.last_offset += 8;
-        let offset = self.last_offset;
-        self.locals.insert(name.to_string(), offset);
-        offset
+        panic!("Undeclared variable: {}", name);
     }
 }

@@ -64,7 +64,7 @@ assertImplicitMain 0 '2 < 2;'
 assertImplicitMain 1 '2 <= 2 == 1;'
 # step 9
 assertImplicitMain 3 '0;1;2;3;'
-assertImplicitMain 6 'a = 6; a;'
+assertImplicitMain 6 'int a; a = 6; a;'
 assertImplicitMain 6 '
 int a;
 int b;
@@ -81,6 +81,7 @@ assertImplicitMain 10 '
 int a;
 int b;
 int c;
+int d;
 int foo;
 int bar;
 int baz;

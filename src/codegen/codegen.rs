@@ -1,12 +1,17 @@
-use crate::parser::{
-    Assign, AssignOpKind, BinOpKind, CompoundStmt, ConstantExpr, DeclarationOrStmt, Expr, ExprKind,
-    FuncDef, Identifier, Primary, Stmt, TranslationUnit, Unary,
+use crate::{
+    analyzer::SymbolTable,
+    parser::{
+        Assign, AssignOpKind, BinOpKind, CompoundStmt, ConstantExpr, DeclarationOrStmt,
+        DirectDeclarator, Expr, ExprKind, FuncDef, Identifier, Primary, Stmt, TranslationUnit,
+        Unary,
+    },
 };
 
 const ARGUMENT_REGISTERS: [&str; 6] = ["rdi", "rsi", "rdx", "rcx", "r8", "r9"];
 
 pub struct Codegen {
     label_index: usize,
+    symbol_table: SymbolTable,
 }
 
 fn epilogue() {
@@ -16,8 +21,11 @@ fn epilogue() {
 }
 
 impl Codegen {
-    pub fn new() -> Self {
-        Self { label_index: 0 }
+    pub fn new(symbol_table: SymbolTable) -> Self {
+        Self {
+            label_index: 0,
+            symbol_table,
+        }
     }
 
     pub fn generate(&mut self, program: TranslationUnit) {
@@ -45,7 +53,8 @@ impl Codegen {
         println!("  push rax");
     }
 
-    fn gen_lval(&mut self, offset: usize) {
+    fn gen_lval(&mut self, name: &str) {
+        let offset = self.symbol_table.get_lvar_offset(name);
         println!("  mov rax, rbp");
         println!("  sub rax, {}", offset);
         println!("  push rax");
@@ -60,18 +69,25 @@ impl Codegen {
     fn gen_func(
         &mut self,
         FuncDef {
-            name,
-            args,
+            specs,
+            declarator,
+            declarations,
             stmt,
-            local_offset,
         }: FuncDef,
     ) {
+        let DirectDeclarator::Ident(Identifier { name }) = declarator.direct else {
+            panic!(
+                "Function name is not an identifier: {:?}",
+                declarator.direct
+            );
+        };
         println!("{name}:");
         println!("  push rbp");
         println!("  mov rbp, rsp");
-        for reg in ARGUMENT_REGISTERS.iter().take(args.len()) {
+        for reg in ARGUMENT_REGISTERS.iter().take(declarations.len()) {
             println!("  push {reg}");
         }
+        let local_offset = 8 * 10; // todo
         println!("  sub rsp, {}", local_offset);
 
         self.gen_compound_stmt(stmt);
@@ -185,8 +201,8 @@ impl Codegen {
         match assign {
             Assign::Const(c) => self.gen_constant_expr(c),
             Assign::Assign(unary, kind, a) => {
-                if let Unary::Identity(Primary::Ident(Identifier { offset })) = unary {
-                    self.gen_lval(offset);
+                if let Unary::Identity(Primary::Ident(Identifier { name })) = unary {
+                    self.gen_lval(&name);
                 } else {
                     panic!("Invalid l-value for assignment: {:?}", unary);
                 }
@@ -254,8 +270,8 @@ impl Codegen {
                 self.gen_oneop("  neg rax");
             }
             Unary::Ref(unary) => {
-                if let Unary::Identity(Primary::Ident(Identifier { offset })) = *unary {
-                    self.gen_lval(offset);
+                if let Unary::Identity(Primary::Ident(Identifier { name })) = *unary {
+                    self.gen_lval(&name);
                 }
             }
             Unary::Deref(unary) => {
@@ -271,8 +287,8 @@ impl Codegen {
     fn gen_primary(&mut self, primary: Primary) {
         match primary {
             Primary::Num(num) => println!("  push {}", num),
-            Primary::Ident(Identifier { offset }) => {
-                self.gen_lval(offset);
+            Primary::Ident(Identifier { name }) => {
+                self.gen_lval(&name);
                 println!("  pop rax");
                 println!("  mov rax, [rax]");
                 println!("  push rax");

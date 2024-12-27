@@ -3,10 +3,10 @@ pub struct TranslationUnit(pub Vec<FuncDef>);
 
 #[derive(Debug)]
 pub struct FuncDef {
-    pub name: String,
-    pub args: Vec<usize>,
+    pub specs: Vec<DeclarationSpecifier>,
+    pub declarator: Declarator,
+    pub declarations: Vec<Declaration>,
     pub stmt: CompoundStmt,
-    pub local_offset: usize,
 }
 
 #[derive(Debug)]
@@ -208,5 +208,5 @@ pub enum Primary {
 
 #[derive(Debug)]
 pub struct Identifier {
-    pub offset: usize,
+    pub name: String,
 }
