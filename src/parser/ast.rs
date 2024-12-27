@@ -140,6 +140,7 @@ pub struct Declaration {
 #[derive(Clone, Debug)]
 pub enum InitDeclarator {
     Declarator(Declarator),
+    DeclaratorAndInitializer(Declarator, ()),
 }
 
 #[derive(Clone, Debug)]

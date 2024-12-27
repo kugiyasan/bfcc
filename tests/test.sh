@@ -244,13 +244,23 @@ return *z;
 '
 # step 17
 assertImplicitMain 1 'return - - - - 1;'
-
 # step 18
 assertImplicitMain 3 '
 int x;
 int *y;
 y = &x;
 *y = 3;
-return x;'
+return x;
+'
+# step 19
+assertImplicitMain 8 '
+int *p;
+alloc4(&p, 1, 2, 4, 8);
+int *q;
+q = p + 2;
+*q;
+q = p + 3;
+return *q;
+'
 
 echo 'All tests passed!'

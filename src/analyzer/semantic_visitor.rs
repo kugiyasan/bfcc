@@ -1,6 +1,6 @@
 use crate::parser::{
-    Assign, CompoundStmt, ConstantExpr, Declaration, DeclarationOrStmt, DirectDeclarator, Expr,
-    ExprKind, FuncDef, Identifier, InitDeclarator, Primary, Stmt, TranslationUnit, Unary,
+    Assign, CompoundStmt, ConstantExpr, Declaration, DeclarationOrStmt, Expr,
+    ExprKind, FuncDef, InitDeclarator, Primary, Stmt, TranslationUnit, Unary,
 };
 
 use super::symbol_table::SymbolTable;
@@ -65,10 +65,8 @@ impl SemanticVisitor {
     fn visit_declaration(&mut self, declaration: &Declaration) {
         for init in declaration.inits.iter() {
             if let InitDeclarator::Declarator(d) = init {
-                if let DirectDeclarator::Ident(Identifier { name }) = &d.direct {
-                    self.symbol_table
-                        .declare_var(declaration.specs.clone(), d.clone());
-                }
+                self.symbol_table
+                    .declare_var(declaration.specs.clone(), d.clone());
             }
         }
     }
