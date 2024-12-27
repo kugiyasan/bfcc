@@ -75,7 +75,8 @@ impl Codegen {
             stmt,
         }: FuncDef,
     ) {
-        self.symbol_table.set_current_func(declarator.direct.get_name());
+        self.symbol_table
+            .set_current_func(declarator.direct.get_name());
 
         let DirectDeclarator::Ident(Identifier { name }) = declarator.direct else {
             panic!(
@@ -203,7 +204,9 @@ impl Codegen {
         match assign {
             Assign::Const(c) => self.gen_constant_expr(c),
             Assign::Assign(unary, kind, a) => {
-                if let Unary::Identity(Primary::Ident(Identifier { name })) = unary {
+                if let Unary::Deref(u) = unary {
+                    self.gen_unary(*u);
+                } else if let Unary::Identity(Primary::Ident(Identifier { name })) = unary {
                     self.gen_lval(&name);
                 } else {
                     panic!("Invalid l-value for assignment: {:?}", unary);

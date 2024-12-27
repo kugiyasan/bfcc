@@ -245,4 +245,12 @@ return *z;
 # step 17
 assertImplicitMain 1 'return - - - - 1;'
 
+# step 18
+assertImplicitMain 3 '
+int x;
+int *y;
+y = &x;
+*y = 3;
+return x;'
+
 echo 'All tests passed!'
