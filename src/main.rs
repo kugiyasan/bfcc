@@ -25,14 +25,14 @@ fn main() {
     let token_kinds = tokens.iter().map(|t| &t.kind).collect::<Vec<_>>();
     dbg!(token_kinds);
 
-    let mut ast = Parser::new(tokens);
-    let program = ast.parse();
-    dbg!(&program);
+    let mut parser = Parser::new(tokens);
+    let translation_unit = parser.parse();
+    dbg!(&translation_unit);
 
     let mut visitor = SemanticVisitor::new();
-    let symbol_table = visitor.visit_translation_unit(&program);
+    let symbol_table = visitor.visit_translation_unit(&translation_unit);
     dbg!(&symbol_table);
 
     let mut codegen = Codegen::new(symbol_table);
-    codegen.generate(program);
+    codegen.generate(translation_unit);
 }

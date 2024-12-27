@@ -92,7 +92,7 @@ impl Parser {
         TranslationUnit(funcs)
     }
 
-    /// func-def = declaration-specifiers? declarator "(" args ")" compound-stmt
+    /// func-def = declaration-specifiers? declarator "(" declaration* ")" compound-stmt
     fn parse_func_def(&mut self) -> FuncDef {
         let specs = self.parse_declaration_specifiers();
         let declarator = self.parse_declarator();
@@ -176,6 +176,7 @@ impl Parser {
         }
     }
 
+    /// declaration = declaration-specifiers init-declarator ("," init-declarator)*
     fn parse_declaration(&mut self) -> Option<Declaration> {
         let Some(ds) = self.parse_declaration_specifier() else {
             return None;
@@ -194,10 +195,13 @@ impl Parser {
         Some(Declaration { specs, inits })
     }
 
+    /// init-declarator = declarator
+    ///                 | declarator "=" initializer
     fn parse_init_declarator(&mut self) -> Option<InitDeclarator> {
         Some(InitDeclarator::Declarator(self.parse_declarator()))
     }
 
+    /// declarator = pointer? direct-declarator
     fn parse_declarator(&mut self) -> Declarator {
         Declarator {
             pointer: self.parse_pointer(),
@@ -205,6 +209,7 @@ impl Parser {
         }
     }
 
+    /// pointer = "*" type-qualifier* pointer?
     fn parse_pointer(&mut self) -> Option<Pointer> {
         if !self.consume(&TokenKind::Star) {
             return None;
@@ -221,6 +226,11 @@ impl Parser {
         })
     }
 
+    /// direct-declarator = identifier
+    ///                   | (declarator)
+    ///                   | direct-declarator [ constant-expression_opt ]
+    ///                   | direct-declarator ( parameter-type-list )
+    ///                   | direct-declarator ( identifier-list_opt )
     fn parse_direct_declarator(&mut self) -> DirectDeclarator {
         if let Some(name) = self.consume_ident() {
             DirectDeclarator::Ident(Identifier { name })
@@ -273,6 +283,8 @@ impl Parser {
         })
     }
 
+    /// param-declaration = declaration-specifiers declarator
+    ///                   | declaration-specifiers abstract-declarator?
     fn parse_param_declaration(&mut self) -> Option<ParamDeclaration> {
         let Some(ds) = self.parse_declaration_specifier() else {
             return None;
@@ -291,6 +303,7 @@ impl Parser {
         // }
     }
 
+    /// declaration-specifiers = declaration-specifier*
     fn parse_declaration_specifiers(&mut self) -> Vec<DeclarationSpecifier> {
         let mut declaration_specifiers = vec![];
 
@@ -301,6 +314,9 @@ impl Parser {
         declaration_specifiers
     }
 
+    /// declaration-specifier = storage-class-specifier
+    ///                       | type-specifier
+    ///                       | type-qualifier
     fn parse_declaration_specifier(&mut self) -> Option<DeclarationSpecifier> {
         if let Some(s) = self.parse_storage_class_specifier() {
             Some(DeclarationSpecifier::StorageClassSpecifier(s))
