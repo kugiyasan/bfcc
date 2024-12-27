@@ -124,14 +124,17 @@ impl Parser {
         }
     }
 
-    /// stmt = expr ";"
+    /// stmt = ";"
+    ///      | expr ";"
     ///      | "{" stmt* "}"
     ///      | "if" "(" expr ")" stmt ("else" stmt)?
     ///      | "while" "(" expr ")" stmt
     ///      | "for" "(" expr? ";" expr? ";" expr? ")" stmt
     ///      | "return" expr ";"
     fn parse_stmt(&mut self) -> Stmt {
-        if self.consume(&TokenKind::LeftCurlyBrace) {
+        if self.consume(&TokenKind::SemiColon) {
+            Stmt::SemiColon
+        } else if self.consume(&TokenKind::LeftCurlyBrace) {
             let mut stmts = vec![];
             while !self.consume(&TokenKind::RightCurlyBrace) {
                 stmts.push(self.parse_declaration_or_stmt());

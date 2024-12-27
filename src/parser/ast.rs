@@ -105,6 +105,7 @@ pub enum Stmt {
     Case(Expr, Box<Stmt>), // todo
     Default(Expr, Box<Stmt>),
 
+    SemiColon,
     Expr(Expr),
     Compound(CompoundStmt),
 

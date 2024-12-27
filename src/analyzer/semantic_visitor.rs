@@ -39,6 +39,7 @@ impl SemanticVisitor {
 
     fn visit_stmt(&mut self, stmt: &Stmt) {
         match stmt {
+            Stmt::SemiColon => (),
             Stmt::Expr(expr) => self.visit_expr(expr),
             Stmt::Compound(CompoundStmt(stmts)) => {
                 for ds in stmts {

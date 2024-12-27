@@ -99,6 +99,7 @@ impl Codegen {
 
     fn gen_stmt(&mut self, stmt: Stmt) {
         match stmt {
+            Stmt::SemiColon => (),
             Stmt::Expr(expr) => {
                 self.gen_expr(expr);
                 println!("  pop rax");
