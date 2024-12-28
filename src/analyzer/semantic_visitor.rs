@@ -1,9 +1,28 @@
+use core::panic;
+
 use crate::parser::{
-    Assign, CompoundStmt, ConstantExpr, Declaration, DeclarationOrStmt, Expr,
-    ExprKind, FuncDef, InitDeclarator, Primary, Stmt, TranslationUnit, Unary,
+    Assign, BinOpKind, CompoundStmt, ConstantExpr, Declaration, DeclarationOrStmt, Expr, ExprKind,
+    FuncDef, Identifier, InitDeclarator, Primary, Stmt, TranslationUnit, TypeSpecifier, Unary,
 };
 
 use super::symbol_table::SymbolTable;
+
+#[derive(Clone, Debug, PartialEq)]
+pub enum Type {
+    Void,
+    Int,
+    Ptr(Box<Type>),
+}
+
+impl Type {
+    pub fn sizeof(&self) -> usize {
+        match self {
+            Type::Void => 0,
+            Type::Int => 4,
+            Type::Ptr(_) => 8,
+        }
+    }
+}
 
 pub struct SemanticVisitor {
     symbol_table: SymbolTable,
@@ -16,54 +35,65 @@ impl SemanticVisitor {
         }
     }
 
-    pub fn visit_translation_unit(&mut self, translation_unit: &TranslationUnit) -> SymbolTable {
-        for func_def in translation_unit.0.iter() {
+    pub fn visit_translation_unit(
+        &mut self,
+        translation_unit: &mut TranslationUnit,
+    ) -> SymbolTable {
+        for func_def in translation_unit.0.iter_mut() {
             self.visit_func_def(func_def);
         }
 
         self.symbol_table.clone()
     }
 
-    pub fn visit_func_def(&mut self, func_def: &FuncDef) {
+    pub fn visit_func_def(&mut self, func_def: &mut FuncDef) {
         self.symbol_table
             .declare_func(func_def.declarator.direct.get_name());
 
-        for d in func_def.declarations.iter() {
+        for d in func_def.declarations.iter_mut() {
             self.visit_declaration(d);
         }
 
-        for ds in func_def.stmt.0.iter() {
+        for ds in func_def.stmt.0.iter_mut() {
             self.visit_declaration_or_stmt(ds);
         }
     }
 
-    fn visit_stmt(&mut self, stmt: &Stmt) {
+    fn visit_stmt(&mut self, stmt: &mut Stmt) {
         match stmt {
             Stmt::SemiColon => (),
-            Stmt::Expr(expr) => self.visit_expr(expr),
+            Stmt::Expr(expr) => {
+                self.visit_expr(expr);
+            }
             Stmt::Compound(CompoundStmt(stmts)) => {
                 for ds in stmts {
                     self.visit_declaration_or_stmt(ds);
                 }
             }
-            Stmt::If(expr, stmt, None) => self.visit_if(expr, &stmt),
-            Stmt::If(expr, stmt, Some(else_stmt)) => self.visit_if_else(expr, &stmt, &else_stmt),
-            Stmt::While(expr, stmt) => self.visit_while(expr, &stmt),
-            Stmt::For(expr1, expr2, expr3, stmt) => self.visit_for(expr1, expr2, expr3, &stmt),
-            Stmt::Return(expr) => self.visit_expr(expr),
+            Stmt::If(expr, stmt, None) => self.visit_if(expr, stmt.as_mut()),
+            Stmt::If(expr, stmt, Some(else_stmt)) => {
+                self.visit_if_else(expr, stmt.as_mut(), else_stmt.as_mut())
+            }
+            Stmt::While(expr, stmt) => self.visit_while(expr, stmt.as_mut()),
+            Stmt::For(expr1, expr2, expr3, stmt) => {
+                self.visit_for(expr1, expr2, expr3, stmt.as_mut())
+            }
+            Stmt::Return(expr) => {
+                self.visit_expr(expr);
+            }
             _ => todo!(),
         };
     }
 
-    fn visit_declaration_or_stmt(&mut self, ds: &DeclarationOrStmt) {
+    fn visit_declaration_or_stmt(&mut self, ds: &mut DeclarationOrStmt) {
         match ds {
             DeclarationOrStmt::Declaration(d) => self.visit_declaration(d),
             DeclarationOrStmt::Stmt(s) => self.visit_stmt(s),
         }
     }
 
-    fn visit_declaration(&mut self, declaration: &Declaration) {
-        for init in declaration.inits.iter() {
+    fn visit_declaration(&mut self, declaration: &mut Declaration) {
+        for init in declaration.inits.iter_mut() {
             if let InitDeclarator::Declarator(d) = init {
                 self.symbol_table
                     .declare_var(declaration.specs.clone(), d.clone());
@@ -71,28 +101,28 @@ impl SemanticVisitor {
         }
     }
 
-    fn visit_if(&mut self, expr: &Expr, stmt: &Stmt) {
+    fn visit_if(&mut self, expr: &mut Expr, stmt: &mut Stmt) {
         self.visit_expr(expr);
         self.visit_stmt(stmt);
     }
 
-    fn visit_if_else(&mut self, expr: &Expr, stmt: &Stmt, else_stmt: &Stmt) {
+    fn visit_if_else(&mut self, expr: &mut Expr, stmt: &mut Stmt, else_stmt: &mut Stmt) {
         self.visit_expr(expr);
         self.visit_stmt(stmt);
         self.visit_stmt(else_stmt);
     }
 
-    fn visit_while(&mut self, expr: &Expr, stmt: &Stmt) {
+    fn visit_while(&mut self, expr: &mut Expr, stmt: &mut Stmt) {
         self.visit_expr(expr);
         self.visit_stmt(stmt);
     }
 
     fn visit_for(
         &mut self,
-        expr1: &Option<Expr>,
-        expr2: &Option<Expr>,
-        expr3: &Option<Expr>,
-        stmt: &Stmt,
+        expr1: &mut Option<Expr>,
+        expr2: &mut Option<Expr>,
+        expr3: &mut Option<Expr>,
+        stmt: &mut Stmt,
     ) {
         if let Some(e) = expr1 {
             self.visit_expr(e);
@@ -106,60 +136,94 @@ impl SemanticVisitor {
         self.visit_stmt(stmt);
     }
 
-    fn visit_expr(&mut self, expr: &Expr) {
-        for assign in expr.0.iter() {
-            self.visit_assign(assign);
+    fn visit_expr(&mut self, expr: &mut Expr) -> Type {
+        let mut t = Type::Void;
+        for assign in expr.0.iter_mut() {
+            t = self.visit_assign(assign);
         }
+        t
     }
 
-    fn visit_assign(&mut self, assign: &Assign) {
+    fn visit_assign(&mut self, assign: &mut Assign) -> Type {
         match assign {
             Assign::Const(c) => self.visit_constant_expr(c),
             Assign::Assign(unary, _kind, a) => {
-                self.visit_unary(unary);
-                self.visit_assign(a);
+                let t1 = self.visit_unary(unary);
+                let t2 = self.visit_assign(a);
+                assert_eq!(t1, t2);
+                t1
             }
         }
     }
 
-    fn visit_constant_expr(&mut self, c: &ConstantExpr) {
+    fn visit_constant_expr(&mut self, c: &mut ConstantExpr) -> Type {
         match c {
             ConstantExpr::Identity(e) => self.visit_expr_kind(e),
             ConstantExpr::Ternary(expr_kind, expr, constant_expr) => {
                 self.visit_expr_kind(expr_kind);
-                self.visit_expr(expr);
-                self.visit_constant_expr(constant_expr);
+                let t2 = self.visit_expr(expr);
+                let t3 = self.visit_constant_expr(constant_expr);
+                assert_eq!(t2, t3);
+                t2
             }
         }
     }
 
-    fn visit_expr_kind(&mut self, expr_kind: &ExprKind) {
+    fn visit_expr_kind(&mut self, expr_kind: &mut ExprKind) -> Type {
+        dbg!(&expr_kind);
         match expr_kind {
             ExprKind::Binary(_kind, left, right) => {
-                self.visit_expr_kind(left);
-                self.visit_expr_kind(right);
+                let t1 = self.visit_expr_kind(left);
+                let t2 = self.visit_expr_kind(right);
+
+                dbg!((&t1, &t2));
+                // todo also check t2 t1
+                if let Type::Ptr(ref p) = t1 {
+                    if **p == t2 {
+                        let size =
+                            ExprKind::Unary(Unary::Identity(Primary::Num(t2.sizeof() as i32)));
+                        *right = Box::new(ExprKind::Binary(
+                            BinOpKind::Mul,
+                            right.clone(),
+                            Box::new(size),
+                        ));
+                    }
+                    return t1;
+                }
+
+                assert_eq!(t1, t2);
+                t1
             }
             ExprKind::Unary(unary) => self.visit_unary(unary),
         }
     }
 
-    fn visit_unary(&mut self, unary: &Unary) {
+    fn visit_unary(&mut self, unary: &mut Unary) -> Type {
         match unary {
             Unary::Identity(primary) => self.visit_primary(primary),
-            Unary::Neg(unary) => self.visit_unary(&unary),
-            Unary::Ref(unary) => self.visit_unary(&unary),
-            Unary::Deref(unary) => self.visit_unary(&unary),
+            Unary::Neg(unary) => self.visit_unary(unary.as_mut()),
+            Unary::Ref(unary) => {
+                let t = self.visit_unary(unary.as_mut());
+                Type::Ptr(Box::new(t))
+            }
+            Unary::Deref(unary) => {
+                let t = self.visit_unary(unary.as_mut());
+                let Type::Ptr(p) = t else {
+                    panic!("Tried to dereference non-pointer variable")
+                };
+                *p
+            }
             _ => todo!(),
         }
     }
 
-    fn visit_primary(&mut self, primary: &Primary) {
+    fn visit_primary(&mut self, primary: &mut Primary) -> Type {
         match primary {
-            Primary::Num(_num) => (),
-            Primary::Ident(_offset) => (),
-            Primary::FunctionCall(_name, None) => (),
+            Primary::Num(_num) => Type::Int,
+            Primary::Ident(Identifier { name }) => self.symbol_table.get_var_type(name),
+            Primary::FunctionCall(_name, None) => Type::Void, // todo
             Primary::FunctionCall(_name, Some(expr)) => self.visit_expr(expr),
-            Primary::Expr(expr) => self.visit_expr(&expr),
+            Primary::Expr(expr) => self.visit_expr(expr.as_mut()),
         }
     }
 }

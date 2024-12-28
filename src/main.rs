@@ -26,11 +26,12 @@ fn main() {
     dbg!(token_kinds);
 
     let mut parser = Parser::new(tokens);
-    let translation_unit = parser.parse();
-    dbg!(&translation_unit);
+    let mut translation_unit = parser.parse();
+    // dbg!(&translation_unit);
 
     let mut visitor = SemanticVisitor::new();
-    let symbol_table = visitor.visit_translation_unit(&translation_unit);
+    let symbol_table = visitor.visit_translation_unit(&mut translation_unit);
+    dbg!(&translation_unit);
     dbg!(&symbol_table);
 
     let mut codegen = Codegen::new(symbol_table);

@@ -282,9 +282,9 @@ impl Codegen {
             }
             Unary::Deref(unary) => {
                 self.gen_unary(*unary);
-                println!("  pop rax\n");
-                println!("  mov rax, [rax]\n");
-                println!("  push rax\n");
+                println!("  pop rax");
+                println!("  mov rax, [rax]");
+                println!("  push rax");
             }
             _ => todo!(),
         }

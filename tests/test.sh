@@ -228,7 +228,7 @@ int main() {
 # step 16
 assertImplicitMain 3 '
 int x;
-int y;
+int *y;
 x = 3;
 y = &x;
 return *y;
@@ -236,10 +236,10 @@ return *y;
 assertImplicitMain 3 '
 int x;
 int y;
-int z;
+int *z;
 x = 3;
 y = 5;
-z = &y + 8;
+z = &y + 2;
 return *z;
 '
 # step 17
