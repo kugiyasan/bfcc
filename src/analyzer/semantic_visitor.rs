@@ -201,17 +201,22 @@ impl SemanticVisitor {
     fn visit_unary(&mut self, unary: &mut Unary) -> Type {
         match unary {
             Unary::Identity(primary) => self.visit_primary(primary),
-            Unary::Neg(unary) => self.visit_unary(unary.as_mut()),
-            Unary::Ref(unary) => {
-                let t = self.visit_unary(unary.as_mut());
+            Unary::Neg(u) => self.visit_unary(u.as_mut()),
+            Unary::Ref(u) => {
+                let t = self.visit_unary(u.as_mut());
                 Type::Ptr(Box::new(t))
             }
-            Unary::Deref(unary) => {
-                let t = self.visit_unary(unary.as_mut());
+            Unary::Deref(u) => {
+                let t = self.visit_unary(u.as_mut());
                 let Type::Ptr(p) = t else {
                     panic!("Tried to dereference non-pointer variable")
                 };
                 *p
+            }
+            Unary::Sizeof(u) => {
+                let t = self.visit_unary(u.as_mut());
+                *unary = Unary::Identity(Primary::Num(t.sizeof() as i32));
+                Type::Int
             }
             _ => todo!(),
         }

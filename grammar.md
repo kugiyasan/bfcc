@@ -188,7 +188,7 @@ cast-expression:
   unary-expression
   (type-name) cast-expression
 unary-expression:
-  postfix expression
+  postfix-expression
   ++unary-expression
   --unary-expression
   unary-operator cast-expression

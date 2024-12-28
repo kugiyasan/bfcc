@@ -85,7 +85,7 @@ impl Parser {
     fn parse_translation_unit(&mut self) -> TranslationUnit {
         let mut funcs = vec![];
 
-        while self.index < self.tokens.len() {
+        while !self.is_eof() {
             funcs.push(self.parse_func_def());
         }
 
@@ -590,25 +590,34 @@ impl Parser {
     }
 
     /// unary = primary
-    ///       | "+" unary
-    ///       | "-" unary
-    ///       | "*" unary
-    ///       | "&" unary
-    ///       | "~" unary
-    ///       | "!" unary
+    ///       | "+" cast
+    ///       | "-" cast
+    ///       | "*" cast
+    ///       | "&" cast
+    ///       | "~" cast
+    ///       | "!" cast
+    ///       | "++" unary
+    ///       | "--" unary
+    ///       | "sizeof" unary
     fn parse_unary(&mut self) -> Unary {
         if self.consume(&TokenKind::Plus) {
-            self.parse_unary()
+            self.parse_cast()
         } else if self.consume(&TokenKind::Minus) {
-            Unary::Neg(Box::new(self.parse_unary()))
+            Unary::Neg(Box::new(self.parse_cast()))
         } else if self.consume(&TokenKind::Ampersand) {
-            Unary::Ref(Box::new(self.parse_unary()))
+            Unary::Ref(Box::new(self.parse_cast()))
         } else if self.consume(&TokenKind::Star) {
-            Unary::Deref(Box::new(self.parse_unary()))
+            Unary::Deref(Box::new(self.parse_cast()))
         } else if self.consume(&TokenKind::Tilde) {
-            Unary::BitwiseNot(Box::new(self.parse_unary()))
+            Unary::BitwiseNot(Box::new(self.parse_cast()))
         } else if self.consume(&TokenKind::Exclamation) {
-            Unary::LogicalNot(Box::new(self.parse_unary()))
+            Unary::LogicalNot(Box::new(self.parse_cast()))
+        } else if self.consume(&TokenKind::PlusPlus) {
+            Unary::PrefixIncrement(Box::new(self.parse_cast()))
+        } else if self.consume(&TokenKind::MinusMinus) {
+            Unary::PrefixDecrement(Box::new(self.parse_cast()))
+        } else if self.consume(&TokenKind::Sizeof) {
+            Unary::Sizeof(Box::new(self.parse_unary()))
         } else {
             Unary::Identity(self.parse_primary())
         }

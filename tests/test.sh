@@ -262,5 +262,28 @@ q = p + 2;
 q = p + 3;
 return *q;
 '
+# step 20
+assertImplicitMain 7 '
+int x;
+int *y;
+int a;
+int b;
+int c;
+int d;
+int e;
+int f;
+int g;
+
+a = sizeof(x) == 4;
+b = sizeof(y) == 8;
+
+c = sizeof(x + 3) == 4;
+d = sizeof(y + 3) == 8;
+e = sizeof(*y) == 4;
+
+f = sizeof(1) == 4;
+g = sizeof(sizeof(1)) == 4;
+return a + b + c + d + e + f + g;
+'
 
 echo 'All tests passed!'

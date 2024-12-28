@@ -210,6 +210,9 @@ pub enum Unary {
     Deref(Box<Unary>),
     BitwiseNot(Box<Unary>),
     LogicalNot(Box<Unary>),
+    PrefixIncrement(Box<Unary>),
+    PrefixDecrement(Box<Unary>),
+    Sizeof(Box<Unary>),
 }
 
 #[derive(Clone, Debug)]
