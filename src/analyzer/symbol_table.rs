@@ -1,6 +1,6 @@
 use std::collections::HashMap;
 
-use crate::parser::{DeclarationSpecifier, Declarator, TypeSpecifier};
+use crate::parser::{DeclarationSpecifier, Declarator, DirectDeclarator, TypeSpecifier};
 
 use super::Type;
 

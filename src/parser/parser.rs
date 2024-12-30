@@ -100,11 +100,11 @@ impl Parser {
         let mut declarations = vec![];
         self.expect(&TokenKind::LeftParen);
         if !self.consume(&TokenKind::RightParen) {
-            let d = self.parse_declaration().expect("Can'T parse declaration");
+            let d = self.parse_declaration().expect("Can't parse declaration");
             declarations.push(d);
 
             while self.consume(&TokenKind::Comma) {
-                let d = self.parse_declaration().expect("Can'T parse declaration");
+                let d = self.parse_declaration().expect("Can't parse declaration");
                 declarations.push(d);
             }
             self.expect(&TokenKind::RightParen);

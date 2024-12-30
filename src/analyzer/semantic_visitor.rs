@@ -2,7 +2,7 @@ use core::panic;
 
 use crate::parser::{
     Assign, BinOpKind, CompoundStmt, ConstantExpr, Declaration, DeclarationOrStmt, Expr, ExprKind,
-    FuncDef, Identifier, InitDeclarator, Primary, Stmt, TranslationUnit, TypeSpecifier, Unary,
+    FuncDef, Identifier, InitDeclarator, Primary, Stmt, TranslationUnit, Unary,
 };
 
 use super::symbol_table::SymbolTable;
@@ -12,6 +12,7 @@ pub enum Type {
     Void,
     Int,
     Ptr(Box<Type>),
+    Array(Box<Type>, usize),
 }
 
 impl Type {
@@ -20,6 +21,7 @@ impl Type {
             Type::Void => 0,
             Type::Int => 4,
             Type::Ptr(_) => 8,
+            Type::Array(t, size) => t.sizeof() * size,
         }
     }
 }
