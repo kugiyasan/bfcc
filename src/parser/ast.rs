@@ -1,3 +1,5 @@
+#![allow(dead_code)]
+
 #[derive(Clone, Debug)]
 pub struct TranslationUnit(pub Vec<FuncDef>);
 
@@ -5,7 +7,6 @@ pub struct TranslationUnit(pub Vec<FuncDef>);
 pub struct FuncDef {
     pub specs: Vec<DeclarationSpecifier>,
     pub declarator: Declarator,
-    pub declarations: Vec<Declaration>,
     pub stmt: CompoundStmt,
 }
 
@@ -69,9 +70,8 @@ pub enum TypeQualifier {
 pub enum DirectDeclarator {
     Ident(Identifier),
     Declarator(Box<Declarator>),
-    Array(Box<DirectDeclarator>, Option<Expr>), // todo
-    ParamList(Box<DirectDeclarator>, ParamList),
-    Identifiers(Box<DirectDeclarator>, Vec<Identifier>),
+    Array(Box<DirectDeclarator>, Option<ConstantExpr>),
+    ParamTypeList(Box<DirectDeclarator>, ParamTypeList),
 }
 
 impl DirectDeclarator {
@@ -80,14 +80,13 @@ impl DirectDeclarator {
             DirectDeclarator::Ident(Identifier { name }) => name.to_string(),
             DirectDeclarator::Declarator(d) => d.direct.get_name(),
             DirectDeclarator::Array(dd, _) => dd.get_name(),
-            DirectDeclarator::ParamList(dd, _) => dd.get_name(),
-            DirectDeclarator::Identifiers(dd, _) => dd.get_name(),
+            DirectDeclarator::ParamTypeList(dd, _) => dd.get_name(),
         }
     }
 }
 
 #[derive(Clone, Debug)]
-pub struct ParamList {
+pub struct ParamTypeList {
     pub params: Vec<ParamDeclaration>,
     pub variadic: bool,
 }
@@ -96,7 +95,6 @@ pub struct ParamList {
 pub enum ParamDeclaration {
     Declarator(Vec<DeclarationSpecifier>, Box<Declarator>),
     AbstractDeclarator(Vec<DeclarationSpecifier>, Box<Declarator>), // todo
-    Identity(Vec<DeclarationSpecifier>),
 }
 
 #[derive(Clone, Debug)]

@@ -1,6 +1,9 @@
 use std::collections::HashMap;
 
-use crate::parser::{DeclarationSpecifier, Declarator, DirectDeclarator, TypeSpecifier};
+use crate::parser::{
+    ConstantExpr, DeclarationSpecifier, Declarator, DirectDeclarator, ExprKind, Primary,
+    TypeSpecifier, Unary,
+};
 
 use super::Type;
 
@@ -85,16 +88,43 @@ impl SymbolTable {
         panic!("Variable of unknown type");
     }
 
-    pub fn get_var_type(&self, var_name: &str) -> Type {
-        let name = self.format_var_name(var_name);
-        let var_type = self.table.get(&name).expect("Undeclared variable");
+    fn get_var_type_from_direct_declarator(
+        &self,
+        t: Type,
+        direct_declarator: &DirectDeclarator,
+    ) -> Type {
+        match direct_declarator {
+            DirectDeclarator::Ident(_) => t,
+            DirectDeclarator::Declarator(d) => self._get_var_type(t, d),
+            DirectDeclarator::Array(dd, e) => {
+                let t = self.get_var_type_from_direct_declarator(t, dd);
+                let Some(ConstantExpr::Identity(ExprKind::Unary(Unary::Identity(Primary::Num(
+                    size,
+                ))))) = e
+                else {
+                    todo!("Can't handle ConstExpr");
+                };
+                Type::Array(Box::new(t), *size as usize)
+            }
+            _ => todo!(),
+        }
+    }
 
-        let mut t = self.get_primary_type(&var_type.specs);
-        let mut pointer = &var_type.declarator.pointer;
+    fn _get_var_type(&self, mut t: Type, declarator: &Declarator) -> Type {
+        let mut pointer = &declarator.pointer;
         while let Some(p) = pointer {
             t = Type::Ptr(Box::new(t));
             pointer = &p.pointer;
         }
-        t
+
+        self.get_var_type_from_direct_declarator(t, &declarator.direct)
+    }
+
+    pub fn get_var_type(&self, var_name: &str) -> Type {
+        let name = self.format_var_name(var_name);
+        let var_type = self.table.get(&name).expect("Undeclared variable");
+
+        let t = self.get_primary_type(&var_type.specs);
+        self._get_var_type(t, &var_type.declarator)
     }
 }

@@ -47,7 +47,7 @@ struct-declarator-list:
   struct-declarator-list , struct-declarator
 struct-declarator:
   declarator
-declarator_opt : constant-expression
+  declarator_opt : constant-expression
 enum-specifier:
   enum identifier_opt { enumerator-list }
   enum identifier
@@ -111,9 +111,9 @@ statement:
   iteration-statement
   jump-statement
 labeled-statement:
-identifier : statement
-case constant-expression : statement
-default : statement
+  identifier : statement
+  case constant-expression : statement
+  default : statement
 expression-statement:
   expression_opt;
 compound-statement:

@@ -71,23 +71,26 @@ impl Codegen {
         FuncDef {
             specs: _,
             declarator,
-            declarations,
             stmt,
         }: FuncDef,
     ) {
         self.symbol_table
             .set_current_func(declarator.direct.get_name());
 
-        let DirectDeclarator::Ident(Identifier { name }) = declarator.direct else {
+        let DirectDeclarator::ParamTypeList(dd, param_type_list) = declarator.direct else {
             panic!(
-                "Function name is not an identifier: {:?}",
+                "DirectDeclarator is not a ParamTypeList: {:?}",
                 declarator.direct
             );
         };
+        let DirectDeclarator::Ident(Identifier { name }) = *dd else {
+            panic!("Function name is not an identifier: {:?}", dd);
+        };
+
         println!("{name}:");
         println!("  push rbp");
         println!("  mov rbp, rsp");
-        for reg in ARGUMENT_REGISTERS.iter().take(declarations.len()) {
+        for reg in ARGUMENT_REGISTERS.iter().take(param_type_list.params.len()) {
             println!("  push {reg}");
         }
         let local_offset = self.symbol_table.get_offset(&name);

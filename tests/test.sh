@@ -285,5 +285,14 @@ f = sizeof(1) == 4;
 g = sizeof(sizeof(1)) == 4;
 return a + b + c + d + e + f + g;
 '
+# step 21
+assertImplicitMain 3 '
+int a[2];
+*a = 1;
+*(a + 1) = 2;
+int *p;
+p = a;
+return *p + *(p + 1);
+'
 
 echo 'All tests passed!'

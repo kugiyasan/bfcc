@@ -3,7 +3,7 @@ use crate::lexer::{Token, TokenKind};
 use super::{
     Assign, AssignOpKind, BinOpKind, CompoundStmt, ConstantExpr, Declaration, DeclarationOrStmt,
     DeclarationSpecifier, Declarator, DirectDeclarator, Expr, ExprKind, FuncDef, Identifier,
-    InitDeclarator, ParamDeclaration, ParamList, Pointer, Primary, Stmt, StorageClassSpecifier,
+    InitDeclarator, ParamDeclaration, ParamTypeList, Pointer, Primary, Stmt, StorageClassSpecifier,
     TranslationUnit, TypeQualifier, TypeSpecifier, Unary,
 };
 
@@ -92,23 +92,10 @@ impl Parser {
         TranslationUnit(funcs)
     }
 
-    /// func-def = declaration-specifiers? declarator "(" declaration* ")" compound-stmt
+    /// func-def = declaration-specifiers? declarator compound-stmt
     fn parse_func_def(&mut self) -> FuncDef {
         let specs = self.parse_declaration_specifiers();
         let declarator = self.parse_declarator();
-
-        let mut declarations = vec![];
-        self.expect(&TokenKind::LeftParen);
-        if !self.consume(&TokenKind::RightParen) {
-            let d = self.parse_declaration().expect("Can't parse declaration");
-            declarations.push(d);
-
-            while self.consume(&TokenKind::Comma) {
-                let d = self.parse_declaration().expect("Can't parse declaration");
-                declarations.push(d);
-            }
-            self.expect(&TokenKind::RightParen);
-        }
 
         let mut stmts = vec![];
         self.expect(&TokenKind::LeftCurlyBrace);
@@ -119,7 +106,6 @@ impl Parser {
         FuncDef {
             specs,
             declarator,
-            declarations,
             stmt: CompoundStmt(stmts),
         }
     }
@@ -181,12 +167,9 @@ impl Parser {
 
     /// declaration = declaration-specifiers init-declarator ("," init-declarator)*
     fn parse_declaration(&mut self) -> Option<Declaration> {
-        let Some(ds) = self.parse_declaration_specifier() else {
+        let specs = self.parse_declaration_specifiers();
+        if specs.is_empty() {
             return None;
-        };
-        let mut specs = vec![ds];
-        while let Some(ds) = self.parse_declaration_specifier() {
-            specs.push(ds);
         }
 
         let mut inits = vec![];
@@ -201,7 +184,13 @@ impl Parser {
     /// init-declarator = declarator
     ///                 | declarator "=" initializer
     fn parse_init_declarator(&mut self) -> Option<InitDeclarator> {
-        Some(InitDeclarator::Declarator(self.parse_declarator()))
+        let d = self.parse_declarator();
+        if self.consume(&TokenKind::Equal) {
+            todo!();
+            // let i = self.parse_initializer();
+            // return Some(InitDeclarator::DeclaratorAndInitializer(d, i));
+        }
+        Some(InitDeclarator::Declarator(d))
     }
 
     /// declarator = pointer? direct-declarator
@@ -231,38 +220,47 @@ impl Parser {
 
     /// direct-declarator = identifier
     ///                   | (declarator)
-    ///                   | direct-declarator [ constant-expression_opt ]
-    ///                   | direct-declarator ( parameter-type-list )
-    ///                   | direct-declarator ( identifier-list_opt )
+    ///                   | direct-declarator [ constant-expression? ]
+    ///                   | direct-declarator ( parameter-type-list? )
     fn parse_direct_declarator(&mut self) -> DirectDeclarator {
-        if let Some(name) = self.consume_ident() {
-            DirectDeclarator::Ident(Identifier { name })
-        } else if self.consume(&TokenKind::LeftParen) {
+        if self.consume(&TokenKind::LeftParen) {
             let d = self.parse_declarator();
             self.expect(&TokenKind::RightParen);
-            DirectDeclarator::Declarator(Box::new(d))
-        } else {
-            let d = Box::new(self.parse_direct_declarator());
-            if self.consume(&TokenKind::LeftSquareBrace) {
-                let expr = Some(self.parse_expr());
-                self.expect(&TokenKind::RightSquareBrace);
-                return DirectDeclarator::Array(d, expr);
-            }
-            self.expect(&TokenKind::LeftParen);
-            if let Some(param_list) = self.parse_param_list() {
-                self.expect(&TokenKind::RightParen);
-                return DirectDeclarator::ParamList(d, param_list);
-            }
-            let mut identifiers = vec![];
-            while let Some(name) = self.consume_ident() {
-                identifiers.push(Identifier { name });
-            }
-            self.expect(&TokenKind::RightParen);
-            DirectDeclarator::Identifiers(d, identifiers)
+            return DirectDeclarator::Declarator(Box::new(d));
         }
+
+        let name = self.expect_ident();
+        let d = Box::new(DirectDeclarator::Ident(Identifier { name: name.clone() }));
+
+        if self.consume(&TokenKind::LeftSquareBrace) {
+            if self.consume(&TokenKind::RightSquareBrace) {
+                return DirectDeclarator::Array(d, None);
+            }
+
+            let expr = Some(self.parse_constant_expr());
+            self.expect(&TokenKind::RightSquareBrace);
+            return DirectDeclarator::Array(d, expr);
+        } else if self.consume(&TokenKind::LeftParen) {
+            if self.consume(&TokenKind::RightParen) {
+                let ptl = ParamTypeList {
+                    params: vec![],
+                    variadic: false,
+                };
+                return DirectDeclarator::ParamTypeList(d, ptl);
+            }
+
+            let param_list = self
+                .parse_param_type_list()
+                .expect("Expected ParamTypeList");
+            self.expect(&TokenKind::RightParen);
+            return DirectDeclarator::ParamTypeList(d, param_list);
+        }
+
+        DirectDeclarator::Ident(Identifier { name })
     }
 
-    fn parse_param_list(&mut self) -> Option<ParamList> {
+    /// parameter-type-list = param-declaration* ("," ...)?
+    fn parse_param_type_list(&mut self) -> Option<ParamTypeList> {
         let Some(pd) = self.parse_param_declaration() else {
             return None;
         };
@@ -273,14 +271,14 @@ impl Parser {
                 pds.push(pd);
             };
             if self.consume(&TokenKind::ThreeDots) {
-                return Some(ParamList {
+                return Some(ParamTypeList {
                     params: pds,
                     variadic: true,
                 });
             }
         }
 
-        Some(ParamList {
+        Some(ParamTypeList {
             params: pds,
             variadic: false,
         })
@@ -289,21 +287,13 @@ impl Parser {
     /// param-declaration = declaration-specifiers declarator
     ///                   | declaration-specifiers abstract-declarator?
     fn parse_param_declaration(&mut self) -> Option<ParamDeclaration> {
-        let Some(ds) = self.parse_declaration_specifier() else {
+        let specs = self.parse_declaration_specifiers();
+        if specs.is_empty() {
             return None;
-        };
-
-        let mut specs = vec![ds];
-        while let Some(ds) = self.parse_declaration_specifier() {
-            specs.push(ds);
         }
 
-        Some(ParamDeclaration::Identity(specs))
-        // if let Some(d) = self.parse_declarator() {
-        //     Some(ParamDeclaration::Declarator(specs, Box::new(d)))
-        // } else {
-        //     Some(ParamDeclaration::Identity(specs))
-        // }
+        let d = self.parse_declarator();
+        Some(ParamDeclaration::Declarator(specs, Box::new(d)))
     }
 
     /// declaration-specifiers = declaration-specifier*

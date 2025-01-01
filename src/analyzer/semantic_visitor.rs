@@ -1,8 +1,9 @@
 use core::panic;
 
 use crate::parser::{
-    Assign, BinOpKind, CompoundStmt, ConstantExpr, Declaration, DeclarationOrStmt, Expr, ExprKind,
-    FuncDef, Identifier, InitDeclarator, Primary, Stmt, TranslationUnit, Unary,
+    Assign, BinOpKind, CompoundStmt, ConstantExpr, Declaration, DeclarationOrStmt, Declarator,
+    DirectDeclarator, Expr, ExprKind, FuncDef, Identifier, InitDeclarator, ParamDeclaration,
+    Primary, Stmt, TranslationUnit, Unary,
 };
 
 use super::symbol_table::SymbolTable;
@@ -48,17 +49,55 @@ impl SemanticVisitor {
         self.symbol_table.clone()
     }
 
-    pub fn visit_func_def(&mut self, func_def: &mut FuncDef) {
-        self.symbol_table
-            .declare_func(func_def.declarator.direct.get_name());
+    fn visit_func_def(&mut self, func_def: &mut FuncDef) {
+        let DirectDeclarator::ParamTypeList(dd, ptl) = &mut func_def.declarator.direct else {
+            panic!("Function declarator should be a ParamTypeList");
+        };
 
-        for d in func_def.declarations.iter_mut() {
-            self.visit_declaration(d);
+        self.symbol_table.declare_func(dd.get_name());
+        self.visit_direct_declarator(dd);
+
+        for p in ptl.params.iter_mut() {
+            self.visit_param_declaration(p);
         }
 
         for ds in func_def.stmt.0.iter_mut() {
             self.visit_declaration_or_stmt(ds);
         }
+    }
+
+    fn visit_declarator(&mut self, declarator: &mut Declarator) {
+        // declarator.pointer;
+        self.visit_direct_declarator(&mut declarator.direct);
+    }
+
+    fn visit_direct_declarator(&mut self, direct_declarator: &mut DirectDeclarator) {
+        match direct_declarator {
+            DirectDeclarator::Ident(_) => (),
+            DirectDeclarator::Declarator(d) => self.visit_declarator(d),
+            DirectDeclarator::Array(dd, expr) => {
+                self.visit_direct_declarator(dd);
+                if let Some(c) = expr {
+                    self.visit_constant_expr(c);
+                }
+            }
+            DirectDeclarator::ParamTypeList(dd, ptl) => {
+                self.visit_direct_declarator(dd);
+                for p in ptl.params.iter_mut() {
+                    self.visit_param_declaration(p);
+                }
+            }
+        }
+    }
+
+    fn visit_param_declaration(&mut self, param_declaration: &mut ParamDeclaration) {
+        match param_declaration {
+            ParamDeclaration::Declarator(specs, d) => {
+                self.visit_declarator(d);
+                self.symbol_table.declare_var(specs.clone(), *d.clone());
+            }
+            ParamDeclaration::AbstractDeclarator(_, _ad) => todo!(),
+        };
     }
 
     fn visit_stmt(&mut self, stmt: &mut Stmt) {
@@ -152,8 +191,17 @@ impl SemanticVisitor {
             Assign::Assign(unary, _kind, a) => {
                 let t1 = self.visit_unary(unary);
                 let t2 = self.visit_assign(a);
-                assert_eq!(t1, t2);
-                t1
+
+                match (t1, t2) {
+                    (Type::Ptr(p), Type::Array(a, _)) => {
+                        assert_eq!(p, a);
+                        *p
+                    }
+                    (t1, t2) => {
+                        assert_eq!(t1, t2);
+                        t1
+                    }
+                }
             }
         }
     }
@@ -172,16 +220,13 @@ impl SemanticVisitor {
     }
 
     fn visit_expr_kind(&mut self, expr_kind: &mut ExprKind) -> Type {
-        dbg!(&expr_kind);
         match expr_kind {
             ExprKind::Binary(_kind, left, right) => {
                 let t1 = self.visit_expr_kind(left);
                 let t2 = self.visit_expr_kind(right);
 
-                dbg!((&t1, &t2));
-                // todo also check t2 t1
-                if let Type::Ptr(ref p) = t1 {
-                    if **p == t2 {
+                match (t1, t2) {
+                    (Type::Ptr(ref p), t2) | (t2, Type::Ptr(ref p)) if **p == t2 => {
                         let size =
                             ExprKind::Unary(Unary::Identity(Primary::Num(t2.sizeof() as i32)));
                         *right = Box::new(ExprKind::Binary(
@@ -189,12 +234,19 @@ impl SemanticVisitor {
                             right.clone(),
                             Box::new(size),
                         ));
+                        Type::Ptr(Box::new(t2))
                     }
-                    return t1;
+                    (Type::Array(t, size), t2) | (t2, Type::Array(t, size)) if *t == t2 => {
+                        let s = ExprKind::Unary(Unary::Identity(Primary::Num(t.sizeof() as i32)));
+                        *right =
+                            Box::new(ExprKind::Binary(BinOpKind::Mul, right.clone(), Box::new(s)));
+                        Type::Array(t, size)
+                    }
+                    (t1, t2) => {
+                        assert_eq!(t1, t2);
+                        t1
+                    }
                 }
-
-                assert_eq!(t1, t2);
-                t1
             }
             ExprKind::Unary(unary) => self.visit_unary(unary),
         }
@@ -209,11 +261,12 @@ impl SemanticVisitor {
                 Type::Ptr(Box::new(t))
             }
             Unary::Deref(u) => {
-                let t = self.visit_unary(u.as_mut());
-                let Type::Ptr(p) = t else {
-                    panic!("Tried to dereference non-pointer variable")
-                };
-                *p
+                let ty = self.visit_unary(u.as_mut());
+                match ty {
+                    Type::Ptr(p) => *p,
+                    Type::Array(t, _) => *t,
+                    t => panic!("Tried to dereference non-pointer variable: {:?}", t),
+                }
             }
             Unary::Sizeof(u) => {
                 let t = self.visit_unary(u.as_mut());
