@@ -289,20 +289,10 @@ impl Codegen {
                 println!("  mov rax, [rax]");
                 println!("  push rax");
             }
-            _ => todo!(),
-        }
-    }
-
-    fn gen_primary(&mut self, primary: Primary) {
-        match primary {
-            Primary::Num(num) => println!("  push {}", num),
-            Primary::Ident(Identifier { name }) => {
-                self.gen_lval(&name);
-                println!("  pop rax");
-                println!("  mov rax, [rax]");
-                println!("  push rax");
-            }
-            Primary::FunctionCall(name, expr) => {
+            Unary::Call(unary, expr) => {
+                let Unary::Identity(Primary::Ident(Identifier{name})) = *unary else {
+                    panic!("Expected single identifier function names");
+                };
                 let args = if let Some(a) = expr { a.0 } else { vec![] };
                 let n_args = args.len();
                 if n_args > 6 {
@@ -322,6 +312,19 @@ impl Codegen {
                 println!("  call {name}");
                 println!("  mov rsp, rbp");
                 println!("  pop rbp");
+                println!("  push rax");
+            }
+            _ => todo!(),
+        }
+    }
+
+    fn gen_primary(&mut self, primary: Primary) {
+        match primary {
+            Primary::Num(num) => println!("  push {}", num),
+            Primary::Ident(Identifier { name }) => {
+                self.gen_lval(&name);
+                println!("  pop rax");
+                println!("  mov rax, [rax]");
                 println!("  push rax");
             }
             Primary::Expr(expr) => self.gen_expr(*expr),

@@ -203,6 +203,7 @@ pub enum ExprKind {
 pub enum Unary {
     Identity(Primary),
     Cast((), Box<Unary>), // todo
+
     Neg(Box<Unary>),
     Ref(Box<Unary>),
     Deref(Box<Unary>),
@@ -211,13 +212,19 @@ pub enum Unary {
     PrefixIncrement(Box<Unary>),
     PrefixDecrement(Box<Unary>),
     Sizeof(Box<Unary>),
+
+    Index(Box<Unary>, Expr),
+    Call(Box<Unary>, Option<Expr>),
+    Field(Box<Unary>, Identifier),
+    PointerField(Box<Unary>, Identifier),
+    PostfixIncrement(Box<Unary>),
+    PostfixDecrement(Box<Unary>),
 }
 
 #[derive(Clone, Debug)]
 pub enum Primary {
     Num(i32),
     Ident(Identifier),
-    FunctionCall(String, Option<Expr>),
     Expr(Box<Expr>),
 }
 

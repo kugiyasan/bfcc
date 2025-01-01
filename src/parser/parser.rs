@@ -579,7 +579,7 @@ impl Parser {
         self.parse_unary()
     }
 
-    /// unary = primary
+    /// unary = postfix-expr
     ///       | "+" cast
     ///       | "-" cast
     ///       | "*" cast
@@ -609,7 +609,39 @@ impl Parser {
         } else if self.consume(&TokenKind::Sizeof) {
             Unary::Sizeof(Box::new(self.parse_unary()))
         } else {
-            Unary::Identity(self.parse_primary())
+            self.parse_postfix_expr()
+        }
+    }
+
+    fn parse_postfix_expr(&mut self) -> Unary {
+        let unary = Unary::Identity(self.parse_primary());
+
+        if self.consume(&TokenKind::LeftSquareBrace) {
+            Unary::Index(Box::new(unary), self.parse_expr())
+        } else if self.consume(&TokenKind::LeftParen) {
+            if self.consume(&TokenKind::RightParen) {
+                Unary::Call(Box::new(unary), None)
+            } else {
+                let expr = self.parse_expr();
+                self.expect(&TokenKind::RightParen);
+                Unary::Call(Box::new(unary), Some(expr))
+            }
+        } else if self.consume(&TokenKind::Dot) {
+            let name = self
+                .consume_ident()
+                .expect("Expected identifier after field access");
+            Unary::Field(Box::new(unary), Identifier { name })
+        } else if self.consume(&TokenKind::Arrow) {
+            let name = self
+                .consume_ident()
+                .expect("Expected identifier after field access");
+            Unary::PointerField(Box::new(unary), Identifier { name })
+        } else if self.consume(&TokenKind::PlusPlus) {
+            Unary::PostfixIncrement(Box::new(unary))
+        } else if self.consume(&TokenKind::MinusMinus) {
+            Unary::PostfixDecrement(Box::new(unary))
+        } else {
+            unary
         }
     }
 
@@ -630,24 +662,10 @@ impl Parser {
             }
             TokenKind::Ident(ident) => {
                 self.index += 1;
-                self.parse_ident(ident.clone())
+                Primary::Ident(Identifier{name: ident.clone()})
             }
 
             t => panic!("Unexpected token: {:?}", t),
-        }
-    }
-
-    fn parse_ident(&mut self, name: String) -> Primary {
-        if self.consume(&TokenKind::LeftParen) {
-            if self.consume(&TokenKind::RightParen) {
-                Primary::FunctionCall(name, None)
-            } else {
-                let expr = self.parse_expr();
-                self.expect(&TokenKind::RightParen);
-                Primary::FunctionCall(name, Some(expr))
-            }
-        } else {
-            Primary::Ident(Identifier { name })
         }
     }
 }

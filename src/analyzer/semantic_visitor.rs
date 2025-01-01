@@ -273,7 +273,9 @@ impl SemanticVisitor {
                 *unary = Unary::Identity(Primary::Num(t.sizeof() as i32));
                 Type::Int
             }
-            _ => todo!(),
+            Unary::Call(_, None) => Type::Void, // todo
+            Unary::Call(_, Some(expr)) => self.visit_expr(expr),
+            u => todo!("{u:?}"),
         }
     }
 
@@ -281,8 +283,6 @@ impl SemanticVisitor {
         match primary {
             Primary::Num(_num) => Type::Int,
             Primary::Ident(Identifier { name }) => self.symbol_table.get_var_type(name),
-            Primary::FunctionCall(_name, None) => Type::Void, // todo
-            Primary::FunctionCall(_name, Some(expr)) => self.visit_expr(expr),
             Primary::Expr(expr) => self.visit_expr(expr.as_mut()),
         }
     }
