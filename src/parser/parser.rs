@@ -664,7 +664,9 @@ impl Parser {
             }
             TokenKind::Ident(ident) => {
                 self.index += 1;
-                Primary::Ident(Identifier{name: ident.clone()})
+                Primary::Ident(Identifier {
+                    name: ident.clone(),
+                })
             }
 
             t => panic!("Unexpected token: {:?}", t),

@@ -290,7 +290,7 @@ impl Codegen {
                 println!("  push rax");
             }
             Unary::Call(unary, expr) => {
-                let Unary::Identity(Primary::Ident(Identifier{name})) = *unary else {
+                let Unary::Identity(Primary::Ident(Identifier { name })) = *unary else {
                     panic!("Expected single identifier function names");
                 };
                 let args = if let Some(a) = expr { a.0 } else { vec![] };

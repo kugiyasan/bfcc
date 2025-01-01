@@ -61,10 +61,7 @@ impl SymbolTable {
         let var_name = declarator.direct.get_name();
         let name = self.format_var_name(&var_name);
 
-        let var_type = VarType {
-            ty,
-            offset,
-        };
+        let var_type = VarType { ty, offset };
         self.table.insert(name, var_type);
     }
 
