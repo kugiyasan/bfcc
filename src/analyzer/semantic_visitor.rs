@@ -20,7 +20,7 @@ impl Type {
     pub fn sizeof(&self) -> usize {
         match self {
             Type::Void => 0,
-            Type::Int => 4,
+            Type::Int => 8,
             Type::Ptr(_) => 8,
             Type::Array(t, size) => t.sizeof() * size,
         }

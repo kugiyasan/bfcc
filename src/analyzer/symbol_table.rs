@@ -9,8 +9,7 @@ use super::Type;
 
 #[derive(Clone, Debug)]
 struct VarType {
-    specs: Vec<DeclarationSpecifier>,
-    declarator: Declarator,
+    ty: Type,
     offset: usize,
 }
 
@@ -52,16 +51,18 @@ impl SymbolTable {
     }
 
     pub fn declare_var(&mut self, specs: Vec<DeclarationSpecifier>, declarator: Declarator) {
-        let var_name = declarator.direct.get_name();
+        let ty = self._get_var_type(self.get_primary_type(&specs), &declarator);
+
         self.total_offset
             .entry(self.current_func_name.clone())
-            .and_modify(|offset| *offset += 8);
+            .and_modify(|offset| *offset += ty.sizeof());
         let offset = *self.total_offset.get(&self.current_func_name).unwrap();
 
+        let var_name = declarator.direct.get_name();
         let name = self.format_var_name(&var_name);
+
         let var_type = VarType {
-            specs,
-            declarator,
+            ty,
             offset,
         };
         self.table.insert(name, var_type);
@@ -123,8 +124,6 @@ impl SymbolTable {
     pub fn get_var_type(&self, var_name: &str) -> Type {
         let name = self.format_var_name(var_name);
         let var_type = self.table.get(&name).expect("Undeclared variable");
-
-        let t = self.get_primary_type(&var_type.specs);
-        self._get_var_type(t, &var_type.declarator)
+        var_type.ty.clone()
     }
 }

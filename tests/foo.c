@@ -1,3 +1,4 @@
+#include <stdint.h>
 #include <stdio.h>
 #include <stdlib.h>
 
@@ -11,9 +12,9 @@ int fooxy(int x, int y) {
     return 0;
 }
 
-int alloc4(int **p, int a, int b, int c, int d) {
+int alloc4(int64_t **p, int64_t a, int64_t b, int64_t c, int64_t d) {
     *p = malloc(4 * sizeof(int));
-    int *q = *p;
+    int64_t *q = *p;
     q[0] = a;
     q[1] = b;
     q[2] = c;
