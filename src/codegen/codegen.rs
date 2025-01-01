@@ -1,5 +1,5 @@
 use crate::{
-    analyzer::SymbolTable,
+    analyzer::{SymbolTable, Type},
     parser::{
         Assign, AssignOpKind, BinOpKind, CompoundStmt, ConstantExpr, DeclarationOrStmt,
         DirectDeclarator, Expr, ExprKind, FuncDef, Identifier, Primary, Stmt, TranslationUnit,
@@ -323,6 +323,9 @@ impl Codegen {
             Primary::Num(num) => println!("  push {}", num),
             Primary::Ident(Identifier { name }) => {
                 self.gen_lval(&name);
+                if let Type::Array(_, _) = self.symbol_table.get_var_type(&name) {
+                    return;
+                }
                 println!("  pop rax");
                 println!("  mov rax, [rax]");
                 println!("  push rax");
