@@ -294,5 +294,19 @@ int *p;
 p = a;
 return *p + *(p + 1);
 '
+# step 22
+assertImplicitMain 42 '
+int arr[4];
+arr[3] = 42;
+return 3[arr];
+'
+assertImplicitMain 6 '
+int arr[5];
+int i;
+for (i = 0; i < 5; i = i + 1)
+  arr[i] = i;
+
+return arr[2] + 4[arr];
+'
 
 echo 'All tests passed!'

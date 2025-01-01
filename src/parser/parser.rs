@@ -617,7 +617,9 @@ impl Parser {
         let unary = Unary::Identity(self.parse_primary());
 
         if self.consume(&TokenKind::LeftSquareBrace) {
-            Unary::Index(Box::new(unary), self.parse_expr())
+            let expr = self.parse_expr();
+            self.expect(&TokenKind::RightSquareBrace);
+            Unary::Index(Box::new(unary), expr)
         } else if self.consume(&TokenKind::LeftParen) {
             if self.consume(&TokenKind::RightParen) {
                 Unary::Call(Box::new(unary), None)

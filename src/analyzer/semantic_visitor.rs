@@ -226,7 +226,7 @@ impl SemanticVisitor {
                 let t2 = self.visit_expr_kind(right);
 
                 match (t1, t2) {
-                    (Type::Ptr(ref p), t2) | (t2, Type::Ptr(ref p)) if **p == t2 => {
+                    (Type::Ptr(ref p), t2) if **p == t2 => {
                         let size =
                             ExprKind::Unary(Unary::Identity(Primary::Num(t2.sizeof() as i32)));
                         *right = Box::new(ExprKind::Binary(
@@ -236,10 +236,26 @@ impl SemanticVisitor {
                         ));
                         Type::Ptr(Box::new(t2))
                     }
-                    (Type::Array(t, size), t2) | (t2, Type::Array(t, size)) if *t == t2 => {
+                    (t2, Type::Ptr(ref p)) if **p == t2 => {
+                        let size =
+                            ExprKind::Unary(Unary::Identity(Primary::Num(t2.sizeof() as i32)));
+                        *left = Box::new(ExprKind::Binary(
+                            BinOpKind::Mul,
+                            left.clone(),
+                            Box::new(size),
+                        ));
+                        Type::Ptr(Box::new(t2))
+                    }
+                    (Type::Array(t, size), t2) if *t == t2 => {
                         let s = ExprKind::Unary(Unary::Identity(Primary::Num(t.sizeof() as i32)));
                         *right =
                             Box::new(ExprKind::Binary(BinOpKind::Mul, right.clone(), Box::new(s)));
+                        Type::Array(t, size)
+                    }
+                    (t2, Type::Array(t, size)) if *t == t2 => {
+                        let s = ExprKind::Unary(Unary::Identity(Primary::Num(t.sizeof() as i32)));
+                        *left =
+                            Box::new(ExprKind::Binary(BinOpKind::Mul, left.clone(), Box::new(s)));
                         Type::Array(t, size)
                     }
                     (t1, t2) => {
@@ -275,6 +291,15 @@ impl SemanticVisitor {
             }
             Unary::Call(_, None) => Type::Void, // todo
             Unary::Call(_, Some(expr)) => self.visit_expr(expr),
+            Unary::Index(u, e) => {
+                // desugar to *(u + e)
+                let u = ExprKind::Unary(*u.clone());
+                let e = ExprKind::Unary(Unary::Identity(Primary::Expr(Box::new(e.clone()))));
+                let binary = ExprKind::Binary(BinOpKind::Add, Box::new(u), Box::new(e));
+                let expr = Expr(vec![Assign::Const(ConstantExpr::Identity(binary))]);
+                *unary = Unary::Deref(Box::new(Unary::Identity(Primary::Expr(Box::new(expr)))));
+                self.visit_unary(unary)
+            }
             u => todo!("{u:?}"),
         }
     }
