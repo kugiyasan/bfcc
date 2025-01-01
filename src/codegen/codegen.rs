@@ -1,9 +1,9 @@
 use crate::{
     analyzer::{SymbolTable, Type},
     parser::{
-        Assign, AssignOpKind, BinOpKind, CompoundStmt, ConstantExpr, DeclarationOrStmt,
-        DirectDeclarator, Expr, ExprKind, ExternalDeclaration, FuncDef, Identifier, Primary, Stmt,
-        TranslationUnit, Unary,
+        Assign, AssignOpKind, BinOpKind, CompoundStmt, ConstantExpr, Declaration,
+        DeclarationOrStmt, DirectDeclarator, Expr, ExprKind, ExternalDeclaration, FuncDef,
+        Identifier, InitDeclarator, Primary, Stmt, TranslationUnit, Unary,
     },
 };
 
@@ -28,10 +28,10 @@ impl Codegen {
         }
     }
 
-    pub fn generate(&mut self, program: TranslationUnit) {
+    pub fn generate(&mut self, translation_unit: TranslationUnit) {
         println!(".intel_syntax noprefix");
         println!(".globl main");
-        self.gen_program(program);
+        self.gen_translation_unit(translation_unit);
     }
 
     fn new_label(&mut self) -> String {
@@ -54,13 +54,18 @@ impl Codegen {
     }
 
     fn gen_lval(&mut self, name: &str) {
-        let offset = self.symbol_table.get_lvar_offset(name);
-        println!("  mov rax, rbp");
-        println!("  sub rax, {}", offset);
-        println!("  push rax");
+        let (is_global, offset) = self.symbol_table.get_lvar_offset(name);
+        if is_global {
+            println!("  lea rax, QWORD PTR {}[rip]", name);
+            println!("  push rax");
+        } else {
+            println!("  mov rax, rbp");
+            println!("  sub rax, {}", offset);
+            println!("  push rax");
+        }
     }
 
-    fn gen_program(&mut self, translation_unit: TranslationUnit) {
+    fn gen_translation_unit(&mut self, translation_unit: TranslationUnit) {
         for external_declaration in translation_unit.0 {
             self.gen_external_declaration(external_declaration);
         }
@@ -69,7 +74,16 @@ impl Codegen {
     fn gen_external_declaration(&mut self, external_declaration: ExternalDeclaration) {
         match external_declaration {
             ExternalDeclaration::FuncDef(f) => self.gen_func_def(f),
-            ExternalDeclaration::Declaration(_) => todo!(),
+            ExternalDeclaration::Declaration(Declaration { specs, inits }) => {
+                let InitDeclarator::Declarator(ref declarator) = inits[0] else {
+                    todo!();
+                };
+                let ty = self.symbol_table.convert_type(&specs, &declarator);
+
+                println!(".data");
+                println!("{}:", declarator.direct.get_name());
+                println!("  .zero {}", ty.sizeof());
+            }
         }
     }
 
@@ -94,6 +108,7 @@ impl Codegen {
             panic!("Function name is not an identifier: {:?}", dd);
         };
 
+        println!(".text");
         println!("{name}:");
         println!("  push rbp");
         println!("  mov rbp, rsp");

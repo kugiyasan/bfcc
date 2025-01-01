@@ -81,32 +81,44 @@ impl Parser {
         );
     }
 
-    /// translation-unit = (func-def | declaration)*
+    /// translation-unit = (external-declaration)*
     fn parse_translation_unit(&mut self) -> TranslationUnit {
         let mut external_declarations = vec![];
 
         while !self.is_eof() {
-            external_declarations.push(ExternalDeclaration::FuncDef(self.parse_func_def()));
+            external_declarations.push(self.parse_external_declaration());
         }
 
         TranslationUnit(external_declarations)
     }
 
+    /// external-declaration = func-def | declaration
     /// func-def = declaration-specifiers? declarator compound-stmt
-    fn parse_func_def(&mut self) -> FuncDef {
+    fn parse_external_declaration(&mut self) -> ExternalDeclaration {
         let specs = self.parse_declaration_specifiers();
         let declarator = self.parse_declarator();
 
-        let mut stmts = vec![];
-        self.expect(&TokenKind::LeftCurlyBrace);
-        while !self.consume(&TokenKind::RightCurlyBrace) {
-            stmts.push(self.parse_declaration_or_stmt());
-        }
+        if self.consume(&TokenKind::LeftCurlyBrace) {
+            let mut stmts = vec![];
+            while !self.consume(&TokenKind::RightCurlyBrace) {
+                stmts.push(self.parse_declaration_or_stmt());
+            }
+            let fd = FuncDef {
+                specs,
+                declarator,
+                stmt: CompoundStmt(stmts),
+            };
+            ExternalDeclaration::FuncDef(fd)
+        } else {
+            let inits = vec![InitDeclarator::Declarator(declarator)];
+            // todo: replaced while with if, this disables recursive init declarator
+            // if let Some(i) = self.parse_init_declarator() {
+            //     inits.push(i);
+            // }
+            self.expect(&TokenKind::SemiColon);
 
-        FuncDef {
-            specs,
-            declarator,
-            stmt: CompoundStmt(stmts),
+            let d = Declaration { specs, inits };
+            ExternalDeclaration::Declaration(d)
         }
     }
 
@@ -158,14 +170,13 @@ impl Parser {
 
     fn parse_declaration_or_stmt(&mut self) -> DeclarationOrStmt {
         if let Some(d) = self.parse_declaration() {
-            self.expect(&TokenKind::SemiColon);
             DeclarationOrStmt::Declaration(d)
         } else {
             DeclarationOrStmt::Stmt(self.parse_stmt())
         }
     }
 
-    /// declaration = declaration-specifiers init-declarator ("," init-declarator)*
+    /// declaration = declaration-specifiers init-declarator ("," init-declarator)* ";"
     fn parse_declaration(&mut self) -> Option<Declaration> {
         let specs = self.parse_declaration_specifiers();
         if specs.is_empty() {
@@ -178,6 +189,7 @@ impl Parser {
             inits.push(i);
         }
 
+        self.expect(&TokenKind::SemiColon);
         Some(Declaration { specs, inits })
     }
 

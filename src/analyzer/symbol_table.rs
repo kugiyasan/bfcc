@@ -22,11 +22,13 @@ pub struct SymbolTable {
 
 impl SymbolTable {
     pub fn new() -> Self {
-        Self {
+        let mut st = Self {
             table: HashMap::new(),
             total_offset: HashMap::new(),
             current_func_name: "".to_string(),
-        }
+        };
+        st.declare_func("".to_string());
+        st
     }
 
     pub fn declare_func(&mut self, func_name: String) {
@@ -51,7 +53,7 @@ impl SymbolTable {
     }
 
     pub fn declare_var(&mut self, specs: Vec<DeclarationSpecifier>, declarator: Declarator) {
-        let ty = self._get_var_type(self.get_primary_type(&specs), &declarator);
+        let ty = self.convert_type(&specs, &declarator);
 
         self.total_offset
             .entry(self.current_func_name.clone())
@@ -65,12 +67,32 @@ impl SymbolTable {
         self.table.insert(name, var_type);
     }
 
-    pub fn get_lvar_offset(&mut self, var_name: &str) -> usize {
+    fn _get_var_type(&self, var_name: &str) -> &VarType {
+        let name = self.format_var_name(var_name);
+        let var_type = self.table.get(&name).or_else(|| {
+            let name = format!("::{}", var_name);
+            self.table.get(&name)
+        });
+        var_type.expect("Undeclared variable")
+    }
+
+    pub fn get_lvar_offset(&self, var_name: &str) -> (bool, usize) {
         let name = self.format_var_name(var_name);
         if let Some(var_type) = self.table.get(&name) {
-            return var_type.offset;
+            return (false, var_type.offset);
         }
-        panic!("Undeclared variable: {}", name);
+
+        let name = format!("::{}", var_name);
+        let var_type = self.table.get(&name).expect("Undeclared variable");
+        (true, var_type.offset)
+    }
+
+    pub fn get_var_type(&self, var_name: &str) -> Type {
+        self._get_var_type(var_name).ty.clone()
+    }
+
+    pub fn convert_type(&self, specs: &Vec<DeclarationSpecifier>, declarator: &Declarator) -> Type {
+        self._convert_type(self.get_primary_type(&specs), &declarator)
     }
 
     fn get_primary_type(&self, specs: &Vec<DeclarationSpecifier>) -> Type {
@@ -93,7 +115,7 @@ impl SymbolTable {
     ) -> Type {
         match direct_declarator {
             DirectDeclarator::Ident(_) => t,
-            DirectDeclarator::Declarator(d) => self._get_var_type(t, d),
+            DirectDeclarator::Declarator(d) => self._convert_type(t, d),
             DirectDeclarator::Array(dd, e) => {
                 let t = self.get_var_type_from_direct_declarator(t, dd);
                 let Some(ConstantExpr::Identity(ExprKind::Unary(Unary::Identity(Primary::Num(
@@ -108,7 +130,7 @@ impl SymbolTable {
         }
     }
 
-    fn _get_var_type(&self, mut t: Type, declarator: &Declarator) -> Type {
+    fn _convert_type(&self, mut t: Type, declarator: &Declarator) -> Type {
         let mut pointer = &declarator.pointer;
         while let Some(p) = pointer {
             t = Type::Ptr(Box::new(t));
@@ -116,11 +138,5 @@ impl SymbolTable {
         }
 
         self.get_var_type_from_direct_declarator(t, &declarator.direct)
-    }
-
-    pub fn get_var_type(&self, var_name: &str) -> Type {
-        let name = self.format_var_name(var_name);
-        let var_type = self.table.get(&name).expect("Undeclared variable");
-        var_type.ty.clone()
     }
 }

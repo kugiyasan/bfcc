@@ -314,5 +314,11 @@ for (i = 0; i < 5; i = i + 1)
 
 return arr[2] + 4[arr];
 '
+# step 23
+assert 23 '
+int x;
+int y[20];
+int main() { x = 7; y[5] = 16; return x + y[5]; }
+'
 
 echo 'All tests passed!'

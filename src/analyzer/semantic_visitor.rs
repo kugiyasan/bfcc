@@ -52,7 +52,7 @@ impl SemanticVisitor {
     fn visit_external_declaration(&mut self, external_declaration: &mut ExternalDeclaration) {
         match external_declaration {
             ExternalDeclaration::FuncDef(f) => self.visit_func_def(f),
-            ExternalDeclaration::Declaration(_) => todo!(),
+            ExternalDeclaration::Declaration(d) => self.visit_declaration(d),
         }
     }
 
