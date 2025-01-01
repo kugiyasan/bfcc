@@ -2,9 +2,9 @@ use crate::lexer::{Token, TokenKind};
 
 use super::{
     Assign, AssignOpKind, BinOpKind, CompoundStmt, ConstantExpr, Declaration, DeclarationOrStmt,
-    DeclarationSpecifier, Declarator, DirectDeclarator, Expr, ExprKind, FuncDef, Identifier,
-    InitDeclarator, ParamDeclaration, ParamTypeList, Pointer, Primary, Stmt, StorageClassSpecifier,
-    TranslationUnit, TypeQualifier, TypeSpecifier, Unary,
+    DeclarationSpecifier, Declarator, DirectDeclarator, Expr, ExprKind, ExternalDeclaration,
+    FuncDef, Identifier, InitDeclarator, ParamDeclaration, ParamTypeList, Pointer, Primary, Stmt,
+    StorageClassSpecifier, TranslationUnit, TypeQualifier, TypeSpecifier, Unary,
 };
 
 pub struct Parser {
@@ -81,15 +81,15 @@ impl Parser {
         );
     }
 
-    /// translation-unit = func-def*
+    /// translation-unit = (func-def | declaration)*
     fn parse_translation_unit(&mut self) -> TranslationUnit {
-        let mut funcs = vec![];
+        let mut external_declarations = vec![];
 
         while !self.is_eof() {
-            funcs.push(self.parse_func_def());
+            external_declarations.push(ExternalDeclaration::FuncDef(self.parse_func_def()));
         }
 
-        TranslationUnit(funcs)
+        TranslationUnit(external_declarations)
     }
 
     /// func-def = declaration-specifiers? declarator compound-stmt

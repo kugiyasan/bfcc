@@ -2,8 +2,8 @@ use core::panic;
 
 use crate::parser::{
     Assign, BinOpKind, CompoundStmt, ConstantExpr, Declaration, DeclarationOrStmt, Declarator,
-    DirectDeclarator, Expr, ExprKind, FuncDef, Identifier, InitDeclarator, ParamDeclaration,
-    Primary, Stmt, TranslationUnit, Unary,
+    DirectDeclarator, Expr, ExprKind, ExternalDeclaration, FuncDef, Identifier, InitDeclarator,
+    ParamDeclaration, Primary, Stmt, TranslationUnit, Unary,
 };
 
 use super::symbol_table::SymbolTable;
@@ -42,11 +42,18 @@ impl SemanticVisitor {
         &mut self,
         translation_unit: &mut TranslationUnit,
     ) -> SymbolTable {
-        for func_def in translation_unit.0.iter_mut() {
-            self.visit_func_def(func_def);
+        for external_declaration in translation_unit.0.iter_mut() {
+            self.visit_external_declaration(external_declaration);
         }
 
         self.symbol_table.clone()
+    }
+
+    fn visit_external_declaration(&mut self, external_declaration: &mut ExternalDeclaration) {
+        match external_declaration {
+            ExternalDeclaration::FuncDef(f) => self.visit_func_def(f),
+            ExternalDeclaration::Declaration(_) => todo!(),
+        }
     }
 
     fn visit_func_def(&mut self, func_def: &mut FuncDef) {
@@ -64,6 +71,7 @@ impl SemanticVisitor {
         for ds in func_def.stmt.0.iter_mut() {
             self.visit_declaration_or_stmt(ds);
         }
+        self.symbol_table.set_current_func("".to_string());
     }
 
     fn visit_declarator(&mut self, declarator: &mut Declarator) {

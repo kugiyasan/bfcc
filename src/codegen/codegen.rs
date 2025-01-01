@@ -2,8 +2,8 @@ use crate::{
     analyzer::{SymbolTable, Type},
     parser::{
         Assign, AssignOpKind, BinOpKind, CompoundStmt, ConstantExpr, DeclarationOrStmt,
-        DirectDeclarator, Expr, ExprKind, FuncDef, Identifier, Primary, Stmt, TranslationUnit,
-        Unary,
+        DirectDeclarator, Expr, ExprKind, ExternalDeclaration, FuncDef, Identifier, Primary, Stmt,
+        TranslationUnit, Unary,
     },
 };
 
@@ -61,12 +61,19 @@ impl Codegen {
     }
 
     fn gen_program(&mut self, translation_unit: TranslationUnit) {
-        for func_def in translation_unit.0 {
-            self.gen_func(func_def);
+        for external_declaration in translation_unit.0 {
+            self.gen_external_declaration(external_declaration);
         }
     }
 
-    fn gen_func(
+    fn gen_external_declaration(&mut self, external_declaration: ExternalDeclaration) {
+        match external_declaration {
+            ExternalDeclaration::FuncDef(f) => self.gen_func_def(f),
+            ExternalDeclaration::Declaration(_) => todo!(),
+        }
+    }
+
+    fn gen_func_def(
         &mut self,
         FuncDef {
             specs: _,

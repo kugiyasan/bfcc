@@ -1,7 +1,13 @@
 #![allow(dead_code)]
 
 #[derive(Clone, Debug)]
-pub struct TranslationUnit(pub Vec<FuncDef>);
+pub struct TranslationUnit(pub Vec<ExternalDeclaration>);
+
+#[derive(Clone, Debug)]
+pub enum ExternalDeclaration {
+    FuncDef(FuncDef),
+    Declaration(Declaration),
+}
 
 #[derive(Clone, Debug)]
 pub struct FuncDef {
