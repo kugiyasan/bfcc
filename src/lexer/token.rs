@@ -200,4 +200,5 @@ pub enum TokenKind {
 
     Num(i32),
     Ident(String),
+    String(Vec<u8>),
 }

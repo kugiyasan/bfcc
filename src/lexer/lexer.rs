@@ -22,15 +22,15 @@ impl Lexer {
         }
     }
 
-    fn new_token(&mut self, kind: TokenKind, s: &str) {
+    fn new_token(&mut self, kind: TokenKind, len: usize) {
         self.tokens.push(Token { kind });
-        self.index += s.len();
+        self.index += len;
     }
 
     fn parse_number(&mut self, chars: &[char]) {
         let s: String = chars.iter().take_while(|c| c.is_numeric()).collect();
         let value = s.parse().unwrap();
-        self.new_token(TokenKind::Num(value), &s);
+        self.new_token(TokenKind::Num(value), s.len());
     }
 
     fn parse_identifier(&mut self, chars: &[char]) {
@@ -40,10 +40,20 @@ impl Lexer {
             .collect();
 
         if let Some(kind) = KEYWORDS.get(&s) {
-            self.new_token(kind.clone(), &s);
+            self.new_token(kind.clone(), s.len());
         } else {
-            self.new_token(TokenKind::Ident(s.clone()), &s);
+            self.new_token(TokenKind::Ident(s.clone()), s.len());
         }
+    }
+
+    fn parse_string(&mut self, chars: &[char]) {
+        let mut i = 0;
+        while chars[i] != '"' {
+            i += 1;
+        }
+        let s = chars[..i].iter().map(|&c| c as u8).collect::<Vec<u8>>();
+        let len = s.len();
+        self.new_token(TokenKind::String(s), len);
     }
 
     fn _tokenize(&mut self, s: String) {
@@ -61,11 +71,15 @@ impl Lexer {
             } else if c.is_ascii_alphabetic() {
                 self.parse_identifier(&chars[self.index..]);
             } else if let Some(kind) = THREE_SYMBOLS_TOKENS.get(&c3) {
-                self.new_token(kind.clone(), &c3);
+                self.new_token(kind.clone(), 3);
             } else if let Some(kind) = TWO_SYMBOLS_TOKENS.get(&c2) {
-                self.new_token(kind.clone(), &c2);
+                self.new_token(kind.clone(), 2);
             } else if let Some(kind) = ONE_SYMBOL_TOKENS.get(&c) {
-                self.new_token(kind.clone(), &c.to_string());
+                self.new_token(kind.clone(), 1);
+            } else if c == '"' {
+                self.index += 1;
+                self.parse_string(&chars[self.index..]);
+                self.index += 1;
             } else if c2 == "//" {
                 self.index += 2;
                 while chars[self.index] != '\n' {
