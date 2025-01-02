@@ -30,7 +30,6 @@ impl Parser {
             return false;
         }
         let t = &self.tokens[self.index];
-        // todo: std::mem::discriminant
         if &t.kind != kind {
             return false;
         }
@@ -43,7 +42,6 @@ impl Parser {
             return None;
         }
         let t = self.tokens[self.index].clone();
-        // todo: std::mem::discriminant
         if let TokenKind::Ident(name) = t.kind {
             self.index += 1;
             Some(name)
