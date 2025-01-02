@@ -325,8 +325,12 @@ impl SemanticVisitor {
 
     fn visit_primary(&mut self, primary: &mut Primary) -> Type {
         match primary {
-            Primary::Num(_num) => Type::Int,
             Primary::Ident(Identifier { name }) => self.symbol_table.get_var_type(name),
+            Primary::Num(_) => Type::Int,
+            Primary::String(b) => {
+                self.symbol_table.declare_string(b.clone());
+                Type::Array(Box::new(Type::Char), b.len())
+            }
             Primary::Expr(expr) => self.visit_expr(expr.as_mut()),
         }
     }

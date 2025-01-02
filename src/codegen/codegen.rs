@@ -1,5 +1,5 @@
 use crate::{
-    analyzer::{SymbolTable, Type},
+    analyzer::{LvarOffset, SymbolTable, Type},
     parser::{
         Assign, AssignOpKind, BinOpKind, CompoundStmt, ConstantExpr, Declaration,
         DeclarationOrStmt, DirectDeclarator, Expr, ExprKind, ExternalDeclaration, FuncDef,
@@ -31,6 +31,7 @@ impl Codegen {
     pub fn generate(&mut self, translation_unit: TranslationUnit) {
         println!(".intel_syntax noprefix");
         println!(".globl main");
+        self.gen_strings();
         self.gen_translation_unit(translation_unit);
     }
 
@@ -54,14 +55,28 @@ impl Codegen {
     }
 
     fn gen_lval(&mut self, name: &str) {
-        let (is_global, offset) = self.symbol_table.get_lvar_offset(name);
-        if is_global {
-            println!("  lea rax, QWORD PTR {}[rip]", name);
-            println!("  push rax");
-        } else {
-            println!("  mov rax, rbp");
-            println!("  sub rax, {}", offset);
-            println!("  push rax");
+        match self.symbol_table.get_lvar_offset(name) {
+            LvarOffset::Local(offset) => {
+                println!("  mov rax, rbp");
+                println!("  sub rax, {}", offset);
+                println!("  push rax");
+            }
+            LvarOffset::Global => {
+                println!("  lea rax, QWORD PTR {}[rip]", name);
+                println!("  push rax");
+            }
+            LvarOffset::String(string_id) => {
+                let name = format!(".LC{}", string_id);
+                println!("  lea rax, QWORD PTR {}[rip]", name);
+                println!("  push rax");
+            }
+        }
+    }
+
+    fn gen_strings(&mut self) {
+        for (s, i) in self.symbol_table.get_strings() {
+            println!(".LC{i}:");
+            println!("  .string \"{}\"", s);
         }
     }
 
@@ -342,7 +357,6 @@ impl Codegen {
 
     fn gen_primary(&mut self, primary: Primary) {
         match primary {
-            Primary::Num(num) => println!("  push {}", num),
             Primary::Ident(Identifier { name }) => {
                 self.gen_lval(&name);
                 if let Type::Array(_, _) = self.symbol_table.get_var_type(&name) {
@@ -352,6 +366,8 @@ impl Codegen {
                 println!("  mov rax, [rax]");
                 println!("  push rax");
             }
+            Primary::Num(num) => println!("  push {}", num),
+            Primary::String(b) => self.gen_lval(&b.iter().map(|&b| b as char).collect::<String>()),
             Primary::Expr(expr) => self.gen_expr(*expr),
         }
     }

@@ -659,26 +659,31 @@ impl Parser {
         }
     }
 
-    /// primary = num
-    ///         | ident ("(" (expr (, expr)*)? ")")?
+    /// primary = ident
+    ///         | num
+    ///         | string
     ///         | "(" expr ")"
     fn parse_primary(&mut self) -> Primary {
         match &self.tokens[self.index].kind {
-            TokenKind::LeftParen => {
-                self.index += 1;
-                let expr = self.parse_expr();
-                self.expect(&TokenKind::RightParen);
-                Primary::Expr(Box::new(expr))
-            }
-            TokenKind::Num(num) => {
-                self.index += 1;
-                Primary::Num(*num)
-            }
             TokenKind::Ident(ident) => {
                 self.index += 1;
                 Primary::Ident(Identifier {
                     name: ident.clone(),
                 })
+            }
+            TokenKind::Num(num) => {
+                self.index += 1;
+                Primary::Num(*num)
+            }
+            TokenKind::String(b) => {
+                self.index += 1;
+                Primary::String(b.clone())
+            }
+            TokenKind::LeftParen => {
+                self.index += 1;
+                let expr = self.parse_expr();
+                self.expect(&TokenKind::RightParen);
+                Primary::Expr(Box::new(expr))
             }
 
             t => panic!("Unexpected token: {:?}", t),

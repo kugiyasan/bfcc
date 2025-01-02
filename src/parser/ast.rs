@@ -231,6 +231,7 @@ pub enum Unary {
 pub enum Primary {
     Num(i32),
     Ident(Identifier),
+    String(Vec<u8>),
     Expr(Box<Expr>),
 }
 

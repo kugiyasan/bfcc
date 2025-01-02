@@ -329,5 +329,11 @@ int y;
 y = 4;
 return x[0] + y;
 '
+# step 25
+assertImplicitMain 97 '
+char *x;
+x = "abc";
+return x[0];
+'
 
 echo 'All tests passed!'
