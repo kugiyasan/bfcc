@@ -21,7 +21,7 @@ fn main() {
     }
 
     let user_input = env.pop().unwrap();
-    let tokens = Lexer::tokenize(user_input);
+    let tokens = Lexer::tokenize(&user_input);
     let token_kinds = tokens.iter().map(|t| &t.kind).collect::<Vec<_>>();
     dbg!(token_kinds);
 

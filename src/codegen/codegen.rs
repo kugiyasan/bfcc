@@ -93,7 +93,7 @@ impl Codegen {
                 let InitDeclarator::Declarator(ref declarator) = inits[0] else {
                     todo!();
                 };
-                let ty = self.symbol_table.convert_type(&specs, &declarator);
+                let ty = self.symbol_table.convert_type(&specs, declarator);
 
                 println!(".data");
                 println!("{}:", declarator.direct.get_name());
@@ -190,7 +190,6 @@ impl Codegen {
         println!("{else_label}:",);
         self.gen_stmt(else_stmt);
         println!("{end_label}:");
-        return;
     }
 
     fn gen_while(&mut self, expr: Expr, stmt: Stmt) {

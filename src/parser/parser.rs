@@ -35,7 +35,7 @@ impl Parser {
             return false;
         }
         self.index += 1;
-        return true;
+        true
     }
 
     fn consume_ident(&mut self) -> Option<String> {
@@ -273,10 +273,7 @@ impl Parser {
 
     /// parameter-type-list = param-declaration* ("," ...)?
     fn parse_param_type_list(&mut self) -> Option<ParamTypeList> {
-        let Some(pd) = self.parse_param_declaration() else {
-            return None;
-        };
-
+        let pd = self.parse_param_declaration()?;
         let mut pds = vec![pd];
         while self.consume(&TokenKind::Comma) {
             if let Some(pd) = self.parse_param_declaration() {

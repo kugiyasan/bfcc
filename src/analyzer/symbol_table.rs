@@ -110,7 +110,7 @@ impl SymbolTable {
         }
 
         let string_id = self.strings.get(var_name).expect("Undeclared variable");
-        return LvarOffset::String(*string_id);
+        LvarOffset::String(*string_id)
     }
 
     pub fn get_var_type(&self, var_name: &str) -> Type {
@@ -118,7 +118,7 @@ impl SymbolTable {
     }
 
     pub fn convert_type(&self, specs: &Vec<DeclarationSpecifier>, declarator: &Declarator) -> Type {
-        self._convert_type(self.get_primary_type(&specs), &declarator)
+        self._convert_type(self.get_primary_type(specs), declarator)
     }
 
     fn get_primary_type(&self, specs: &Vec<DeclarationSpecifier>) -> Type {

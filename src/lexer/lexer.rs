@@ -56,7 +56,7 @@ impl Lexer {
         self.new_token(TokenKind::String(s), len);
     }
 
-    fn _tokenize(&mut self, s: String) {
+    fn _tokenize(&mut self, s: &str) {
         let chars: Vec<_> = s.chars().collect();
 
         while self.index < chars.len() {
@@ -96,7 +96,7 @@ impl Lexer {
         }
     }
 
-    pub fn tokenize(s: String) -> Vec<Token> {
+    pub fn tokenize(s: &str) -> Vec<Token> {
         let mut lexer = Lexer::new();
         lexer._tokenize(s);
 
