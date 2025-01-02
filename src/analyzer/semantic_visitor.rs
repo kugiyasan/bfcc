@@ -11,6 +11,7 @@ use super::symbol_table::SymbolTable;
 #[derive(Clone, Debug, PartialEq)]
 pub enum Type {
     Void,
+    Char,
     Int,
     Ptr(Box<Type>),
     Array(Box<Type>, usize),
@@ -20,9 +21,19 @@ impl Type {
     pub fn sizeof(&self) -> usize {
         match self {
             Type::Void => 0,
+            Type::Char => 1,
             Type::Int => 8,
             Type::Ptr(_) => 8,
             Type::Array(t, size) => t.sizeof() * size,
+        }
+    }
+
+    pub fn is_compatible_type(&self, other: &Self) -> bool {
+        match (self, other) {
+            (t1, t2) if t1 == t2 => true,
+            (Type::Int, Type::Char) => true,
+            (Type::Char, Type::Int) => true,
+            _ => false,
         }
     }
 }
@@ -202,11 +213,11 @@ impl SemanticVisitor {
 
                 match (t1, t2) {
                     (Type::Ptr(p), Type::Array(a, _)) => {
-                        assert_eq!(p, a);
+                        assert!(p.is_compatible_type(&a));
                         *p
                     }
                     (t1, t2) => {
-                        assert_eq!(t1, t2);
+                        assert!(t1.is_compatible_type(&t2));
                         t1
                     }
                 }
@@ -234,7 +245,7 @@ impl SemanticVisitor {
                 let t2 = self.visit_expr_kind(right);
 
                 match (t1, t2) {
-                    (Type::Ptr(ref p), t2) if **p == t2 => {
+                    (Type::Ptr(ref p), t2) if p.is_compatible_type(&t2) => {
                         let size =
                             ExprKind::Unary(Unary::Identity(Primary::Num(t2.sizeof() as i32)));
                         *right = Box::new(ExprKind::Binary(
@@ -244,7 +255,7 @@ impl SemanticVisitor {
                         ));
                         Type::Ptr(Box::new(t2))
                     }
-                    (t2, Type::Ptr(ref p)) if **p == t2 => {
+                    (t2, Type::Ptr(ref p)) if p.is_compatible_type(&t2) => {
                         let size =
                             ExprKind::Unary(Unary::Identity(Primary::Num(t2.sizeof() as i32)));
                         *left = Box::new(ExprKind::Binary(
@@ -254,20 +265,20 @@ impl SemanticVisitor {
                         ));
                         Type::Ptr(Box::new(t2))
                     }
-                    (Type::Array(t, size), t2) if *t == t2 => {
+                    (Type::Array(t, size), t2) if t.is_compatible_type(&t2) => {
                         let s = ExprKind::Unary(Unary::Identity(Primary::Num(t.sizeof() as i32)));
                         *right =
                             Box::new(ExprKind::Binary(BinOpKind::Mul, right.clone(), Box::new(s)));
                         Type::Array(t, size)
                     }
-                    (t2, Type::Array(t, size)) if *t == t2 => {
+                    (t2, Type::Array(t, size)) if t.is_compatible_type(&t2) => {
                         let s = ExprKind::Unary(Unary::Identity(Primary::Num(t.sizeof() as i32)));
                         *left =
                             Box::new(ExprKind::Binary(BinOpKind::Mul, left.clone(), Box::new(s)));
                         Type::Array(t, size)
                     }
                     (t1, t2) => {
-                        assert_eq!(t1, t2);
+                        assert!(t1.is_compatible_type(&t2));
                         t1
                     }
                 }

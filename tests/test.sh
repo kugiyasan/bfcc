@@ -320,5 +320,14 @@ int x;
 int y[20];
 int main() { x = 7; y[5] = 16; return x + y[5]; }
 '
+# step 24
+assertImplicitMain 3 '
+char x[3];
+x[0] = -1;
+x[1] = 2;
+int y;
+y = 4;
+return x[0] + y;
+'
 
 echo 'All tests passed!'

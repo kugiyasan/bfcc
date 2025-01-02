@@ -99,8 +99,9 @@ impl SymbolTable {
         for spec in specs {
             if let DeclarationSpecifier::TypeSpecifier(ts) = spec {
                 return match ts {
-                    TypeSpecifier::Int => Type::Int,
                     TypeSpecifier::Void => Type::Void,
+                    TypeSpecifier::Char => Type::Char,
+                    TypeSpecifier::Int => Type::Int,
                     _ => todo!(),
                 };
             }
