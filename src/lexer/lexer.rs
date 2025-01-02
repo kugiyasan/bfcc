@@ -66,6 +66,16 @@ impl Lexer {
                 self.new_token(kind.clone(), &c2);
             } else if let Some(kind) = ONE_SYMBOL_TOKENS.get(&c) {
                 self.new_token(kind.clone(), &c.to_string());
+            } else if c2 == "//" {
+                self.index += 2;
+                while chars[self.index] != '\n' {
+                    self.index += 1;
+                }
+            } else if c2 == "/*" {
+                self.index += 2;
+                while chars[self.index] != '*' && chars[self.index + 1] != '/' {
+                    self.index += 1;
+                }
             } else {
                 panic!("can't tokenize {:?}", c);
             }
