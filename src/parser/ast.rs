@@ -1,29 +1,29 @@
 #![allow(dead_code)]
 
-#[derive(Clone, Debug)]
+#[derive(Clone, Debug, PartialEq)]
 pub struct TranslationUnit(pub Vec<ExternalDeclaration>);
 
-#[derive(Clone, Debug)]
+#[derive(Clone, Debug, PartialEq)]
 pub enum ExternalDeclaration {
     FuncDef(FuncDef),
     Declaration(Declaration),
 }
 
-#[derive(Clone, Debug)]
+#[derive(Clone, Debug, PartialEq)]
 pub struct FuncDef {
     pub specs: Vec<DeclarationSpecifier>,
     pub declarator: Declarator,
     pub stmt: CompoundStmt,
 }
 
-#[derive(Clone, Debug)]
+#[derive(Clone, Debug, PartialEq)]
 pub enum DeclarationSpecifier {
     StorageClassSpecifier(StorageClassSpecifier),
     TypeSpecifier(TypeSpecifier),
     TypeQualifier(TypeQualifier),
 }
 
-#[derive(Clone, Debug)]
+#[derive(Clone, Debug, PartialEq)]
 pub enum StorageClassSpecifier {
     Auto,
     Register,
@@ -32,7 +32,7 @@ pub enum StorageClassSpecifier {
     Typedef,
 }
 
-#[derive(Clone, Debug)]
+#[derive(Clone, Debug, PartialEq)]
 pub enum TypeSpecifier {
     Void,
     Char,
@@ -48,31 +48,31 @@ pub enum TypeSpecifier {
     TypedefName(),
 }
 
-#[derive(Clone, Debug)]
+#[derive(Clone, Debug, PartialEq)]
 pub enum SpecifierQualifier {
     TypeSpecifier(TypeSpecifier),
     TypeQualifier(TypeQualifier),
 }
 
-#[derive(Clone, Debug)]
+#[derive(Clone, Debug, PartialEq)]
 pub struct Declarator {
     pub pointer: Option<Pointer>,
     pub direct: DirectDeclarator,
 }
 
-#[derive(Clone, Debug)]
+#[derive(Clone, Debug, PartialEq)]
 pub struct Pointer {
     pub types: Vec<TypeQualifier>,
     pub pointer: Box<Option<Pointer>>,
 }
 
-#[derive(Clone, Debug)]
+#[derive(Clone, Debug, PartialEq)]
 pub enum TypeQualifier {
     Const,
     Volatile,
 }
 
-#[derive(Clone, Debug)]
+#[derive(Clone, Debug, PartialEq)]
 pub enum DirectDeclarator {
     Ident(Identifier),
     Declarator(Box<Declarator>),
@@ -91,19 +91,19 @@ impl DirectDeclarator {
     }
 }
 
-#[derive(Clone, Debug)]
+#[derive(Clone, Debug, PartialEq)]
 pub struct ParamTypeList {
     pub params: Vec<ParamDeclaration>,
     pub variadic: bool,
 }
 
-#[derive(Clone, Debug)]
+#[derive(Clone, Debug, PartialEq)]
 pub enum ParamDeclaration {
     Declarator(Vec<DeclarationSpecifier>, Box<Declarator>),
     AbstractDeclarator(Vec<DeclarationSpecifier>, Box<Declarator>), // todo
 }
 
-#[derive(Clone, Debug)]
+#[derive(Clone, Debug, PartialEq)]
 pub enum Stmt {
     Label(Identifier, Box<Stmt>),
     Case(ConstantExpr, Box<Stmt>),
@@ -126,31 +126,31 @@ pub enum Stmt {
     Return(Expr),
 }
 
-#[derive(Clone, Debug)]
+#[derive(Clone, Debug, PartialEq)]
 pub struct CompoundStmt(pub Vec<DeclarationOrStmt>);
 
-#[derive(Clone, Debug)]
+#[derive(Clone, Debug, PartialEq)]
 pub enum DeclarationOrStmt {
     Declaration(Declaration),
     Stmt(Stmt),
 }
 
-#[derive(Clone, Debug)]
+#[derive(Clone, Debug, PartialEq)]
 pub struct Declaration {
     pub specs: Vec<DeclarationSpecifier>,
     pub inits: Vec<InitDeclarator>,
 }
 
-#[derive(Clone, Debug)]
+#[derive(Clone, Debug, PartialEq)]
 pub enum InitDeclarator {
     Declarator(Declarator),
     DeclaratorAndInitializer(Declarator, ()),
 }
 
-#[derive(Clone, Debug)]
+#[derive(Clone, Debug, PartialEq)]
 pub struct Expr(pub Vec<Assign>);
 
-#[derive(Clone, Debug)]
+#[derive(Clone, Debug, PartialEq)]
 pub enum AssignOpKind {
     Assign,
     MulAssign,
@@ -165,19 +165,19 @@ pub enum AssignOpKind {
     OrAssign,
 }
 
-#[derive(Clone, Debug)]
+#[derive(Clone, Debug, PartialEq)]
 pub enum Assign {
     Const(ConstantExpr),
     Assign(Unary, AssignOpKind, Box<Assign>),
 }
 
-#[derive(Clone, Debug)]
+#[derive(Clone, Debug, PartialEq)]
 pub enum ConstantExpr {
     Identity(ExprKind),
     Ternary(ExprKind, Expr, Box<ConstantExpr>),
 }
 
-#[derive(Clone, Debug)]
+#[derive(Clone, Debug, PartialEq)]
 pub enum BinOpKind {
     LogicalOr,
     LogicalAnd,
@@ -199,13 +199,13 @@ pub enum BinOpKind {
     Mod,
 }
 
-#[derive(Clone, Debug)]
+#[derive(Clone, Debug, PartialEq)]
 pub enum ExprKind {
     Unary(Unary),
     Binary(BinOpKind, Box<ExprKind>, Box<ExprKind>),
 }
 
-#[derive(Clone, Debug)]
+#[derive(Clone, Debug, PartialEq)]
 pub enum Unary {
     Identity(Primary),
     Cast((), Box<Unary>), // todo
@@ -227,7 +227,7 @@ pub enum Unary {
     PostfixDecrement(Box<Unary>),
 }
 
-#[derive(Clone, Debug)]
+#[derive(Clone, Debug, PartialEq)]
 pub enum Primary {
     Num(i32),
     Ident(Identifier),
@@ -235,7 +235,7 @@ pub enum Primary {
     Expr(Box<Expr>),
 }
 
-#[derive(Clone, Debug)]
+#[derive(Clone, Debug, PartialEq)]
 pub struct Identifier {
     pub name: String,
 }
