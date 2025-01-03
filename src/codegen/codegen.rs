@@ -300,6 +300,7 @@ impl Codegen {
             BinOpKind::Sub => self.gen_binop("  sub rax, rdi"),
             BinOpKind::Mul => self.gen_binop("  imul rax, rdi"),
             BinOpKind::Div => self.gen_binop("  cqo\n  idiv rdi"),
+            BinOpKind::Mod => self.gen_binop("  cqo\n  idiv rdi\nmov rax, rdx"),
 
             _ => todo!(),
         }

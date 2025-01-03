@@ -575,6 +575,12 @@ impl Parser {
                 Box::new(ExprKind::Unary(unary)),
                 Box::new(self.parse_mul()),
             )
+        } else if self.consume(&TokenKind::Percent) {
+            ExprKind::Binary(
+                BinOpKind::Mod,
+                Box::new(ExprKind::Unary(unary)),
+                Box::new(self.parse_mul()),
+            )
         } else {
             ExprKind::Unary(unary)
         }
