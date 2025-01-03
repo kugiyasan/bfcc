@@ -1,4 +1,4 @@
-use std::collections::HashMap;
+use std::collections::{HashMap, HashSet};
 
 use crate::parser::{
     ConstantExpr, DeclarationSpecifier, Declarator, DirectDeclarator, ExprKind, Primary,
@@ -19,6 +19,7 @@ pub struct SymbolTable {
     total_offset: HashMap<String, usize>,
     current_func_name: String,
     strings: HashMap<String, usize>,
+    labels: HashSet<String>,
 }
 
 #[derive(Clone, Debug)]
@@ -35,6 +36,7 @@ impl SymbolTable {
             total_offset: HashMap::new(),
             current_func_name: "".to_string(),
             strings: HashMap::new(),
+            labels: HashSet::new(),
         };
         st.declare_func("".to_string());
         st
@@ -115,6 +117,10 @@ impl SymbolTable {
 
     pub fn get_var_type(&self, var_name: &str) -> Type {
         self._get_var_type(var_name).ty.clone()
+    }
+
+    pub fn add_label(&mut self, name: String) {
+        self.labels.insert(name);
     }
 
     pub fn convert_type(&self, specs: &Vec<DeclarationSpecifier>, declarator: &Declarator) -> Type {

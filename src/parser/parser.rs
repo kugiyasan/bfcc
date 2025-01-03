@@ -79,6 +79,14 @@ impl Parser {
         );
     }
 
+    fn peek(&mut self, offset: usize) -> &TokenKind {
+        if self.is_eof() {
+            panic!("Unexpected EOF");
+        }
+
+        &self.tokens[self.index + offset].kind
+    }
+
     /// translation-unit = (external-declaration)*
     fn parse_translation_unit(&mut self) -> TranslationUnit {
         let mut external_declarations = vec![];
@@ -122,14 +130,33 @@ impl Parser {
 
     /// stmt = ";"
     ///      | expr ";"
+    ///      | ident ":" stmt
+    ///      | case constant-expr ":" stmt
+    ///      | default ":" stmt
     ///      | "{" stmt* "}"
     ///      | "if" "(" expr ")" stmt ("else" stmt)?
+    ///      | switch "(" expr ")" stmt
     ///      | "while" "(" expr ")" stmt
+    ///      | "do" stmt "while" "(" expr ")" ";"
     ///      | "for" "(" expr? ";" expr? ";" expr? ")" stmt
+    ///      | "goto" ident ";"
+    ///      | "continue" ";"
+    ///      | "break" ";"
     ///      | "return" expr ";"
     fn parse_stmt(&mut self) -> Stmt {
         if self.consume(&TokenKind::SemiColon) {
             Stmt::SemiColon
+        } else if self.peek(1) == &TokenKind::Colon {
+            let name = self.expect_ident();
+            self.expect(&TokenKind::Colon);
+            Stmt::Label(Identifier { name }, Box::new(self.parse_stmt()))
+        } else if self.consume(&TokenKind::Case) {
+            let expr = self.parse_constant_expr();
+            self.expect(&TokenKind::Colon);
+            Stmt::Case(expr, Box::new(self.parse_stmt()))
+        } else if self.consume(&TokenKind::Default) {
+            self.expect(&TokenKind::Colon);
+            Stmt::Default(Box::new(self.parse_stmt()))
         } else if self.consume(&TokenKind::LeftCurlyBrace) {
             let mut stmts = vec![];
             while !self.consume(&TokenKind::RightCurlyBrace) {
@@ -153,8 +180,25 @@ impl Parser {
             self.expect(&TokenKind::RightParen);
             let stmt = self.parse_stmt();
             Stmt::While(expr, Box::new(stmt))
+        } else if self.consume(&TokenKind::Do) {
+            let stmt = self.parse_stmt();
+            self.expect(&TokenKind::While);
+            self.expect(&TokenKind::LeftParen);
+            let expr = self.parse_expr();
+            self.expect(&TokenKind::RightParen);
+            Stmt::DoWhile(Box::new(stmt), expr)
         } else if self.consume(&TokenKind::For) {
             self.parse_for()
+        } else if self.consume(&TokenKind::Goto) {
+            let name = self.expect_ident();
+            self.expect(&TokenKind::SemiColon);
+            Stmt::Goto(Identifier { name })
+        } else if self.consume(&TokenKind::Continue) {
+            self.expect(&TokenKind::SemiColon);
+            Stmt::Continue
+        } else if self.consume(&TokenKind::Break) {
+            self.expect(&TokenKind::SemiColon);
+            Stmt::Break
         } else if self.consume(&TokenKind::Return) {
             let expr = self.parse_expr();
             self.expect(&TokenKind::SemiColon);

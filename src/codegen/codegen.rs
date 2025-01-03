@@ -144,11 +144,19 @@ impl Codegen {
                 self.gen_expr(expr);
                 println!("  pop rax");
             }
+            Stmt::Label(ident, stmt) => {
+                println!("{}:", ident.name);
+                self.gen_stmt(*stmt);
+            }
             Stmt::Compound(stmt) => self.gen_compound_stmt(stmt),
             Stmt::If(expr, stmt, None) => self.gen_if(expr, *stmt),
             Stmt::If(expr, stmt, Some(else_stmt)) => self.gen_if_else(expr, *stmt, *else_stmt),
             Stmt::While(expr, stmt) => self.gen_while(expr, *stmt),
+            Stmt::DoWhile(stmt, expr) => self.gen_do_while(*stmt, expr),
             Stmt::For(expr1, expr2, expr3, stmt) => self.gen_for(expr1, expr2, expr3, *stmt),
+            Stmt::Goto(ident) => {
+                println!("  jmp {}", ident.name);
+            }
             Stmt::Return(expr) => {
                 self.gen_expr(expr);
                 println!("  pop rax");
@@ -204,6 +212,17 @@ impl Codegen {
         self.gen_stmt(stmt);
         println!("  jmp {begin_label}");
         println!("{end_label}:");
+    }
+
+    fn gen_do_while(&mut self, stmt: Stmt, expr: Expr) {
+        let begin_label = self.new_label();
+
+        println!("{begin_label}:");
+        self.gen_stmt(stmt);
+        self.gen_expr(expr);
+        println!("  pop rax");
+        println!("  cmp rax, 0");
+        println!("  jne {begin_label}");
     }
 
     fn gen_for(

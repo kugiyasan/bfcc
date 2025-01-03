@@ -125,23 +125,61 @@ impl SemanticVisitor {
             Stmt::Expr(expr) => {
                 self.visit_expr(expr);
             }
+            Stmt::Label(Identifier { name }, stmt) => {
+                self.symbol_table.add_label(name.clone());
+                self.visit_stmt(stmt.as_mut())
+            }
+            Stmt::Case(c, stmt) => {
+                self.visit_constant_expr(c);
+                self.visit_stmt(stmt.as_mut());
+            }
+            Stmt::Default(stmt) => {
+                self.visit_stmt(stmt.as_mut());
+            }
             Stmt::Compound(CompoundStmt(stmts)) => {
                 for ds in stmts {
                     self.visit_declaration_or_stmt(ds);
                 }
             }
-            Stmt::If(expr, stmt, None) => self.visit_if(expr, stmt.as_mut()),
+            Stmt::If(expr, stmt, None) => {
+                self.visit_expr(expr);
+                self.visit_stmt(stmt);
+            }
             Stmt::If(expr, stmt, Some(else_stmt)) => {
-                self.visit_if_else(expr, stmt.as_mut(), else_stmt.as_mut())
+                self.visit_expr(expr);
+                self.visit_stmt(stmt);
+                self.visit_stmt(else_stmt);
             }
-            Stmt::While(expr, stmt) => self.visit_while(expr, stmt.as_mut()),
+            Stmt::Switch(expr, stmt) => {
+                self.visit_expr(expr);
+                self.visit_stmt(stmt);
+            }
+            Stmt::While(expr, stmt) => {
+                self.visit_expr(expr);
+                self.visit_stmt(stmt);
+            }
+            Stmt::DoWhile(stmt, expr) => {
+                self.visit_stmt(stmt);
+                self.visit_expr(expr);
+            }
             Stmt::For(expr1, expr2, expr3, stmt) => {
-                self.visit_for(expr1, expr2, expr3, stmt.as_mut())
+                if let Some(e) = expr1 {
+                    self.visit_expr(e);
+                }
+                if let Some(e) = expr2 {
+                    self.visit_expr(e);
+                }
+                if let Some(e) = expr3 {
+                    self.visit_expr(e);
+                }
+                self.visit_stmt(stmt);
             }
+            Stmt::Goto(_) => (),
+            Stmt::Continue => todo!(),
+            Stmt::Break => todo!(),
             Stmt::Return(expr) => {
                 self.visit_expr(expr);
             }
-            _ => todo!(),
         };
     }
 
@@ -159,41 +197,6 @@ impl SemanticVisitor {
                     .declare_var(declaration.specs.clone(), d.clone());
             }
         }
-    }
-
-    fn visit_if(&mut self, expr: &mut Expr, stmt: &mut Stmt) {
-        self.visit_expr(expr);
-        self.visit_stmt(stmt);
-    }
-
-    fn visit_if_else(&mut self, expr: &mut Expr, stmt: &mut Stmt, else_stmt: &mut Stmt) {
-        self.visit_expr(expr);
-        self.visit_stmt(stmt);
-        self.visit_stmt(else_stmt);
-    }
-
-    fn visit_while(&mut self, expr: &mut Expr, stmt: &mut Stmt) {
-        self.visit_expr(expr);
-        self.visit_stmt(stmt);
-    }
-
-    fn visit_for(
-        &mut self,
-        expr1: &mut Option<Expr>,
-        expr2: &mut Option<Expr>,
-        expr3: &mut Option<Expr>,
-        stmt: &mut Stmt,
-    ) {
-        if let Some(e) = expr1 {
-            self.visit_expr(e);
-        }
-        if let Some(e) = expr2 {
-            self.visit_expr(e);
-        }
-        if let Some(e) = expr3 {
-            self.visit_expr(e);
-        }
-        self.visit_stmt(stmt);
     }
 
     fn visit_expr(&mut self, expr: &mut Expr) -> Type {

@@ -106,8 +106,8 @@ pub enum ParamDeclaration {
 #[derive(Clone, Debug)]
 pub enum Stmt {
     Label(Identifier, Box<Stmt>),
-    Case(Expr, Box<Stmt>), // todo
-    Default(Expr, Box<Stmt>),
+    Case(ConstantExpr, Box<Stmt>),
+    Default(Box<Stmt>),
 
     SemiColon,
     Expr(Expr),

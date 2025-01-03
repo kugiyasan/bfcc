@@ -66,6 +66,16 @@ impl Lexer {
 
             if c == ' ' || c == '\n' || c == '\t' {
                 self.index += 1;
+            } else if c2 == "//" {
+                self.index += 2;
+                while chars[self.index] != '\n' {
+                    self.index += 1;
+                }
+            } else if c2 == "/*" {
+                self.index += 2;
+                while chars[self.index] != '*' && chars[self.index + 1] != '/' {
+                    self.index += 1;
+                }
             } else if c.is_numeric() {
                 self.parse_number(&chars[self.index..]);
             } else if c.is_ascii_alphabetic() {
@@ -80,16 +90,6 @@ impl Lexer {
                 self.index += 1;
                 self.parse_string(&chars[self.index..]);
                 self.index += 1;
-            } else if c2 == "//" {
-                self.index += 2;
-                while chars[self.index] != '\n' {
-                    self.index += 1;
-                }
-            } else if c2 == "/*" {
-                self.index += 2;
-                while chars[self.index] != '*' && chars[self.index + 1] != '/' {
-                    self.index += 1;
-                }
             } else {
                 panic!("can't tokenize {:?}", c);
             }
