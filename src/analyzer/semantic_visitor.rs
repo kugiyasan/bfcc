@@ -6,37 +6,7 @@ use crate::parser::{
     ParamDeclaration, Primary, Stmt, TranslationUnit, Unary,
 };
 
-use super::symbol_table::SymbolTable;
-
-#[derive(Clone, Debug, PartialEq)]
-pub enum Type {
-    Void,
-    Char,
-    Int,
-    Ptr(Box<Type>),
-    Array(Box<Type>, usize),
-}
-
-impl Type {
-    pub fn sizeof(&self) -> usize {
-        match self {
-            Type::Void => 0,
-            Type::Char => 1,
-            Type::Int => 8,
-            Type::Ptr(_) => 8,
-            Type::Array(t, size) => t.sizeof() * size,
-        }
-    }
-
-    pub fn is_compatible_type(&self, other: &Self) -> bool {
-        match (self, other) {
-            (t1, t2) if t1 == t2 => true,
-            (Type::Int, Type::Char) => true,
-            (Type::Char, Type::Int) => true,
-            _ => false,
-        }
-    }
-}
+use super::{symbol_table::SymbolTable, Type};
 
 pub struct SemanticVisitor {
     symbol_table: SymbolTable,
