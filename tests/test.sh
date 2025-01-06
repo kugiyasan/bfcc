@@ -336,4 +336,11 @@ x = "abc";
 return x[0];
 '
 
+assertImplicitMain 0 '
+int arr[2];
+int *p;
+p = &arr[1];
+return 0;
+'
+
 echo 'All tests passed!'

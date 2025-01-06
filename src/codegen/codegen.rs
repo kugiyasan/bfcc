@@ -335,8 +335,10 @@ impl Codegen {
                 self.gen_oneop("  neg rax");
             }
             Unary::Ref(unary) => {
-                if let Unary::Identity(Primary::Ident(Identifier { name })) = *unary {
-                    self.gen_lval(&name);
+                match *unary {
+                    Unary::Identity(Primary::Ident(Identifier { name })) => self.gen_lval(&name),
+                    Unary::Deref(u) => self.gen_unary(*u),
+                    _ => todo!("properly gen_lval only when the expression is an l-value"),
                 }
             }
             Unary::Deref(unary) => {
