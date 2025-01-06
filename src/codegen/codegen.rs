@@ -93,7 +93,7 @@ impl Codegen {
                 let InitDeclarator::Declarator(ref declarator) = inits[0] else {
                     todo!();
                 };
-                let ty = self.symbol_table.convert_type(&specs, declarator);
+                let ty = Type::from_specs_and_declarator(&specs, declarator);
 
                 println!(".data");
                 println!("{}:", declarator.direct.get_name());

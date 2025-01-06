@@ -1,9 +1,6 @@
 use std::collections::{HashMap, HashSet};
 
-use crate::parser::{
-    ConstantExpr, DeclarationSpecifier, Declarator, DirectDeclarator, ExprKind, Primary,
-    TypeSpecifier, Unary,
-};
+use crate::parser::{DeclarationSpecifier, Declarator};
 
 use super::Type;
 
@@ -64,7 +61,7 @@ impl SymbolTable {
     }
 
     pub fn declare_var(&mut self, specs: Vec<DeclarationSpecifier>, declarator: Declarator) {
-        let ty = self.convert_type(&specs, &declarator);
+        let ty = Type::from_specs_and_declarator(&specs, &declarator);
         let var_name = declarator.direct.get_name();
         let name = self.format_var_name(&var_name);
         self._declare_var(ty, name);
@@ -121,55 +118,5 @@ impl SymbolTable {
 
     pub fn add_label(&mut self, name: String) {
         self.labels.insert(name);
-    }
-
-    pub fn convert_type(&self, specs: &Vec<DeclarationSpecifier>, declarator: &Declarator) -> Type {
-        self._convert_type(self.get_primary_type(specs), declarator)
-    }
-
-    fn get_primary_type(&self, specs: &Vec<DeclarationSpecifier>) -> Type {
-        for spec in specs {
-            if let DeclarationSpecifier::TypeSpecifier(ts) = spec {
-                return match ts {
-                    TypeSpecifier::Void => Type::Void,
-                    TypeSpecifier::Char => Type::Char,
-                    TypeSpecifier::Int => Type::Int,
-                    _ => todo!(),
-                };
-            }
-        }
-        panic!("Variable of unknown type");
-    }
-
-    fn get_var_type_from_direct_declarator(
-        &self,
-        t: Type,
-        direct_declarator: &DirectDeclarator,
-    ) -> Type {
-        match direct_declarator {
-            DirectDeclarator::Ident(_) => t,
-            DirectDeclarator::Declarator(d) => self._convert_type(t, d),
-            DirectDeclarator::Array(dd, e) => {
-                let t = self.get_var_type_from_direct_declarator(t, dd);
-                let Some(ConstantExpr::Identity(ExprKind::Unary(Unary::Identity(Primary::Num(
-                    size,
-                ))))) = e
-                else {
-                    todo!("Can't handle ConstExpr");
-                };
-                Type::Array(Box::new(t), *size as usize)
-            }
-            _ => todo!(),
-        }
-    }
-
-    fn _convert_type(&self, mut t: Type, declarator: &Declarator) -> Type {
-        let mut pointer = &declarator.pointer;
-        while let Some(p) = pointer {
-            t = Type::Ptr(Box::new(t));
-            pointer = &p.pointer;
-        }
-
-        self.get_var_type_from_direct_declarator(t, &declarator.direct)
     }
 }
