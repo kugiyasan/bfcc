@@ -6,7 +6,7 @@ use crate::parser::{
     ParamDeclaration, Primary, Stmt, TranslationUnit, Unary,
 };
 
-use super::{symbol_table::SymbolTable, Type};
+use super::{symbol_table::SymbolTable, Ty};
 
 pub struct SemanticVisitor {
     symbol_table: SymbolTable,
@@ -83,7 +83,8 @@ impl SemanticVisitor {
         match param_declaration {
             ParamDeclaration::Declarator(specs, d) => {
                 self.visit_declarator(d);
-                self.symbol_table.declare_var_with_offset(specs.clone(), *d.clone(), 8);
+                self.symbol_table
+                    .declare_var_with_offset(specs.clone(), *d.clone(), 8);
             }
             ParamDeclaration::AbstractDeclarator(_, _ad) => todo!(),
         };
@@ -169,15 +170,15 @@ impl SemanticVisitor {
         }
     }
 
-    fn visit_expr(&mut self, expr: &mut Expr) -> Type {
-        let mut t = Type::Void;
+    fn visit_expr(&mut self, expr: &mut Expr) -> Ty {
+        let mut t = Ty::Void;
         for assign in expr.0.iter_mut() {
             t = self.visit_assign(assign);
         }
         t
     }
 
-    fn visit_assign(&mut self, assign: &mut Assign) -> Type {
+    fn visit_assign(&mut self, assign: &mut Assign) -> Ty {
         match assign {
             Assign::Const(c) => self.visit_constant_expr(c),
             Assign::Assign(unary, _kind, a) => {
@@ -185,7 +186,7 @@ impl SemanticVisitor {
                 let t2 = self.visit_assign(a);
 
                 match (t1, t2) {
-                    (Type::Ptr(p), Type::Array(a, _)) => {
+                    (Ty::Ptr(p), Ty::Array(a, _)) => {
                         assert!(p.is_compatible_type(&a));
                         *p
                     }
@@ -198,7 +199,7 @@ impl SemanticVisitor {
         }
     }
 
-    fn visit_constant_expr(&mut self, c: &mut ConstantExpr) -> Type {
+    fn visit_constant_expr(&mut self, c: &mut ConstantExpr) -> Ty {
         match c {
             ConstantExpr::Identity(e) => self.visit_expr_kind(e),
             ConstantExpr::Ternary(expr_kind, expr, constant_expr) => {
@@ -211,14 +212,14 @@ impl SemanticVisitor {
         }
     }
 
-    fn visit_expr_kind(&mut self, expr_kind: &mut ExprKind) -> Type {
+    fn visit_expr_kind(&mut self, expr_kind: &mut ExprKind) -> Ty {
         match expr_kind {
             ExprKind::Binary(_kind, left, right) => {
                 let t1 = self.visit_expr_kind(left);
                 let t2 = self.visit_expr_kind(right);
 
                 match (t1, t2) {
-                    (Type::Ptr(ref p), t2) if p.is_compatible_type(&t2) => {
+                    (Ty::Ptr(ref p), t2) if p.is_compatible_type(&t2) => {
                         let size =
                             ExprKind::Unary(Unary::Identity(Primary::Num(t2.sizeof() as i32)));
                         *right = Box::new(ExprKind::Binary(
@@ -226,9 +227,9 @@ impl SemanticVisitor {
                             right.clone(),
                             Box::new(size),
                         ));
-                        Type::Ptr(Box::new(t2))
+                        Ty::Ptr(Box::new(t2))
                     }
-                    (t2, Type::Ptr(ref p)) if p.is_compatible_type(&t2) => {
+                    (t2, Ty::Ptr(ref p)) if p.is_compatible_type(&t2) => {
                         let size =
                             ExprKind::Unary(Unary::Identity(Primary::Num(t2.sizeof() as i32)));
                         *left = Box::new(ExprKind::Binary(
@@ -236,19 +237,19 @@ impl SemanticVisitor {
                             left.clone(),
                             Box::new(size),
                         ));
-                        Type::Ptr(Box::new(t2))
+                        Ty::Ptr(Box::new(t2))
                     }
-                    (Type::Array(t, size), t2) if t.is_compatible_type(&t2) => {
+                    (Ty::Array(t, size), t2) if t.is_compatible_type(&t2) => {
                         let s = ExprKind::Unary(Unary::Identity(Primary::Num(t.sizeof() as i32)));
                         *right =
                             Box::new(ExprKind::Binary(BinOpKind::Mul, right.clone(), Box::new(s)));
-                        Type::Array(t, size)
+                        Ty::Array(t, size)
                     }
-                    (t2, Type::Array(t, size)) if t.is_compatible_type(&t2) => {
+                    (t2, Ty::Array(t, size)) if t.is_compatible_type(&t2) => {
                         let s = ExprKind::Unary(Unary::Identity(Primary::Num(t.sizeof() as i32)));
                         *left =
                             Box::new(ExprKind::Binary(BinOpKind::Mul, left.clone(), Box::new(s)));
-                        Type::Array(t, size)
+                        Ty::Array(t, size)
                     }
                     (t1, t2) => {
                         assert!(t1.is_compatible_type(&t2));
@@ -260,28 +261,28 @@ impl SemanticVisitor {
         }
     }
 
-    fn visit_unary(&mut self, unary: &mut Unary) -> Type {
+    fn visit_unary(&mut self, unary: &mut Unary) -> Ty {
         match unary {
             Unary::Identity(primary) => self.visit_primary(primary),
             Unary::Neg(u) => self.visit_unary(u.as_mut()),
             Unary::Ref(u) => {
                 let t = self.visit_unary(u.as_mut());
-                Type::Ptr(Box::new(t))
+                Ty::Ptr(Box::new(t))
             }
             Unary::Deref(u) => {
                 let ty = self.visit_unary(u.as_mut());
                 match ty {
-                    Type::Ptr(p) => *p,
-                    Type::Array(t, _) => *t,
+                    Ty::Ptr(p) => *p,
+                    Ty::Array(t, _) => *t,
                     t => panic!("Tried to dereference non-pointer variable: {:?}", t),
                 }
             }
             Unary::Sizeof(u) => {
                 let t = self.visit_unary(u.as_mut());
                 *unary = Unary::Identity(Primary::Num(t.sizeof() as i32));
-                Type::Int
+                Ty::Int
             }
-            Unary::Call(_, None) => Type::Void, // todo
+            Unary::Call(_, None) => Ty::Void, // todo
             Unary::Call(_, Some(expr)) => self.visit_expr(expr),
             Unary::Index(u, e) => {
                 // desugar to *(u + e)
@@ -296,13 +297,13 @@ impl SemanticVisitor {
         }
     }
 
-    fn visit_primary(&mut self, primary: &mut Primary) -> Type {
+    fn visit_primary(&mut self, primary: &mut Primary) -> Ty {
         match primary {
             Primary::Ident(Identifier { name }) => self.symbol_table.get_var_type(name),
-            Primary::Num(_) => Type::Int,
+            Primary::Num(_) => Ty::Int,
             Primary::String(b) => {
                 self.symbol_table.declare_string(b.clone());
-                Type::Array(Box::new(Type::Char), b.len())
+                Ty::Array(Box::new(Ty::Char), b.len())
             }
             Primary::Expr(expr) => self.visit_expr(expr.as_mut()),
         }

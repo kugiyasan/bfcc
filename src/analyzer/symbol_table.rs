@@ -2,11 +2,11 @@ use std::collections::{HashMap, HashSet};
 
 use crate::parser::{DeclarationSpecifier, Declarator};
 
-use super::Type;
+use super::Ty;
 
 #[derive(Clone, Debug)]
 struct VarType {
-    ty: Type,
+    ty: Ty,
     offset: usize,
 }
 
@@ -61,25 +61,30 @@ impl SymbolTable {
     }
 
     pub fn declare_var(&mut self, specs: Vec<DeclarationSpecifier>, declarator: Declarator) {
-        let ty = Type::from_specs_and_declarator(&specs, &declarator);
+        let ty = Ty::from_specs_and_declarator(&specs, &declarator);
         let var_name = declarator.direct.get_name();
         let name = self.format_var_name(&var_name);
         self._declare_var(ty, name);
     }
 
-    pub fn declare_var_with_offset(&mut self, specs: Vec<DeclarationSpecifier>, declarator: Declarator, offset: usize) {
-        let ty = Type::from_specs_and_declarator(&specs, &declarator);
+    pub fn declare_var_with_offset(
+        &mut self,
+        specs: Vec<DeclarationSpecifier>,
+        declarator: Declarator,
+        offset: usize,
+    ) {
+        let ty = Ty::from_specs_and_declarator(&specs, &declarator);
         let var_name = declarator.direct.get_name();
         let name = self.format_var_name(&var_name);
         self._declare_var_with_offset(ty, name, offset);
     }
 
-    fn _declare_var(&mut self, ty: Type, name: String) {
+    fn _declare_var(&mut self, ty: Ty, name: String) {
         let size = ty.sizeof();
         self._declare_var_with_offset(ty, name, size)
     }
 
-    fn _declare_var_with_offset(&mut self, ty: Type, name: String, offset: usize) {
+    fn _declare_var_with_offset(&mut self, ty: Ty, name: String, offset: usize) {
         self.total_offset
             .entry(self.current_func_name.clone())
             .and_modify(|v| *v += offset);
@@ -91,7 +96,7 @@ impl SymbolTable {
 
     pub fn declare_string(&mut self, s: Vec<u8>) {
         let name = s.iter().map(|&b| b as char).collect::<String>();
-        let ty = Type::Array(Box::new(Type::Char), s.len());
+        let ty = Ty::Array(Box::new(Ty::Char), s.len());
         self._declare_var(ty, name.clone());
         self.strings.insert(name, self.strings.len());
     }
@@ -124,7 +129,7 @@ impl SymbolTable {
         LvarOffset::String(*string_id)
     }
 
-    pub fn get_var_type(&self, var_name: &str) -> Type {
+    pub fn get_var_type(&self, var_name: &str) -> Ty {
         self._get_var_type(var_name).ty.clone()
     }
 

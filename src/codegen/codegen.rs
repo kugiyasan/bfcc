@@ -1,5 +1,5 @@
 use crate::{
-    analyzer::{LvarOffset, SymbolTable, Type},
+    analyzer::{LvarOffset, SymbolTable, Ty},
     parser::{
         Assign, AssignOpKind, BinOpKind, CompoundStmt, ConstantExpr, Declaration,
         DeclarationOrStmt, DirectDeclarator, Expr, ExprKind, ExternalDeclaration, FuncDef,
@@ -93,7 +93,7 @@ impl Codegen {
                 let InitDeclarator::Declarator(ref declarator) = inits[0] else {
                     todo!();
                 };
-                let ty = Type::from_specs_and_declarator(&specs, declarator);
+                let ty = Ty::from_specs_and_declarator(&specs, declarator);
 
                 println!(".data");
                 println!("{}:", declarator.direct.get_name());
@@ -389,7 +389,7 @@ impl Codegen {
             Primary::Ident(Identifier { name }) => {
                 self.gen_lval(&name);
                 let ty = self.symbol_table.get_var_type(&name);
-                if let Type::Array(_, _) = ty {
+                if let Ty::Array(_, _) = ty {
                     return;
                 }
 

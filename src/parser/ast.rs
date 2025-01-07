@@ -1,6 +1,6 @@
 #![allow(dead_code)]
 
-use crate::analyzer::{SymbolTable, Type};
+use crate::analyzer::{SymbolTable, Ty};
 
 #[derive(Clone, Debug, PartialEq)]
 pub struct TranslationUnit(pub Vec<ExternalDeclaration>);
@@ -153,8 +153,11 @@ pub enum InitDeclarator {
 pub struct Expr(pub Vec<Assign>);
 
 impl Expr {
-    pub fn get_type(&self, symbol_table: &SymbolTable) -> Type {
-        self.0.last().map(|a| a.get_type(symbol_table)).unwrap_or(Type::Void)
+    pub fn get_type(&self, symbol_table: &SymbolTable) -> Ty {
+        self.0
+            .last()
+            .map(|a| a.get_type(symbol_table))
+            .unwrap_or(Ty::Void)
     }
 }
 
@@ -180,7 +183,7 @@ pub enum Assign {
 }
 
 impl Assign {
-    pub fn get_type(&self, symbol_table: &SymbolTable) -> Type {
+    pub fn get_type(&self, symbol_table: &SymbolTable) -> Ty {
         match self {
             Assign::Const(c) => c.get_type(symbol_table),
             Assign::Assign(_, _, a) => a.get_type(symbol_table),
@@ -195,7 +198,7 @@ pub enum ConstantExpr {
 }
 
 impl ConstantExpr {
-    pub fn get_type(&self, symbol_table: &SymbolTable) -> Type {
+    pub fn get_type(&self, symbol_table: &SymbolTable) -> Ty {
         match self {
             ConstantExpr::Identity(e) => e.get_type(symbol_table),
             ConstantExpr::Ternary(_, e, _) => e.get_type(symbol_table),
@@ -232,7 +235,7 @@ pub enum ExprKind {
 }
 
 impl ExprKind {
-    pub fn get_type(&self, symbol_table: &SymbolTable) -> Type {
+    pub fn get_type(&self, symbol_table: &SymbolTable) -> Ty {
         match self {
             ExprKind::Unary(u) => u.get_type(symbol_table),
             ExprKind::Binary(_, e, _) => e.get_type(symbol_table),
@@ -263,15 +266,17 @@ pub enum Unary {
 }
 
 impl Unary {
-    pub fn get_type(&self, symbol_table: &SymbolTable) -> Type {
+    pub fn get_type(&self, symbol_table: &SymbolTable) -> Ty {
         match self {
             Unary::Identity(p) => p.get_type(symbol_table),
-            Unary::Cast(_, _) | Unary::Call(_, _) => panic!("lvalue required as left operand of assignment"),
+            Unary::Cast(_, _) | Unary::Call(_, _) => {
+                panic!("lvalue required as left operand of assignment")
+            }
             Unary::Index(_, _) => panic!("Semantic visitor should have desugared indexing"),
             Unary::Field(_, _) => todo!(),
             Unary::PointerField(_, _) => todo!(),
 
-            Unary::Ref(u) => Type::Ptr(Box::new(u.get_type(symbol_table))),
+            Unary::Ref(u) => Ty::Ptr(Box::new(u.get_type(symbol_table))),
             Unary::Deref(u) => u.get_type(symbol_table).get_inner().unwrap(),
             Unary::Neg(u)
             | Unary::BitwiseNot(u)
@@ -294,11 +299,11 @@ pub enum Primary {
 }
 
 impl Primary {
-    pub fn get_type(&self, symbol_table: &SymbolTable) -> Type {
+    pub fn get_type(&self, symbol_table: &SymbolTable) -> Ty {
         match self {
-            Primary::Num(_) => Type::Int, // todo
+            Primary::Num(_) => Ty::Int, // todo
             Primary::Ident(Identifier { name }) => symbol_table.get_var_type(name),
-            Primary::String(b) => Type::Array(Box::new(Type::Char), b.len()),
+            Primary::String(b) => Ty::Array(Box::new(Ty::Char), b.len()),
             Primary::Expr(e) => e.get_type(symbol_table),
         }
     }

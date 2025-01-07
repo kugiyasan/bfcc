@@ -1,7 +1,7 @@
 mod semantic_visitor;
 mod symbol_table;
-mod r#type;
+mod ty;
 
-pub use r#type::*;
 pub use semantic_visitor::*;
 pub use symbol_table::*;
+pub use ty::*;
