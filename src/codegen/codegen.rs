@@ -20,6 +20,25 @@ fn epilogue() {
     println!("  ret");
 }
 
+fn gen_deref(size: usize) {
+    // todo: if ty.is_signed() { "movsx" } else { "movzx" };
+    let instruction = match size {
+        8 => "mov",
+        _ => "movsx",
+    };
+    let size_directive = match size {
+        1 => "BYTE PTR",
+        2 => "WORD PTR",
+        4 => "DWORD PTR",
+        8 => "QWORD PTR",
+        _ => panic!("Unexpected variable type size: {}", size),
+    };
+
+    println!("  pop rax");
+    println!("  {} rax, {} [rax]", instruction, size_directive);
+    println!("  push rax");
+}
+
 impl Codegen {
     pub fn new(symbol_table: SymbolTable) -> Self {
         Self {
@@ -350,10 +369,9 @@ impl Codegen {
                 _ => todo!("properly gen_lval only when the expression is an l-value"),
             },
             Unary::Deref(unary) => {
+                let ty = unary.get_type(&self.symbol_table);
                 self.gen_unary(*unary);
-                println!("  pop rax");
-                println!("  mov rax, [rax]");
-                println!("  push rax");
+                gen_deref(ty.get_inner().unwrap().sizeof());
             }
             Unary::Call(unary, expr) => {
                 let Unary::Identity(Primary::Ident(Identifier { name })) = *unary else {
@@ -393,21 +411,7 @@ impl Codegen {
                     return;
                 }
 
-                // todo: if ty.is_signed() { "movsx" } else { "movzx" };
-                let instruction = match ty.sizeof() {
-                    8 => "mov",
-                    _ => "movsx",
-                };
-                let size_directive = match ty.sizeof() {
-                    1 => "BYTE PTR",
-                    2 => "WORD PTR",
-                    4 => "DWORD PTR",
-                    8 => "QWORD PTR",
-                    _ => panic!("Unexpected variable type size: {}", ty.sizeof()),
-                };
-                println!("  pop rax");
-                println!("  {} rax, {} [rax]", instruction, size_directive);
-                println!("  push rax");
+                gen_deref(ty.sizeof());
             }
             Primary::Num(num) => println!("  push {}", num),
             Primary::String(b) => self.gen_lval(&b.iter().map(|&b| b as char).collect::<String>()),
