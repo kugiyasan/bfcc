@@ -34,6 +34,13 @@ impl Type {
         }
     }
 
+    pub fn get_inner(&self) -> Option<Type> {
+        match self {
+            Type::Ptr(ty) | Type::Array(ty, _) => Some(*ty.clone()),
+            _ => None,
+        }
+    }
+
     pub fn from_specs_and_declarator(
         specs: &Vec<DeclarationSpecifier>,
         declarator: &Declarator,

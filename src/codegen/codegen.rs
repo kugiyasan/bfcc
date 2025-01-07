@@ -263,12 +263,13 @@ impl Codegen {
         match assign {
             Assign::Const(c) => self.gen_constant_expr(c),
             Assign::Assign(unary, kind, a) => {
-                let mut var_type_size = 999;
+                let var_type_size;
                 if let Unary::Deref(u) = unary {
+                    var_type_size = u.get_type(&self.symbol_table).get_inner().unwrap().sizeof();
                     self.gen_unary(*u);
                 } else if let Unary::Identity(Primary::Ident(Identifier { name })) = unary {
-                    self.gen_lval(&name);
                     var_type_size = self.symbol_table.get_var_type(&name).sizeof();
+                    self.gen_lval(&name);
                 } else {
                     panic!("Invalid l-value for assignment: {:?}", unary);
                 }
