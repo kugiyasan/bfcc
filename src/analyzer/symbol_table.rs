@@ -67,10 +67,22 @@ impl SymbolTable {
         self._declare_var(ty, name);
     }
 
+    pub fn declare_var_with_offset(&mut self, specs: Vec<DeclarationSpecifier>, declarator: Declarator, offset: usize) {
+        let ty = Type::from_specs_and_declarator(&specs, &declarator);
+        let var_name = declarator.direct.get_name();
+        let name = self.format_var_name(&var_name);
+        self._declare_var_with_offset(ty, name, offset);
+    }
+
     fn _declare_var(&mut self, ty: Type, name: String) {
+        let size = ty.sizeof();
+        self._declare_var_with_offset(ty, name, size)
+    }
+
+    fn _declare_var_with_offset(&mut self, ty: Type, name: String, offset: usize) {
         self.total_offset
             .entry(self.current_func_name.clone())
-            .and_modify(|offset| *offset += ty.sizeof());
+            .and_modify(|v| *v += offset);
         let offset = *self.total_offset.get(&self.current_func_name).unwrap();
 
         let var_type = VarType { ty, offset };

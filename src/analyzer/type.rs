@@ -18,7 +18,7 @@ impl Type {
         match self {
             Type::Void => 0,
             Type::Char => 1,
-            Type::Int => 8,
+            Type::Int => 4,
             Type::Ptr(_) => 8,
             Type::Array(t, size) => t.sizeof() * size,
             Type::Func(_, _) => panic!("sizeof function is not allowed"),
@@ -34,7 +34,10 @@ impl Type {
         }
     }
 
-    pub fn from_specs_and_declarator(specs: &Vec<DeclarationSpecifier>, declarator: &Declarator) -> Type {
+    pub fn from_specs_and_declarator(
+        specs: &Vec<DeclarationSpecifier>,
+        declarator: &Declarator,
+    ) -> Type {
         Self::_convert_type(Self::get_primary_type(specs), declarator)
     }
 
@@ -52,10 +55,7 @@ impl Type {
         panic!("Variable of unknown type");
     }
 
-    fn get_var_type_from_direct_declarator(
-        t: Type,
-        direct_declarator: &DirectDeclarator,
-    ) -> Type {
+    fn get_var_type_from_direct_declarator(t: Type, direct_declarator: &DirectDeclarator) -> Type {
         match direct_declarator {
             DirectDeclarator::Ident(_) => t,
             DirectDeclarator::Declarator(d) => Self::_convert_type(t, d),

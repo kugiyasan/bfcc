@@ -83,7 +83,7 @@ impl SemanticVisitor {
         match param_declaration {
             ParamDeclaration::Declarator(specs, d) => {
                 self.visit_declarator(d);
-                self.symbol_table.declare_var(specs.clone(), *d.clone());
+                self.symbol_table.declare_var_with_offset(specs.clone(), *d.clone(), 8);
             }
             ParamDeclaration::AbstractDeclarator(_, _ad) => todo!(),
         };

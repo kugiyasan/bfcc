@@ -24,6 +24,7 @@ assert() {
 
   if [ "$actual" = "$expected" ]; then
     printf "${GREEN}%s => %s${NC}\n" "$input" "$actual"
+    rm tmp.s tmp
   else
     cat tmp.s
     printf "${RED}%s => %s expected, but got %s${NC}\n" "$input" "$expected" "$actual"
@@ -263,8 +264,7 @@ q = p + 3;
 return *q;
 '
 # step 20
-# todo: set sizeof(int) to 4, and fix codegen to support various size registers
-assertImplicitMain 2 '
+assertImplicitMain 7 '
 int x;
 int *y;
 int a;

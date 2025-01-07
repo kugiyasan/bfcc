@@ -263,10 +263,12 @@ impl Codegen {
         match assign {
             Assign::Const(c) => self.gen_constant_expr(c),
             Assign::Assign(unary, kind, a) => {
+                let mut var_type_size = 999;
                 if let Unary::Deref(u) = unary {
                     self.gen_unary(*u);
                 } else if let Unary::Identity(Primary::Ident(Identifier { name })) = unary {
                     self.gen_lval(&name);
+                    var_type_size = self.symbol_table.get_var_type(&name).sizeof();
                 } else {
                     panic!("Invalid l-value for assignment: {:?}", unary);
                 }
@@ -274,9 +276,16 @@ impl Codegen {
 
                 match kind {
                     AssignOpKind::Assign => {
+                        let src_reg = match var_type_size {
+                            1 => "dil",
+                            2 => "di",
+                            4 => "edi",
+                            8 => "rdi",
+                            _ => panic!("Unexpected variable type size: {}", var_type_size),
+                        };
                         println!("  pop rdi");
                         println!("  pop rax");
-                        println!("  mov [rax], rdi");
+                        println!("  mov [rax], {}", src_reg);
                         println!("  push rdi");
                     }
                     _ => todo!(),
@@ -334,13 +343,11 @@ impl Codegen {
                 self.gen_unary(*unary);
                 self.gen_oneop("  neg rax");
             }
-            Unary::Ref(unary) => {
-                match *unary {
-                    Unary::Identity(Primary::Ident(Identifier { name })) => self.gen_lval(&name),
-                    Unary::Deref(u) => self.gen_unary(*u),
-                    _ => todo!("properly gen_lval only when the expression is an l-value"),
-                }
-            }
+            Unary::Ref(unary) => match *unary {
+                Unary::Identity(Primary::Ident(Identifier { name })) => self.gen_lval(&name),
+                Unary::Deref(u) => self.gen_unary(*u),
+                _ => todo!("properly gen_lval only when the expression is an l-value"),
+            },
             Unary::Deref(unary) => {
                 self.gen_unary(*unary);
                 println!("  pop rax");
@@ -380,11 +387,25 @@ impl Codegen {
         match primary {
             Primary::Ident(Identifier { name }) => {
                 self.gen_lval(&name);
-                if let Type::Array(_, _) = self.symbol_table.get_var_type(&name) {
+                let ty = self.symbol_table.get_var_type(&name);
+                if let Type::Array(_, _) = ty {
                     return;
                 }
+
+                // todo: if ty.is_signed() { "movsx" } else { "movzx" };
+                let instruction = match ty.sizeof() {
+                    8 => "mov",
+                    _ => "movsx",
+                };
+                let size_directive = match ty.sizeof() {
+                    1 => "BYTE PTR",
+                    2 => "WORD PTR",
+                    4 => "DWORD PTR",
+                    8 => "QWORD PTR",
+                    _ => panic!("Unexpected variable type size: {}", ty.sizeof()),
+                };
                 println!("  pop rax");
-                println!("  mov rax, [rax]");
+                println!("  {} rax, {} [rax]", instruction, size_directive);
                 println!("  push rax");
             }
             Primary::Num(num) => println!("  push {}", num),
