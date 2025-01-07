@@ -7,7 +7,9 @@ use crate::parser::{
 pub enum Ty {
     Void,
     Char,
+    Short,
     Int,
+    Long,
     Ptr(Box<Ty>),
     Array(Box<Ty>, usize),
     Func(Box<Ty>, Vec<Ty>),
@@ -18,7 +20,9 @@ impl Ty {
         match self {
             Ty::Void => 0,
             Ty::Char => 1,
+            Ty::Short => 2,
             Ty::Int => 4,
+            Ty::Long => 8,
             Ty::Ptr(_) => 8,
             Ty::Array(t, size) => t.sizeof() * size,
             Ty::Func(_, _) => panic!("sizeof function is not allowed"),
@@ -54,7 +58,9 @@ impl Ty {
                 return match ts {
                     TypeSpecifier::Void => Ty::Void,
                     TypeSpecifier::Char => Ty::Char,
+                    TypeSpecifier::Short => Ty::Short,
                     TypeSpecifier::Int => Ty::Int,
+                    TypeSpecifier::Long => Ty::Long,
                     _ => todo!(),
                 };
             }
