@@ -29,8 +29,8 @@ struct-or-union-specifier:
 struct-or-union: one of
   struct union
 struct-declaration-list:
-  struct declaration
-  struct-declaration-list struct declaration
+  struct-declaration
+  struct-declaration-list struct-declaration
 init-declarator-list:
   init-declarator
   init-declarator-list, init-declarator

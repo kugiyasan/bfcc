@@ -89,7 +89,16 @@ impl ExprKind {
     pub fn get_type(&self, symbol_table: &SymbolTable) -> Ty {
         match self {
             ExprKind::Unary(u) => u.get_type(symbol_table),
-            ExprKind::Binary(_, e, _) => e.get_type(symbol_table),
+            ExprKind::Binary(_, e1, e2) => {
+                let t1 = e1.get_type(symbol_table);
+                let t2 = e2.get_type(symbol_table);
+                match (t1, t2) {
+                    (t1, t2) if t1 == t2 => t1,
+                    (Ty::Ptr(t), _) | (_, Ty::Ptr(t)) => Ty::Ptr(t),
+                    (Ty::Array(t, s), _) | (_, Ty::Array(t, s)) => Ty::Array(t, s),
+                    _ => panic!(),
+                }
+            }
         }
     }
 }

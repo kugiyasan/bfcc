@@ -45,9 +45,9 @@ pub enum TypeSpecifier {
     Double,
     Signed,
     Unsigned,
-    StructOrUnionSpecifier(),
-    EnumSpecifier(),
-    TypedefName(),
+    StructOrUnionSpecifier(StructOrUnionSpecifier),
+    EnumSpecifier(EnumSpecifier),
+    TypedefName(String),
 }
 
 #[derive(Clone, Debug, PartialEq)]
@@ -57,9 +57,51 @@ pub enum TypeQualifier {
 }
 
 #[derive(Clone, Debug, PartialEq)]
+pub enum StructOrUnionSpecifier {
+    WithDeclaration(StructOrUnion, Option<String>, Vec<StructDeclaration>),
+    Identifier(StructOrUnion, String),
+}
+
+#[derive(Clone, Debug, PartialEq)]
+pub enum StructOrUnion {
+    Struct,
+    Union,
+}
+
+#[derive(Clone, Debug, PartialEq)]
+pub enum InitDeclarator {
+    Declarator(Declarator),
+    DeclaratorAndInitializer(Declarator, ()), // todo
+}
+
+#[derive(Clone, Debug, PartialEq)]
 pub enum SpecifierQualifier {
     TypeSpecifier(TypeSpecifier),
     TypeQualifier(TypeQualifier),
+}
+
+#[derive(Clone, Debug, PartialEq)]
+pub struct StructDeclaration {
+    pub specs: Vec<SpecifierQualifier>,
+    pub declarators: Vec<StructDeclarator>,
+}
+
+#[derive(Clone, Debug, PartialEq)]
+pub enum StructDeclarator {
+    Declarator(Declarator),
+    WithExpr(Option<Declarator>, ConstantExpr),
+}
+
+#[derive(Clone, Debug, PartialEq)]
+pub enum EnumSpecifier {
+    WithEnumerator(Option<String>, Vec<Enumerator>),
+    Identifier(String),
+}
+
+#[derive(Clone, Debug, PartialEq)]
+pub enum Enumerator {
+    Identifier(String),
+    Init(String, ConstantExpr),
 }
 
 #[derive(Clone, Debug, PartialEq)]
@@ -141,10 +183,4 @@ pub enum DeclarationOrStmt {
 pub struct Declaration {
     pub specs: Vec<DeclarationSpecifier>,
     pub inits: Vec<InitDeclarator>,
-}
-
-#[derive(Clone, Debug, PartialEq)]
-pub enum InitDeclarator {
-    Declarator(Declarator),
-    DeclaratorAndInitializer(Declarator, ()),
 }

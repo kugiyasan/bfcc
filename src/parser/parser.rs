@@ -2,9 +2,10 @@ use crate::lexer::{Token, TokenKind};
 
 use super::{
     Assign, AssignOpKind, BinOpKind, CompoundStmt, ConstantExpr, Declaration, DeclarationOrStmt,
-    DeclarationSpecifier, Declarator, DirectDeclarator, Expr, ExprKind, ExternalDeclaration,
-    FuncDef, InitDeclarator, ParamDeclaration, ParamTypeList, Pointer, Primary, Stmt,
-    StorageClassSpecifier, TranslationUnit, TypeQualifier, TypeSpecifier, Unary,
+    DeclarationSpecifier, Declarator, DirectDeclarator, EnumSpecifier, Enumerator, Expr, ExprKind,
+    ExternalDeclaration, FuncDef, InitDeclarator, ParamDeclaration, ParamTypeList, Pointer,
+    Primary, SpecifierQualifier, Stmt, StorageClassSpecifier, StructDeclaration, StructDeclarator,
+    StructOrUnion, StructOrUnionSpecifier, TranslationUnit, TypeQualifier, TypeSpecifier, Unary,
 };
 
 pub struct Parser {
@@ -102,7 +103,7 @@ impl Parser {
     /// func-def = declaration-specifiers? declarator compound-stmt
     fn parse_external_declaration(&mut self) -> ExternalDeclaration {
         let specs = self.parse_declaration_specifiers();
-        let declarator = self.parse_declarator();
+        let declarator = self.parse_declarator().unwrap();
 
         if self.consume(&TokenKind::LeftCurlyBrace) {
             let mut stmts = vec![];
@@ -238,7 +239,7 @@ impl Parser {
     /// init-declarator = declarator
     ///                 | declarator "=" initializer
     fn parse_init_declarator(&mut self) -> Option<InitDeclarator> {
-        let d = self.parse_declarator();
+        let d = self.parse_declarator().unwrap();
         if self.consume(&TokenKind::Equal) {
             todo!();
             // let i = self.parse_initializer();
@@ -248,11 +249,11 @@ impl Parser {
     }
 
     /// declarator = pointer? direct-declarator
-    fn parse_declarator(&mut self) -> Declarator {
-        Declarator {
+    fn parse_declarator(&mut self) -> Option<Declarator> {
+        Some(Declarator {
             pointer: self.parse_pointer(),
-            direct: self.parse_direct_declarator(),
-        }
+            direct: self.parse_direct_declarator()?,
+        })
     }
 
     /// pointer = "*" type-qualifier* pointer?
@@ -276,41 +277,41 @@ impl Parser {
     ///                   | (declarator)
     ///                   | direct-declarator [ constant-expression? ]
     ///                   | direct-declarator ( parameter-type-list? )
-    fn parse_direct_declarator(&mut self) -> DirectDeclarator {
+    fn parse_direct_declarator(&mut self) -> Option<DirectDeclarator> {
         if self.consume(&TokenKind::LeftParen) {
-            let d = self.parse_declarator();
+            let d = self.parse_declarator().unwrap();
             self.expect(&TokenKind::RightParen);
-            return DirectDeclarator::Declarator(Box::new(d));
+            return Some(DirectDeclarator::Declarator(Box::new(d)));
         }
 
-        let name = self.expect_ident();
+        let name = self.consume_ident()?;
         let d = Box::new(DirectDeclarator::Ident(name.clone()));
 
         if self.consume(&TokenKind::LeftSquareBrace) {
             if self.consume(&TokenKind::RightSquareBrace) {
-                return DirectDeclarator::Array(d, None);
+                Some(DirectDeclarator::Array(d, None))
+            } else {
+                let expr = Some(self.parse_constant_expr());
+                self.expect(&TokenKind::RightSquareBrace);
+                Some(DirectDeclarator::Array(d, expr))
             }
-
-            let expr = Some(self.parse_constant_expr());
-            self.expect(&TokenKind::RightSquareBrace);
-            return DirectDeclarator::Array(d, expr);
         } else if self.consume(&TokenKind::LeftParen) {
             if self.consume(&TokenKind::RightParen) {
                 let ptl = ParamTypeList {
                     params: vec![],
                     variadic: false,
                 };
-                return DirectDeclarator::ParamTypeList(d, ptl);
+                Some(DirectDeclarator::ParamTypeList(d, ptl))
+            } else {
+                let param_list = self
+                    .parse_param_type_list()
+                    .expect("Expected ParamTypeList");
+                self.expect(&TokenKind::RightParen);
+                Some(DirectDeclarator::ParamTypeList(d, param_list))
             }
-
-            let param_list = self
-                .parse_param_type_list()
-                .expect("Expected ParamTypeList");
-            self.expect(&TokenKind::RightParen);
-            return DirectDeclarator::ParamTypeList(d, param_list);
+        } else {
+            Some(DirectDeclarator::Ident(name))
         }
-
-        DirectDeclarator::Ident(name)
     }
 
     /// parameter-type-list = param-declaration* ("," ...)?
@@ -343,7 +344,7 @@ impl Parser {
             return None;
         }
 
-        let d = self.parse_declarator();
+        let d = self.parse_declarator().unwrap();
         Some(ParamDeclaration::Declarator(specs, Box::new(d)))
     }
 
@@ -373,6 +374,7 @@ impl Parser {
         }
     }
 
+    /// storage-class-specifier = "auto" | "register" | "static" | "extern" | "typedef"
     fn parse_storage_class_specifier(&mut self) -> Option<StorageClassSpecifier> {
         if self.consume(&TokenKind::Auto) {
             Some(StorageClassSpecifier::Auto)
@@ -408,17 +410,20 @@ impl Parser {
             Some(TypeSpecifier::Signed)
         } else if self.consume(&TokenKind::Unsigned) {
             Some(TypeSpecifier::Unsigned)
-        } else if self.consume(&TokenKind::Struct) {
-            Some(TypeSpecifier::StructOrUnionSpecifier())
+        } else if self.peek(0) == &TokenKind::Struct || self.peek(0) == &TokenKind::Union {
+            let spec = self.parse_struct_or_union_specifier();
+            Some(TypeSpecifier::StructOrUnionSpecifier(spec))
         } else if self.consume(&TokenKind::Enum) {
-            Some(TypeSpecifier::EnumSpecifier())
-        } else if self.consume(&TokenKind::Typedef) {
-            Some(TypeSpecifier::TypedefName())
+            let spec = self.parse_enum_specifier();
+            Some(TypeSpecifier::EnumSpecifier(spec))
+        // } else if let Some(ident) = self.consume_ident() {
+        //     Some(TypeSpecifier::TypedefName(ident))
         } else {
             None
         }
     }
 
+    /// type-qualifier = "const" | "volatile"
     fn parse_type_qualifier(&mut self) -> Option<TypeQualifier> {
         if self.consume(&TokenKind::Const) {
             Some(TypeQualifier::Const)
@@ -426,6 +431,100 @@ impl Parser {
             Some(TypeQualifier::Volatile)
         } else {
             None
+        }
+    }
+
+    /// struct-or-union-specifier = struct-or-union identifier? "{" struct-declaration+ "}"
+    ///                           | struct-or-union identifier
+    fn parse_struct_or_union_specifier(&mut self) -> StructOrUnionSpecifier {
+        let struct_or_union = self.parse_struct_or_union();
+        let name = self.consume_ident();
+
+        if self.consume(&TokenKind::LeftCurlyBrace) {
+            let mut struct_declarations = vec![self.parse_struct_declaration()];
+            while !self.consume(&TokenKind::RightCurlyBrace) {
+                struct_declarations.push(self.parse_struct_declaration());
+            }
+            StructOrUnionSpecifier::WithDeclaration(struct_or_union, name, struct_declarations)
+        } else {
+            StructOrUnionSpecifier::Identifier(struct_or_union, name.unwrap())
+        }
+    }
+
+    /// struct-or-union = "struct" | "union"
+    fn parse_struct_or_union(&mut self) -> StructOrUnion {
+        if self.consume(&TokenKind::Struct) {
+            StructOrUnion::Struct
+        } else if self.consume(&TokenKind::Union) {
+            StructOrUnion::Union
+        } else {
+            panic!();
+        }
+    }
+
+    /// struct-declaration = specifier-qualifier+ struct-declarator+ ";"
+    fn parse_struct_declaration(&mut self) -> StructDeclaration {
+        let mut specs = vec![self.parse_specifier_qualifier().unwrap()];
+        while let Some(sq) = self.parse_specifier_qualifier() {
+            specs.push(sq);
+        }
+
+        let mut declarators = vec![self.parse_struct_declarator().unwrap()];
+        while let Some(sd) = self.parse_struct_declarator() {
+            declarators.push(sd);
+        }
+
+        self.expect(&TokenKind::SemiColon);
+        StructDeclaration { specs, declarators }
+    }
+
+    /// specifier-qualifier = type-specifier
+    ///                     | type-qualifier
+    fn parse_specifier_qualifier(&mut self) -> Option<SpecifierQualifier> {
+        if let Some(ts) = self.parse_type_specifier() {
+            Some(SpecifierQualifier::TypeSpecifier(ts))
+        } else if let Some(tq) = self.parse_type_qualifier() {
+            Some(SpecifierQualifier::TypeQualifier(tq))
+        } else {
+            None
+        }
+    }
+
+    /// struct-declarator = declarator
+    ///                   | declarator? ":" constant-expr
+    fn parse_struct_declarator(&mut self) -> Option<StructDeclarator> {
+        let d = self.parse_declarator();
+        if self.consume(&TokenKind::Colon) {
+            let c = self.parse_constant_expr();
+            Some(StructDeclarator::WithExpr(d, c))
+        } else {
+            Some(StructDeclarator::Declarator(d?))
+        }
+    }
+
+    /// enum-specifier = "enum" identifier? "{" enumerator+ "}"
+    ///                | "enum" identifier
+    /// enumerator = identifier
+    ///            | identifier "=" constant-expr
+    fn parse_enum_specifier(&mut self) -> EnumSpecifier {
+        // TokenKind::Enum has already been consumed
+        let ident = self.consume_ident();
+
+        if self.consume(&TokenKind::LeftCurlyBrace) {
+            let mut enumerator = vec![];
+            while !self.consume(&TokenKind::RightCurlyBrace) {
+                let i = self.expect_ident();
+                if self.consume(&TokenKind::Equal) {
+                    let c = self.parse_constant_expr();
+                    enumerator.push(Enumerator::Init(i, c));
+                } else {
+                    enumerator.push(Enumerator::Identifier(i));
+                }
+            }
+
+            EnumSpecifier::WithEnumerator(ident, enumerator)
+        } else {
+            EnumSpecifier::Identifier(ident.unwrap())
         }
     }
 
@@ -512,6 +611,8 @@ impl Parser {
         }
     }
 
+    /// constant-expr = logical-or-expr
+    ///               | logical-or-expr "?" expr ":" constant-expr
     fn parse_constant_expr(&mut self) -> ConstantExpr {
         let eq = self.parse_equality();
 

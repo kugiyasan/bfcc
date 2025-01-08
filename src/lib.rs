@@ -17,7 +17,7 @@ pub fn compile(user_input: &str) {
 
     let mut visitor = SemanticVisitor::new();
     let symbol_table = visitor.visit_translation_unit(&mut translation_unit);
-    dbg!(&translation_unit);
+    // dbg!(&translation_unit);
     dbg!(&symbol_table);
 
     let mut codegen = Codegen::new(symbol_table);
