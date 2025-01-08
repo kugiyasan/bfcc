@@ -110,8 +110,8 @@ pub enum Unary {
 
     Index(Box<Unary>, Expr),
     Call(Box<Unary>, Option<Expr>),
-    Field(Box<Unary>, Identifier),
-    PointerField(Box<Unary>, Identifier),
+    Field(Box<Unary>, String),
+    PointerField(Box<Unary>, String),
     PostfixIncrement(Box<Unary>),
     PostfixDecrement(Box<Unary>),
 }
@@ -144,7 +144,7 @@ impl Unary {
 #[derive(Clone, Debug, PartialEq)]
 pub enum Primary {
     Num(i32),
-    Ident(Identifier),
+    Ident(String),
     String(Vec<u8>),
     Expr(Box<Expr>),
 }
@@ -153,14 +153,9 @@ impl Primary {
     pub fn get_type(&self, symbol_table: &SymbolTable) -> Ty {
         match self {
             Primary::Num(_) => Ty::Int, // todo
-            Primary::Ident(Identifier { name }) => symbol_table.get_var_type(name),
+            Primary::Ident(name) => symbol_table.get_var_type(name),
             Primary::String(b) => Ty::Array(Box::new(Ty::Char), b.len()),
             Primary::Expr(e) => e.get_type(symbol_table),
         }
     }
-}
-
-#[derive(Clone, Debug, PartialEq)]
-pub struct Identifier {
-    pub name: String,
 }

@@ -1,6 +1,6 @@
 #![allow(dead_code)]
 
-use super::{ConstantExpr, Expr, Identifier};
+use super::{ConstantExpr, Expr};
 
 #[derive(Clone, Debug, PartialEq)]
 pub struct TranslationUnit(pub Vec<ExternalDeclaration>);
@@ -76,7 +76,7 @@ pub struct Pointer {
 
 #[derive(Clone, Debug, PartialEq)]
 pub enum DirectDeclarator {
-    Ident(Identifier),
+    Ident(String),
     Declarator(Box<Declarator>),
     Array(Box<DirectDeclarator>, Option<ConstantExpr>),
     ParamTypeList(Box<DirectDeclarator>, ParamTypeList),
@@ -85,7 +85,7 @@ pub enum DirectDeclarator {
 impl DirectDeclarator {
     pub fn get_name(&self) -> String {
         match self {
-            DirectDeclarator::Ident(Identifier { name }) => name.to_string(),
+            DirectDeclarator::Ident(ident) => ident.to_string(),
             DirectDeclarator::Declarator(d) => d.direct.get_name(),
             DirectDeclarator::Array(dd, _) => dd.get_name(),
             DirectDeclarator::ParamTypeList(dd, _) => dd.get_name(),
@@ -107,7 +107,7 @@ pub enum ParamDeclaration {
 
 #[derive(Clone, Debug, PartialEq)]
 pub enum Stmt {
-    Label(Identifier, Box<Stmt>),
+    Label(String, Box<Stmt>),
     Case(ConstantExpr, Box<Stmt>),
     Default(Box<Stmt>),
 
@@ -122,7 +122,7 @@ pub enum Stmt {
     DoWhile(Box<Stmt>, Expr),
     For(Option<Expr>, Option<Expr>, Option<Expr>, Box<Stmt>),
 
-    Goto(Identifier),
+    Goto(String),
     Continue,
     Break,
     Return(Expr),
@@ -148,4 +148,3 @@ pub enum InitDeclarator {
     Declarator(Declarator),
     DeclaratorAndInitializer(Declarator, ()),
 }
-

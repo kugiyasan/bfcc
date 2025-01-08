@@ -3,7 +3,7 @@ use crate::lexer::{Token, TokenKind};
 use super::{
     Assign, AssignOpKind, BinOpKind, CompoundStmt, ConstantExpr, Declaration, DeclarationOrStmt,
     DeclarationSpecifier, Declarator, DirectDeclarator, Expr, ExprKind, ExternalDeclaration,
-    FuncDef, Identifier, InitDeclarator, ParamDeclaration, ParamTypeList, Pointer, Primary, Stmt,
+    FuncDef, InitDeclarator, ParamDeclaration, ParamTypeList, Pointer, Primary, Stmt,
     StorageClassSpecifier, TranslationUnit, TypeQualifier, TypeSpecifier, Unary,
 };
 
@@ -147,9 +147,9 @@ impl Parser {
         if self.consume(&TokenKind::SemiColon) {
             Stmt::SemiColon
         } else if self.peek(1) == &TokenKind::Colon {
-            let name = self.expect_ident();
+            let ident = self.expect_ident();
             self.expect(&TokenKind::Colon);
-            Stmt::Label(Identifier { name }, Box::new(self.parse_stmt()))
+            Stmt::Label(ident, Box::new(self.parse_stmt()))
         } else if self.consume(&TokenKind::Case) {
             let expr = self.parse_constant_expr();
             self.expect(&TokenKind::Colon);
@@ -190,9 +190,9 @@ impl Parser {
         } else if self.consume(&TokenKind::For) {
             self.parse_for()
         } else if self.consume(&TokenKind::Goto) {
-            let name = self.expect_ident();
+            let ident = self.expect_ident();
             self.expect(&TokenKind::SemiColon);
-            Stmt::Goto(Identifier { name })
+            Stmt::Goto(ident)
         } else if self.consume(&TokenKind::Continue) {
             self.expect(&TokenKind::SemiColon);
             Stmt::Continue
@@ -284,7 +284,7 @@ impl Parser {
         }
 
         let name = self.expect_ident();
-        let d = Box::new(DirectDeclarator::Ident(Identifier { name: name.clone() }));
+        let d = Box::new(DirectDeclarator::Ident(name.clone()));
 
         if self.consume(&TokenKind::LeftSquareBrace) {
             if self.consume(&TokenKind::RightSquareBrace) {
@@ -310,7 +310,7 @@ impl Parser {
             return DirectDeclarator::ParamTypeList(d, param_list);
         }
 
-        DirectDeclarator::Ident(Identifier { name })
+        DirectDeclarator::Ident(name)
     }
 
     /// parameter-type-list = param-declaration* ("," ...)?
@@ -686,15 +686,11 @@ impl Parser {
                 Unary::Call(Box::new(unary), Some(expr))
             }
         } else if self.consume(&TokenKind::Dot) {
-            let name = self
-                .consume_ident()
-                .expect("Expected identifier after field access");
-            Unary::Field(Box::new(unary), Identifier { name })
+            let ident = self.expect_ident();
+            Unary::Field(Box::new(unary), ident)
         } else if self.consume(&TokenKind::Arrow) {
-            let name = self
-                .consume_ident()
-                .expect("Expected identifier after field access");
-            Unary::PointerField(Box::new(unary), Identifier { name })
+            let ident = self.expect_ident();
+            Unary::PointerField(Box::new(unary), ident)
         } else if self.consume(&TokenKind::PlusPlus) {
             Unary::PostfixIncrement(Box::new(unary))
         } else if self.consume(&TokenKind::MinusMinus) {
@@ -712,9 +708,7 @@ impl Parser {
         match &self.tokens[self.index].kind {
             TokenKind::Ident(ident) => {
                 self.index += 1;
-                Primary::Ident(Identifier {
-                    name: ident.clone(),
-                })
+                Primary::Ident(ident.clone())
             }
             TokenKind::Num(num) => {
                 self.index += 1;

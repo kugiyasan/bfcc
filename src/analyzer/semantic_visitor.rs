@@ -2,7 +2,7 @@ use core::panic;
 
 use crate::parser::{
     Assign, BinOpKind, CompoundStmt, ConstantExpr, Declaration, DeclarationOrStmt, Declarator,
-    DirectDeclarator, Expr, ExprKind, ExternalDeclaration, FuncDef, Identifier, InitDeclarator,
+    DirectDeclarator, Expr, ExprKind, ExternalDeclaration, FuncDef, InitDeclarator,
     ParamDeclaration, Primary, Stmt, TranslationUnit, Unary,
 };
 
@@ -96,8 +96,8 @@ impl SemanticVisitor {
             Stmt::Expr(expr) => {
                 self.visit_expr(expr);
             }
-            Stmt::Label(Identifier { name }, stmt) => {
-                self.symbol_table.add_label(name.clone());
+            Stmt::Label(ident, stmt) => {
+                self.symbol_table.add_label(ident.clone());
                 self.visit_stmt(stmt.as_mut())
             }
             Stmt::Case(c, stmt) => {
@@ -299,7 +299,7 @@ impl SemanticVisitor {
 
     fn visit_primary(&mut self, primary: &mut Primary) -> Ty {
         match primary {
-            Primary::Ident(Identifier { name }) => self.symbol_table.get_var_type(name),
+            Primary::Ident(ident) => self.symbol_table.get_var_type(ident),
             Primary::Num(_) => Ty::Int,
             Primary::String(b) => {
                 self.symbol_table.declare_string(b.clone());

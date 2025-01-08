@@ -3,7 +3,7 @@ use crate::{
     parser::{
         Assign, AssignOpKind, BinOpKind, CompoundStmt, ConstantExpr, Declaration,
         DeclarationOrStmt, DirectDeclarator, Expr, ExprKind, ExternalDeclaration, FuncDef,
-        Identifier, InitDeclarator, Primary, Stmt, TranslationUnit, Unary,
+        InitDeclarator, Primary, Stmt, TranslationUnit, Unary,
     },
 };
 
@@ -138,18 +138,18 @@ impl Codegen {
                 declarator.direct
             );
         };
-        let DirectDeclarator::Ident(Identifier { name }) = *dd else {
+        let DirectDeclarator::Ident(ident) = *dd else {
             panic!("Function name is not an identifier: {:?}", dd);
         };
 
         println!(".text");
-        println!("{name}:");
+        println!("{ident}:");
         println!("  push rbp");
         println!("  mov rbp, rsp");
         for reg in ARGUMENT_REGISTERS.iter().take(param_type_list.params.len()) {
             println!("  push {reg}");
         }
-        let local_offset = self.symbol_table.get_offset(&name);
+        let local_offset = self.symbol_table.get_offset(&ident);
         println!("  sub rsp, {}", local_offset);
 
         self.gen_compound_stmt(stmt);
@@ -164,7 +164,7 @@ impl Codegen {
                 println!("  pop rax");
             }
             Stmt::Label(ident, stmt) => {
-                println!("{}:", ident.name);
+                println!("{}:", ident);
                 self.gen_stmt(*stmt);
             }
             Stmt::Compound(stmt) => self.gen_compound_stmt(stmt),
@@ -174,7 +174,7 @@ impl Codegen {
             Stmt::DoWhile(stmt, expr) => self.gen_do_while(*stmt, expr),
             Stmt::For(expr1, expr2, expr3, stmt) => self.gen_for(expr1, expr2, expr3, *stmt),
             Stmt::Goto(ident) => {
-                println!("  jmp {}", ident.name);
+                println!("  jmp {}", ident);
             }
             Stmt::Return(expr) => {
                 self.gen_expr(expr);
@@ -286,9 +286,9 @@ impl Codegen {
                 if let Unary::Deref(u) = unary {
                     var_type_size = u.get_type(&self.symbol_table).get_inner().unwrap().sizeof();
                     self.gen_unary(*u);
-                } else if let Unary::Identity(Primary::Ident(Identifier { name })) = unary {
-                    var_type_size = self.symbol_table.get_var_type(&name).sizeof();
-                    self.gen_lval(&name);
+                } else if let Unary::Identity(Primary::Ident(ident)) = unary {
+                    var_type_size = self.symbol_table.get_var_type(&ident).sizeof();
+                    self.gen_lval(&ident);
                 } else {
                     panic!("Invalid l-value for assignment: {:?}", unary);
                 }
@@ -364,7 +364,7 @@ impl Codegen {
                 self.gen_oneop("  neg rax");
             }
             Unary::Ref(unary) => match *unary {
-                Unary::Identity(Primary::Ident(Identifier { name })) => self.gen_lval(&name),
+                Unary::Identity(Primary::Ident(ident)) => self.gen_lval(&ident),
                 Unary::Deref(u) => self.gen_unary(*u),
                 _ => todo!("properly gen_lval only when the expression is an l-value"),
             },
@@ -374,7 +374,7 @@ impl Codegen {
                 gen_deref(ty.get_inner().unwrap().sizeof());
             }
             Unary::Call(unary, expr) => {
-                let Unary::Identity(Primary::Ident(Identifier { name })) = *unary else {
+                let Unary::Identity(Primary::Ident(ident)) = *unary else {
                     panic!("Expected single identifier function names");
                 };
                 let args = if let Some(a) = expr { a.0 } else { vec![] };
@@ -393,7 +393,7 @@ impl Codegen {
                 println!("  push rbp");
                 println!("  mov rbp, rsp");
                 println!("  and rsp, {}", u64::MAX - 15);
-                println!("  call {name}");
+                println!("  call {ident}");
                 println!("  mov rsp, rbp");
                 println!("  pop rbp");
                 println!("  push rax");
@@ -404,9 +404,9 @@ impl Codegen {
 
     fn gen_primary(&mut self, primary: Primary) {
         match primary {
-            Primary::Ident(Identifier { name }) => {
-                self.gen_lval(&name);
-                let ty = self.symbol_table.get_var_type(&name);
+            Primary::Ident(ident) => {
+                self.gen_lval(&ident);
+                let ty = self.symbol_table.get_var_type(&ident);
                 if let Ty::Array(_, _) = ty {
                     return;
                 }
