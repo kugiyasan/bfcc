@@ -29,11 +29,17 @@ impl Ty {
         }
     }
 
-    pub fn is_compatible_type(&self, other: &Self) -> bool {
+    pub fn is_compatible(&self, other: &Self) -> bool {
         match (self, other) {
             (t1, t2) if t1 == t2 => true,
-            (Ty::Int, Ty::Char) => true,
-            (Ty::Char, Ty::Int) => true,
+            (t1, t2) if t1.is_numeric() && t2.is_numeric() => true,
+            _ => false,
+        }
+    }
+
+    fn is_numeric(&self) -> bool {
+        match self {
+            Ty::Char | Ty::Short | Ty::Int | Ty::Long => true,
             _ => false,
         }
     }

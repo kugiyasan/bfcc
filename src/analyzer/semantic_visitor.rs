@@ -187,11 +187,11 @@ impl SemanticVisitor {
 
                 match (t1, t2) {
                     (Ty::Ptr(p), Ty::Array(a, _)) => {
-                        assert!(p.is_compatible_type(&a));
+                        assert!(p.is_compatible(&a));
                         *p
                     }
                     (t1, t2) => {
-                        assert!(t1.is_compatible_type(&t2));
+                        assert!(t1.is_compatible(&t2));
                         t1
                     }
                 }
@@ -219,7 +219,7 @@ impl SemanticVisitor {
                 let t2 = self.visit_expr_kind(right);
 
                 match (t1, t2) {
-                    (Ty::Ptr(ref p), t2) if p.is_compatible_type(&t2) => {
+                    (Ty::Ptr(ref p), t2) if p.is_compatible(&t2) => {
                         let size =
                             ExprKind::Unary(Unary::Identity(Primary::Num(t2.sizeof() as i32)));
                         *right = Box::new(ExprKind::Binary(
@@ -229,7 +229,7 @@ impl SemanticVisitor {
                         ));
                         Ty::Ptr(Box::new(t2))
                     }
-                    (t2, Ty::Ptr(ref p)) if p.is_compatible_type(&t2) => {
+                    (t2, Ty::Ptr(ref p)) if p.is_compatible(&t2) => {
                         let size =
                             ExprKind::Unary(Unary::Identity(Primary::Num(t2.sizeof() as i32)));
                         *left = Box::new(ExprKind::Binary(
@@ -239,20 +239,20 @@ impl SemanticVisitor {
                         ));
                         Ty::Ptr(Box::new(t2))
                     }
-                    (Ty::Array(t, size), t2) if t.is_compatible_type(&t2) => {
+                    (Ty::Array(t, size), t2) if t.is_compatible(&t2) => {
                         let s = ExprKind::Unary(Unary::Identity(Primary::Num(t.sizeof() as i32)));
                         *right =
                             Box::new(ExprKind::Binary(BinOpKind::Mul, right.clone(), Box::new(s)));
                         Ty::Array(t, size)
                     }
-                    (t2, Ty::Array(t, size)) if t.is_compatible_type(&t2) => {
+                    (t2, Ty::Array(t, size)) if t.is_compatible(&t2) => {
                         let s = ExprKind::Unary(Unary::Identity(Primary::Num(t.sizeof() as i32)));
                         *left =
                             Box::new(ExprKind::Binary(BinOpKind::Mul, left.clone(), Box::new(s)));
                         Ty::Array(t, size)
                     }
                     (t1, t2) => {
-                        assert!(t1.is_compatible_type(&t2));
+                        assert!(t1.is_compatible(&t2));
                         t1
                     }
                 }
