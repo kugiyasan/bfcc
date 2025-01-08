@@ -1,5 +1,3 @@
-use core::panic;
-
 use crate::parser::{
     Assign, BinOpKind, CompoundStmt, ConstantExpr, Declaration, DeclarationOrStmt, Declarator,
     DirectDeclarator, Expr, ExprKind, ExternalDeclaration, FuncDef, InitDeclarator,
@@ -33,7 +31,7 @@ impl SemanticVisitor {
     fn visit_external_declaration(&mut self, external_declaration: &mut ExternalDeclaration) {
         match external_declaration {
             ExternalDeclaration::FuncDef(f) => self.visit_func_def(f),
-            ExternalDeclaration::Declaration(d) => self.visit_declaration(d),
+            ExternalDeclaration::Declaration(d) => self.visit_declaration(d, true),
         }
     }
 
@@ -156,16 +154,21 @@ impl SemanticVisitor {
 
     fn visit_declaration_or_stmt(&mut self, ds: &mut DeclarationOrStmt) {
         match ds {
-            DeclarationOrStmt::Declaration(d) => self.visit_declaration(d),
+            DeclarationOrStmt::Declaration(d) => self.visit_declaration(d, false),
             DeclarationOrStmt::Stmt(s) => self.visit_stmt(s),
         }
     }
 
-    fn visit_declaration(&mut self, declaration: &mut Declaration) {
+    fn visit_declaration(&mut self, declaration: &mut Declaration, is_global: bool) {
         for init in declaration.inits.iter_mut() {
             if let InitDeclarator::Declarator(d) = init {
-                self.symbol_table
-                    .declare_var(declaration.specs.clone(), d.clone());
+                if is_global {
+                    self.symbol_table
+                        .declare_global(declaration.specs.clone(), d.clone());
+                } else {
+                    self.symbol_table
+                        .declare_local(declaration.specs.clone(), d.clone());
+                }
             }
         }
     }

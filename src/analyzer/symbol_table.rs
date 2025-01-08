@@ -12,11 +12,13 @@ struct VarType {
 
 #[derive(Clone, Debug)]
 pub struct SymbolTable {
-    table: HashMap<String, VarType>,
+    locals: HashMap<String, VarType>,
+    globals: HashMap<String, Ty>,
     total_offset: HashMap<String, usize>,
-    current_func_name: String,
     strings: HashMap<String, usize>,
     labels: HashSet<String>,
+
+    current_func_name: String,
 }
 
 #[derive(Clone, Debug)]
@@ -28,15 +30,15 @@ pub enum LvarOffset {
 
 impl SymbolTable {
     pub fn new() -> Self {
-        let mut st = Self {
-            table: HashMap::new(),
+        Self {
+            locals: HashMap::new(),
+            globals: HashMap::new(),
             total_offset: HashMap::new(),
-            current_func_name: "".to_string(),
             strings: HashMap::new(),
             labels: HashSet::new(),
-        };
-        st.declare_func("".to_string());
-        st
+
+            current_func_name: "".to_string(),
+        }
     }
 
     pub fn declare_func(&mut self, func_name: String) {
@@ -60,11 +62,17 @@ impl SymbolTable {
         *self.total_offset.get(func_name).expect("Unknown function")
     }
 
-    pub fn declare_var(&mut self, specs: Vec<DeclarationSpecifier>, declarator: Declarator) {
+    pub fn declare_local(&mut self, specs: Vec<DeclarationSpecifier>, declarator: Declarator) {
         let ty = Ty::from_specs_and_declarator(&specs, &declarator);
         let var_name = declarator.direct.get_name();
         let name = self.format_var_name(&var_name);
         self._declare_var(ty, name);
+    }
+
+    pub fn declare_global(&mut self, specs: Vec<DeclarationSpecifier>, declarator: Declarator) {
+        let ty = Ty::from_specs_and_declarator(&specs, &declarator);
+        let var_name = declarator.direct.get_name();
+        self.globals.insert(var_name, ty);
     }
 
     pub fn declare_var_with_offset(
@@ -91,7 +99,7 @@ impl SymbolTable {
         let offset = *self.total_offset.get(&self.current_func_name).unwrap();
 
         let var_type = VarType { ty, offset };
-        self.table.insert(name, var_type);
+        self.locals.insert(name, var_type);
     }
 
     pub fn declare_string(&mut self, s: Vec<u8>) {
@@ -105,23 +113,13 @@ impl SymbolTable {
         &self.strings
     }
 
-    fn _get_var_type(&self, var_name: &str) -> &VarType {
-        let name = self.format_var_name(var_name);
-        let var_type = self.table.get(&name).or_else(|| {
-            let name = format!("::{}", var_name);
-            self.table.get(&name)
-        });
-        var_type.expect("Undeclared variable")
-    }
-
     pub fn get_lvar_offset(&self, var_name: &str) -> LvarOffset {
         let name = self.format_var_name(var_name);
-        if let Some(var_type) = self.table.get(&name) {
+        if let Some(var_type) = self.locals.get(&name) {
             return LvarOffset::Local(var_type.offset);
         }
 
-        let name = format!("::{}", var_name);
-        if self.table.contains_key(&name) {
+        if self.globals.contains_key(var_name) {
             return LvarOffset::Global;
         }
 
@@ -130,7 +128,13 @@ impl SymbolTable {
     }
 
     pub fn get_var_type(&self, var_name: &str) -> Ty {
-        self._get_var_type(var_name).ty.clone()
+        let name = self.format_var_name(var_name);
+        let ty = self
+            .locals
+            .get(&name)
+            .map(|v| &v.ty)
+            .or_else(|| self.globals.get(var_name));
+        ty.expect("Undeclared variable").clone()
     }
 
     pub fn add_label(&mut self, name: String) {
