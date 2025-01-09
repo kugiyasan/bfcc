@@ -10,7 +10,7 @@ struct VarType {
     offset: usize,
 }
 
-#[derive(Clone, Debug)]
+#[derive(Clone, Debug, Default)]
 pub struct SymbolTable {
     locals: HashMap<String, VarType>,
     globals: HashMap<String, Ty>,

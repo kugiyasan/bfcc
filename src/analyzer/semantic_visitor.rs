@@ -6,6 +6,7 @@ use crate::parser::{
 
 use super::{symbol_table::SymbolTable, Ty};
 
+#[derive(Default)]
 pub struct SemanticVisitor {
     symbol_table: SymbolTable,
 }

@@ -38,10 +38,7 @@ impl Ty {
     }
 
     fn is_numeric(&self) -> bool {
-        match self {
-            Ty::Char | Ty::Short | Ty::Int | Ty::Long => true,
-            _ => false,
-        }
+        matches!(self, Ty::Char | Ty::Short | Ty::Int | Ty::Long)
     }
 
     pub fn get_inner(&self) -> Option<Ty> {

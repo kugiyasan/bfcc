@@ -9,7 +9,7 @@ use lexer::Lexer;
 use parser::Parser;
 
 pub fn compile(user_input: &str) {
-    let tokens = Lexer::tokenize(&user_input);
+    let tokens = Lexer::tokenize(user_input);
 
     let mut parser = Parser::new(tokens);
     let mut translation_unit = parser.parse();
