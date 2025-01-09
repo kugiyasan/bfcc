@@ -52,10 +52,10 @@ impl Ty {
         specs: &Vec<DeclarationSpecifier>,
         declarator: &Declarator,
     ) -> Ty {
-        Self::_convert_type(Self::get_primary_type(specs), declarator)
+        Self::parse_declarator(Self::parse_primary_type(specs), declarator)
     }
 
-    fn get_primary_type(specs: &Vec<DeclarationSpecifier>) -> Ty {
+    fn parse_primary_type(specs: &Vec<DeclarationSpecifier>) -> Ty {
         for spec in specs {
             if let DeclarationSpecifier::TypeSpecifier(ts) = spec {
                 return match ts {
@@ -71,12 +71,22 @@ impl Ty {
         panic!("Variable of unknown type");
     }
 
-    fn get_var_type_from_direct_declarator(t: Ty, direct_declarator: &DirectDeclarator) -> Ty {
+    fn parse_declarator(mut t: Ty, declarator: &Declarator) -> Ty {
+        let mut pointer = &declarator.pointer;
+        while let Some(p) = pointer {
+            t = Ty::Ptr(Box::new(t));
+            pointer = &p.pointer;
+        }
+
+        Self::parse_direct_declarator(t, &declarator.direct)
+    }
+
+    fn parse_direct_declarator(t: Ty, direct_declarator: &DirectDeclarator) -> Ty {
         match direct_declarator {
             DirectDeclarator::Ident(_) => t,
-            DirectDeclarator::Declarator(d) => Self::_convert_type(t, d),
+            DirectDeclarator::Declarator(d) => Self::parse_declarator(t, d),
             DirectDeclarator::Array(dd, e) => {
-                let t = Self::get_var_type_from_direct_declarator(t, dd);
+                let t = Self::parse_direct_declarator(t, dd);
                 let Some(ConstantExpr::Identity(ExprKind::Unary(Unary::Identity(Primary::Num(
                     size,
                 ))))) = e
@@ -87,15 +97,5 @@ impl Ty {
             }
             _ => todo!(),
         }
-    }
-
-    fn _convert_type(mut t: Ty, declarator: &Declarator) -> Ty {
-        let mut pointer = &declarator.pointer;
-        while let Some(p) = pointer {
-            t = Ty::Ptr(Box::new(t));
-            pointer = &p.pointer;
-        }
-
-        Self::get_var_type_from_direct_declarator(t, &declarator.direct)
     }
 }
