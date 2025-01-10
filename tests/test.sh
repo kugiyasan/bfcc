@@ -343,4 +343,18 @@ p = &arr[1];
 return 0;
 '
 
+assertImplicitMain 0 '
+struct Vec2 { int x, y; } v;
+v.x = 0;
+return v.x;
+'
+
+assertImplicitMain 0 '
+return 5 - 3 - 2;
+'
+
+assertImplicitMain 8 '
+return 32 / 2 / 2;
+'
+
 echo 'All tests passed!'

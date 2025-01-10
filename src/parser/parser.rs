@@ -626,108 +626,105 @@ impl Parser {
         }
     }
 
-    /// equality = relational
-    ///          | "==" equality
-    ///          | "!=" equality
+    /// equality = rel (("==" | "!=" ) rel)*
     fn parse_equality(&mut self) -> ExprKind {
-        let rel = self.parse_relational();
+        let mut node = self.parse_relational();
 
-        if self.consume(&TokenKind::DoubleEqual) {
-            ExprKind::Binary(
-                BinOpKind::Equal,
-                Box::new(rel),
-                Box::new(self.parse_equality()),
-            )
-        } else if self.consume(&TokenKind::NotEqual) {
-            ExprKind::Binary(
-                BinOpKind::NotEqual,
-                Box::new(rel),
-                Box::new(self.parse_equality()),
-            )
-        } else {
-            rel
+        loop {
+            if self.consume(&TokenKind::DoubleEqual) {
+                node = ExprKind::Binary(
+                    BinOpKind::Equal,
+                    Box::new(node),
+                    Box::new(self.parse_equality()),
+                );
+            } else if self.consume(&TokenKind::NotEqual) {
+                node = ExprKind::Binary(
+                    BinOpKind::NotEqual,
+                    Box::new(node),
+                    Box::new(self.parse_equality()),
+                );
+            } else {
+                return node;
+            }
         }
     }
 
-    /// relational = add
-    ///            | "<"  relational
-    ///            | "<=" relational
-    ///            | ">"  relational
-    ///            | ">=" relational
+    /// rel = add (("<" | "<=" | ">" | ">=" ) add)*
     fn parse_relational(&mut self) -> ExprKind {
-        let add = self.parse_add();
+        let mut node = self.parse_add();
 
-        if self.consume(&TokenKind::LessThan) {
-            ExprKind::Binary(
-                BinOpKind::LessThan,
-                Box::new(add),
-                Box::new(self.parse_relational()),
-            )
-        } else if self.consume(&TokenKind::LessEqual) {
-            ExprKind::Binary(
-                BinOpKind::LessEqual,
-                Box::new(add),
-                Box::new(self.parse_relational()),
-            )
-        } else if self.consume(&TokenKind::GreaterThan) {
-            ExprKind::Binary(
-                BinOpKind::GreaterThan,
-                Box::new(add),
-                Box::new(self.parse_relational()),
-            )
-        } else if self.consume(&TokenKind::GreaterEqual) {
-            ExprKind::Binary(
-                BinOpKind::GreaterEqual,
-                Box::new(add),
-                Box::new(self.parse_relational()),
-            )
-        } else {
-            add
+        loop {
+            if self.consume(&TokenKind::LessThan) {
+                node = ExprKind::Binary(
+                    BinOpKind::LessThan,
+                    Box::new(node),
+                    Box::new(self.parse_relational()),
+                );
+            } else if self.consume(&TokenKind::LessEqual) {
+                node = ExprKind::Binary(
+                    BinOpKind::LessEqual,
+                    Box::new(node),
+                    Box::new(self.parse_relational()),
+                );
+            } else if self.consume(&TokenKind::GreaterThan) {
+                node = ExprKind::Binary(
+                    BinOpKind::GreaterThan,
+                    Box::new(node),
+                    Box::new(self.parse_relational()),
+                );
+            } else if self.consume(&TokenKind::GreaterEqual) {
+                node = ExprKind::Binary(
+                    BinOpKind::GreaterEqual,
+                    Box::new(node),
+                    Box::new(self.parse_relational()),
+                );
+            } else {
+                return node;
+            }
         }
     }
 
-    /// add = mul
-    ///     | add "+" mul
-    ///     | add "-" mul
+    /// add = mul (("+" | "-") mul)*
     fn parse_add(&mut self) -> ExprKind {
-        let mul = self.parse_mul();
+        let mut node = self.parse_mul();
 
-        if self.consume(&TokenKind::Plus) {
-            ExprKind::Binary(BinOpKind::Add, Box::new(mul), Box::new(self.parse_add()))
-        } else if self.consume(&TokenKind::Minus) {
-            ExprKind::Binary(BinOpKind::Sub, Box::new(mul), Box::new(self.parse_add()))
-        } else {
-            mul
+        loop {
+            if self.consume(&TokenKind::Plus) {
+                node = ExprKind::Binary(BinOpKind::Add, Box::new(node), Box::new(self.parse_mul()));
+            } else if self.consume(&TokenKind::Minus) {
+                node = ExprKind::Binary(BinOpKind::Sub, Box::new(node), Box::new(self.parse_mul()));
+            } else {
+                return node;
+            }
         }
     }
 
-    /// mul = unary
-    ///     | mul "*" unary
-    ///     | mul "/" unary
-    ///     | mul "%" unary
+    /// mul = cast (("*" | "/" | "%") cast)*
     fn parse_mul(&mut self) -> ExprKind {
-        let unary = self.parse_cast();
+        let mut node = ExprKind::Unary(self.parse_cast());
 
-        if self.consume(&TokenKind::Star) {
-            ExprKind::Binary(
-                BinOpKind::Mul,
-                Box::new(ExprKind::Unary(unary)),
-                Box::new(self.parse_mul()),
-            )
-        } else if self.consume(&TokenKind::Slash) {
-            ExprKind::Binary(
-                BinOpKind::Div,
-                Box::new(ExprKind::Unary(unary)),
-                Box::new(self.parse_mul()),
-            )
-        } else if self.consume(&TokenKind::Percent) {
-            ExprKind::Binary(
-                BinOpKind::Mod,
-                Box::new(ExprKind::Unary(unary)),
-                Box::new(self.parse_mul()),
-            )
-        } else {
-            ExprKind::Unary(unary)
+        loop {
+            if self.consume(&TokenKind::Star) {
+                node = ExprKind::Binary(
+                    BinOpKind::Mul,
+                    Box::new(node),
+                    Box::new(ExprKind::Unary(self.parse_cast())),
+                );
+            } else if self.consume(&TokenKind::Slash) {
+                node = ExprKind::Binary(
+                    BinOpKind::Div,
+                    Box::new(node),
+                    Box::new(ExprKind::Unary(self.parse_cast())),
+                );
+            } else if self.consume(&TokenKind::Percent) {
+                node = ExprKind::Binary(
+                    BinOpKind::Mod,
+                    Box::new(node),
+                    Box::new(ExprKind::Unary(self.parse_cast())),
+                );
+            } else {
+                return node;
+            }
         }
     }
 
@@ -771,33 +768,42 @@ impl Parser {
         }
     }
 
+    /// postfix-expr = primary
+    ///              | postfix-expr "[" expr "]"
+    ///              | postfix-expr "(" expr? ")"
+    ///              | postfix-expr "." ident
+    ///              | postfix-expr "->" ident
+    ///              | postfix-expr "++"
+    ///              | postfix-expr "--"
     fn parse_postfix_expr(&mut self) -> Unary {
-        let unary = Unary::Identity(self.parse_primary());
+        let mut node = Unary::Identity(self.parse_primary());
 
-        if self.consume(&TokenKind::LeftSquareBrace) {
-            let expr = self.parse_expr();
-            self.expect(&TokenKind::RightSquareBrace);
-            Unary::Index(Box::new(unary), expr)
-        } else if self.consume(&TokenKind::LeftParen) {
-            if self.consume(&TokenKind::RightParen) {
-                Unary::Call(Box::new(unary), None)
-            } else {
+        loop {
+            if self.consume(&TokenKind::LeftSquareBrace) {
                 let expr = self.parse_expr();
-                self.expect(&TokenKind::RightParen);
-                Unary::Call(Box::new(unary), Some(expr))
+                self.expect(&TokenKind::RightSquareBrace);
+                node = Unary::Index(Box::new(node), expr);
+            } else if self.consume(&TokenKind::LeftParen) {
+                if self.consume(&TokenKind::RightParen) {
+                    node = Unary::Call(Box::new(node), None);
+                } else {
+                    let expr = self.parse_expr();
+                    self.expect(&TokenKind::RightParen);
+                    node = Unary::Call(Box::new(node), Some(expr));
+                }
+            } else if self.consume(&TokenKind::Dot) {
+                let ident = self.expect_ident();
+                node = Unary::Field(Box::new(node), ident);
+            } else if self.consume(&TokenKind::Arrow) {
+                let ident = self.expect_ident();
+                node = Unary::PointerField(Box::new(node), ident);
+            } else if self.consume(&TokenKind::PlusPlus) {
+                node = Unary::PostfixIncrement(Box::new(node));
+            } else if self.consume(&TokenKind::MinusMinus) {
+                node = Unary::PostfixDecrement(Box::new(node));
+            } else {
+                return node;
             }
-        } else if self.consume(&TokenKind::Dot) {
-            let ident = self.expect_ident();
-            Unary::Field(Box::new(unary), ident)
-        } else if self.consume(&TokenKind::Arrow) {
-            let ident = self.expect_ident();
-            Unary::PointerField(Box::new(unary), ident)
-        } else if self.consume(&TokenKind::PlusPlus) {
-            Unary::PostfixIncrement(Box::new(unary))
-        } else if self.consume(&TokenKind::MinusMinus) {
-            Unary::PostfixDecrement(Box::new(unary))
-        } else {
-            unary
         }
     }
 
