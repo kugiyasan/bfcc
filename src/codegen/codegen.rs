@@ -118,7 +118,7 @@ impl Codegen {
 
                 println!(".data");
                 println!("{}:", declarator.direct.get_name());
-                println!("  .zero {}", ty.sizeof());
+                println!("  .zero {}", ty.sizeof(&self.symbol_table));
             }
         }
     }
@@ -286,23 +286,23 @@ impl Codegen {
             Assign::Assign(unary, kind, a) => {
                 let mut var_type_size = 999;
                 if let Unary::Deref(u) = unary {
-                    var_type_size = u.get_type(&self.symbol_table).get_inner().unwrap().sizeof();
+                    var_type_size = u.get_type(&self.symbol_table).get_inner().unwrap().sizeof(&self.symbol_table);
                     self.gen_unary(*u);
                 } else if let Unary::Identity(Primary::Ident(ident)) = unary {
-                    var_type_size = self.symbol_table.get_var_type(&ident).sizeof();
+                    var_type_size = self.symbol_table.get_var_type(&ident).sizeof(&self.symbol_table);
                     self.gen_lval(&ident);
                 } else if let Unary::Field(u, f) = unary {
-                    let Ty::Struct(Some(name)) = u.get_type(&self.symbol_table) else {
+                    let Ty::Struct(name) = u.get_type(&self.symbol_table) else {
                         unreachable!()
                     };
                     let sds = self.symbol_table.get_struct_definition(&name);
                     let mut offset = 0;
                     for (s, ty) in sds {
                         if *s == f {
-                            var_type_size = ty.sizeof();
+                            var_type_size = ty.sizeof(&self.symbol_table);
                             break;
                         }
-                        offset += ty.sizeof();
+                        offset += ty.sizeof(&self.symbol_table);
                     }
 
                     self.gen_unary(*u);
@@ -391,7 +391,7 @@ impl Codegen {
             Unary::Deref(unary) => {
                 let ty = unary.get_type(&self.symbol_table);
                 self.gen_unary(*unary);
-                gen_deref(ty.get_inner().unwrap().sizeof());
+                gen_deref(ty.get_inner().unwrap().sizeof(&self.symbol_table));
             }
             Unary::Call(unary, expr) => {
                 let Unary::Identity(Primary::Ident(ident)) = *unary else {
@@ -419,7 +419,7 @@ impl Codegen {
                 println!("  push rax");
             }
             Unary::Field(unary, field) => {
-                let Ty::Struct(Some(name)) = unary.get_type(&self.symbol_table) else {
+                let Ty::Struct(name) = unary.get_type(&self.symbol_table) else {
                     unreachable!()
                 };
                 let sds = self.symbol_table.get_struct_definition(&name);
@@ -427,10 +427,10 @@ impl Codegen {
                 let mut size = 0;
                 for (s, ty) in sds {
                     if *s == field {
-                        size = ty.sizeof();
+                        size = ty.sizeof(&self.symbol_table);
                         break;
                     }
-                    offset += ty.sizeof();
+                    offset += ty.sizeof(&self.symbol_table);
                 }
 
                 self.gen_unary(*unary);
@@ -452,7 +452,7 @@ impl Codegen {
                     return;
                 }
 
-                gen_deref(ty.sizeof());
+                gen_deref(ty.sizeof(&self.symbol_table));
             }
             Primary::Num(num) => println!("  push {}", num),
             Primary::String(b) => self.gen_lval(&b.iter().map(|&b| b as char).collect::<String>()),

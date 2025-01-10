@@ -1,3 +1,5 @@
+use super::SymbolTable;
+
 #[derive(Clone, Debug, PartialEq)]
 pub enum Ty {
     Void,
@@ -8,11 +10,11 @@ pub enum Ty {
     Ptr(Box<Ty>),
     Array(Box<Ty>, usize),
     Func(Box<Ty>, Vec<Ty>),
-    Struct(Option<String>),
+    Struct(String),
 }
 
 impl Ty {
-    pub fn sizeof(&self) -> usize {
+    pub fn sizeof(&self, symbol_table: &SymbolTable) -> usize {
         match self {
             Ty::Void => 0,
             Ty::Char => 1,
@@ -20,10 +22,12 @@ impl Ty {
             Ty::Int => 4,
             Ty::Long => 8,
             Ty::Ptr(_) => 8,
-            Ty::Array(t, size) => t.sizeof() * size,
-            // Ty::Struct(tys) => tys.iter().map(|t| t.1.sizeof()).sum(),
+            Ty::Array(t, size) => t.sizeof(symbol_table) * size,
+            Ty::Struct(name) => {
+                let tys = symbol_table.get_struct_definition(name);
+                tys.iter().map(|(_, ty)| ty.sizeof(symbol_table)).sum()
+            }
             Ty::Func(_, _) => panic!("sizeof function is not allowed"),
-            _ => todo!(),
         }
     }
 

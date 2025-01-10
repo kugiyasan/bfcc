@@ -22,6 +22,7 @@ pub struct SymbolTable {
     strings: HashMap<String, usize>,
     labels: HashSet<String>,
     structs: HashMap<String, Option<Vec<(String, Ty)>>>,
+    last_anonymous_struct_id: usize,
 
     current_func_name: String,
 }
@@ -55,6 +56,12 @@ impl SymbolTable {
         format!("{}::{}", self.current_func_name, var_name)
     }
 
+    fn new_anonymous_struct(&mut self) -> String {
+        let s = format!(".anonymous_struct{}", self.last_anonymous_struct_id);
+        self.last_anonymous_struct_id += 1;
+        s
+    }
+
     pub fn get_offset(&self, func_name: &str) -> usize {
         *self.total_offset.get(func_name).expect("Unknown function")
     }
@@ -85,7 +92,7 @@ impl SymbolTable {
     }
 
     fn _declare_var(&mut self, ty: Ty, name: String) {
-        let size = ty.sizeof();
+        let size = ty.sizeof(&self);
         self._declare_var_with_offset(ty, name, size)
     }
 
@@ -180,9 +187,11 @@ impl SymbolTable {
     fn parse_struct_or_union_specifier(&mut self, s: &StructOrUnionSpecifier) -> Ty {
         match s {
             StructOrUnionSpecifier::WithDeclaration(StructOrUnion::Struct, ident, sds) => {
-                if let Some(s) = ident {
-                    self.structs.insert(s.clone(), None);
-                }
+                let s = ident
+                    .as_ref()
+                    .map(|s| s.clone())
+                    .unwrap_or_else(|| self.new_anonymous_struct());
+                self.structs.insert(s.clone(), None);
 
                 let mut tys = vec![];
                 for struct_declaration in sds {
@@ -196,13 +205,11 @@ impl SymbolTable {
                     }
                 }
 
-                if let Some(s) = ident {
-                    self.structs.insert(s.clone(), Some(tys));
-                }
-                Ty::Struct(ident.clone())
+                self.structs.insert(s.clone(), Some(tys));
+                Ty::Struct(s)
             }
             StructOrUnionSpecifier::Identifier(StructOrUnion::Struct, ident) => {
-                Ty::Struct(Some(ident.clone()))
+                Ty::Struct(ident.clone())
             }
             _ => todo!(),
         }
