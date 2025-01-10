@@ -21,6 +21,7 @@ pub struct SymbolTable {
     total_offset: HashMap<String, usize>,
     strings: HashMap<String, usize>,
     labels: HashSet<String>,
+    structs: HashMap<String, Ty>,
 
     current_func_name: String,
 }
@@ -34,15 +35,7 @@ pub enum LvarOffset {
 
 impl SymbolTable {
     pub fn new() -> Self {
-        Self {
-            locals: HashMap::new(),
-            globals: HashMap::new(),
-            total_offset: HashMap::new(),
-            strings: HashMap::new(),
-            labels: HashSet::new(),
-
-            current_func_name: "".to_string(),
-        }
+        Self::default()
     }
 
     pub fn declare_func(&mut self, func_name: String) {
@@ -190,9 +183,16 @@ impl SymbolTable {
                         tys.push((d.direct.get_name(), t));
                     }
                 }
-                Ty::Struct(tys)
+
+                let ty = Ty::Struct(tys);
+                if let Some(s) = ident {
+                    self.structs.insert(s.clone(), ty.clone());
+                }
+                ty
             }
-            StructOrUnionSpecifier::Identifier(StructOrUnion::Struct, ident) => todo!(),
+            StructOrUnionSpecifier::Identifier(StructOrUnion::Struct, ident) => {
+                self.structs.get(ident).expect("Undefined struct").clone()
+            }
             _ => todo!(),
         }
     }
