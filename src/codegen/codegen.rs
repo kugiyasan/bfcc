@@ -112,7 +112,9 @@ impl Codegen {
                 let InitDeclarator::Declarator(ref declarator) = inits[0] else {
                     todo!();
                 };
-                let ty = self.symbol_table.from_specs_and_declarator(&specs, declarator);
+                let ty = self
+                    .symbol_table
+                    .from_specs_and_declarator(&specs, declarator);
 
                 println!(".data");
                 println!("{}:", declarator.direct.get_name());
@@ -290,12 +292,13 @@ impl Codegen {
                     var_type_size = self.symbol_table.get_var_type(&ident).sizeof();
                     self.gen_lval(&ident);
                 } else if let Unary::Field(u, f) = unary {
-                    let Ty::Struct(sds) = u.get_type(&self.symbol_table) else {
+                    let Ty::Struct(Some(name)) = u.get_type(&self.symbol_table) else {
                         unreachable!()
                     };
+                    let sds = self.symbol_table.get_struct_definition(&name);
                     let mut offset = 0;
                     for (s, ty) in sds {
-                        if s == f {
+                        if *s == f {
                             var_type_size = ty.sizeof();
                             break;
                         }
@@ -416,13 +419,14 @@ impl Codegen {
                 println!("  push rax");
             }
             Unary::Field(unary, field) => {
-                let Ty::Struct(sds) = unary.get_type(&self.symbol_table) else {
+                let Ty::Struct(Some(name)) = unary.get_type(&self.symbol_table) else {
                     unreachable!()
                 };
+                let sds = self.symbol_table.get_struct_definition(&name);
                 let mut offset = 0;
                 let mut size = 0;
                 for (s, ty) in sds {
-                    if s == field {
+                    if *s == field {
                         size = ty.sizeof();
                         break;
                     }

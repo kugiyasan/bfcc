@@ -298,12 +298,13 @@ impl SemanticVisitor {
             Unary::Call(_, None) => Ty::Void, // todo
             Unary::Call(_, Some(expr)) => self.visit_expr(expr),
             Unary::Field(u, f) => {
-                let Ty::Struct(sds) = u.get_type(&self.symbol_table) else {
+                let Ty::Struct(Some(name)) = u.get_type(&self.symbol_table) else {
                     panic!("Accessing a field on a non-struct type");
                 };
+                let sds = self.symbol_table.get_struct_definition(&name);
                 for (s, ty) in sds {
-                    if s == *f {
-                        return ty;
+                    if s == f {
+                        return ty.clone();
                     }
                 }
                 panic!("Accessing unknown field {:?} on struct {:?}", f, u);

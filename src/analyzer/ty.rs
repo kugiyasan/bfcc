@@ -8,7 +8,7 @@ pub enum Ty {
     Ptr(Box<Ty>),
     Array(Box<Ty>, usize),
     Func(Box<Ty>, Vec<Ty>),
-    Struct(Vec<(String, Ty)>),
+    Struct(Option<String>),
 }
 
 impl Ty {
@@ -21,8 +21,9 @@ impl Ty {
             Ty::Long => 8,
             Ty::Ptr(_) => 8,
             Ty::Array(t, size) => t.sizeof() * size,
-            Ty::Struct(tys) => tys.iter().map(|t| t.1.sizeof()).sum(),
+            // Ty::Struct(tys) => tys.iter().map(|t| t.1.sizeof()).sum(),
             Ty::Func(_, _) => panic!("sizeof function is not allowed"),
+            _ => todo!(),
         }
     }
 

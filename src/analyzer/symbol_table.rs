@@ -21,7 +21,7 @@ pub struct SymbolTable {
     total_offset: HashMap<String, usize>,
     strings: HashMap<String, usize>,
     labels: HashSet<String>,
-    structs: HashMap<String, Ty>,
+    structs: HashMap<String, Option<Vec<(String, Ty)>>>,
 
     current_func_name: String,
 }
@@ -138,6 +138,14 @@ impl SymbolTable {
         self.labels.insert(name);
     }
 
+    pub fn get_struct_definition(&self, name: &str) -> &Vec<(String, Ty)> {
+        self.structs
+            .get(name)
+            .expect("Undefined struct")
+            .as_ref()
+            .expect("Undefined struct")
+    }
+
     pub fn from_specs_and_declarator(
         &mut self,
         specs: &Vec<DeclarationSpecifier>,
@@ -172,6 +180,10 @@ impl SymbolTable {
     fn parse_struct_or_union_specifier(&mut self, s: &StructOrUnionSpecifier) -> Ty {
         match s {
             StructOrUnionSpecifier::WithDeclaration(StructOrUnion::Struct, ident, sds) => {
+                if let Some(s) = ident {
+                    self.structs.insert(s.clone(), None);
+                }
+
                 let mut tys = vec![];
                 for struct_declaration in sds {
                     let ty = self.parse_primary_type(&struct_declaration.specs);
@@ -184,14 +196,13 @@ impl SymbolTable {
                     }
                 }
 
-                let ty = Ty::Struct(tys);
                 if let Some(s) = ident {
-                    self.structs.insert(s.clone(), ty.clone());
+                    self.structs.insert(s.clone(), Some(tys));
                 }
-                ty
+                Ty::Struct(ident.clone())
             }
             StructOrUnionSpecifier::Identifier(StructOrUnion::Struct, ident) => {
-                self.structs.get(ident).expect("Undefined struct").clone()
+                Ty::Struct(Some(ident.clone()))
             }
             _ => todo!(),
         }
