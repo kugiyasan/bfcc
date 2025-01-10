@@ -1,6 +1,7 @@
 use crate::parser::{
     ConstantExpr, DeclarationSpecifier, Declarator, DirectDeclarator, ExprKind, Primary,
-    TypeSpecifier, Unary,
+    StructDeclarator, StructOrUnion, StructOrUnionSpecifier, TypeSpecifier, TypeSpecifierTrait,
+    Unary,
 };
 
 #[derive(Clone, Debug, PartialEq)]
@@ -13,6 +14,7 @@ pub enum Ty {
     Ptr(Box<Ty>),
     Array(Box<Ty>, usize),
     Func(Box<Ty>, Vec<Ty>),
+    Struct(Vec<(String, Ty)>),
 }
 
 impl Ty {
@@ -25,6 +27,7 @@ impl Ty {
             Ty::Long => 8,
             Ty::Ptr(_) => 8,
             Ty::Array(t, size) => t.sizeof() * size,
+            Ty::Struct(tys) => tys.iter().map(|t| t.1.sizeof()).sum(),
             Ty::Func(_, _) => panic!("sizeof function is not allowed"),
         }
     }
@@ -55,20 +58,48 @@ impl Ty {
         Self::parse_declarator(Self::parse_primary_type(specs), declarator)
     }
 
-    fn parse_primary_type(specs: &Vec<DeclarationSpecifier>) -> Ty {
+    fn parse_primary_type<T>(specs: &Vec<T>) -> Ty
+    where
+        T: TypeSpecifierTrait,
+    {
         for spec in specs {
-            if let DeclarationSpecifier::TypeSpecifier(ts) = spec {
+            if let Some(ts) = spec.get_type_specifier() {
                 return match ts {
                     TypeSpecifier::Void => Ty::Void,
                     TypeSpecifier::Char => Ty::Char,
                     TypeSpecifier::Short => Ty::Short,
                     TypeSpecifier::Int => Ty::Int,
                     TypeSpecifier::Long => Ty::Long,
+                    TypeSpecifier::StructOrUnionSpecifier(s) => {
+                        Self::parse_struct_or_union_specifier(s)
+                    }
                     _ => todo!(),
                 };
             }
         }
         panic!("Variable of unknown type");
+    }
+
+    fn parse_struct_or_union_specifier(s: &StructOrUnionSpecifier) -> Ty {
+        let mut tys = vec![];
+
+        match s {
+            StructOrUnionSpecifier::WithDeclaration(StructOrUnion::Struct, ident, sds) => {
+                for struct_declaration in sds {
+                    let ty = Self::parse_primary_type(&struct_declaration.specs);
+                    for sd in struct_declaration.declarators.iter() {
+                        let StructDeclarator::Declarator(d) = sd else {
+                            todo!();
+                        };
+                        let t = Self::parse_declarator(ty.clone(), d);
+                        tys.push((d.direct.get_name(), t));
+                    }
+                }
+            }
+            _ => todo!(),
+        };
+
+        Ty::Struct(tys)
     }
 
     fn parse_declarator(mut t: Ty, declarator: &Declarator) -> Ty {

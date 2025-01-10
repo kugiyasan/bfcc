@@ -286,15 +286,31 @@ impl SemanticVisitor {
                 *unary = Unary::Identity(Primary::Num(t.sizeof() as i32));
                 Ty::Int
             }
-            Unary::Call(_, None) => Ty::Void, // todo
-            Unary::Call(_, Some(expr)) => self.visit_expr(expr),
             Unary::Index(u, e) => {
-                // desugar to *(u + e)
+                // desugar from u[e] to *(u + e)
                 let u = ExprKind::Unary(*u.clone());
                 let e = ExprKind::Unary(Unary::Identity(Primary::Expr(Box::new(e.clone()))));
                 let binary = ExprKind::Binary(BinOpKind::Add, Box::new(u), Box::new(e));
                 let expr = Expr(vec![Assign::Const(ConstantExpr::Identity(binary))]);
                 *unary = Unary::Deref(Box::new(Unary::Identity(Primary::Expr(Box::new(expr)))));
+                self.visit_unary(unary)
+            }
+            Unary::Call(_, None) => Ty::Void, // todo
+            Unary::Call(_, Some(expr)) => self.visit_expr(expr),
+            Unary::Field(u, f) => {
+                let Ty::Struct(sds) = u.get_type(&self.symbol_table) else {
+                    panic!("Accessing a field on a non-struct type");
+                };
+                for (s, ty) in sds {
+                    if s == *f {
+                        return ty;
+                    }
+                }
+                panic!("Accessing unknown field {:?} on struct {:?}", f, u);
+            }
+            Unary::PointerField(u, f) => {
+                // desugar from u->f to (*u).f
+                *unary = Unary::Field(Box::new(Unary::Deref(u.clone())), f.clone());
                 self.visit_unary(unary)
             }
             u => todo!("{u:?}"),

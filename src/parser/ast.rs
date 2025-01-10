@@ -1,5 +1,3 @@
-#![allow(dead_code)]
-
 use super::{ConstantExpr, Expr};
 
 #[derive(Clone, Debug, PartialEq)]
@@ -80,6 +78,30 @@ pub enum SpecifierQualifier {
     TypeQualifier(TypeQualifier),
 }
 
+pub trait TypeSpecifierTrait {
+    fn get_type_specifier(&self) -> Option<&TypeSpecifier>;
+}
+
+impl TypeSpecifierTrait for DeclarationSpecifier {
+    fn get_type_specifier(&self) -> Option<&TypeSpecifier> {
+        if let DeclarationSpecifier::TypeSpecifier(ts) = self {
+            Some(ts)
+        } else {
+            None
+        }
+    }
+}
+
+impl TypeSpecifierTrait for SpecifierQualifier {
+    fn get_type_specifier(&self) -> Option<&TypeSpecifier> {
+        if let SpecifierQualifier::TypeSpecifier(ts) = self {
+            Some(ts)
+        } else {
+            None
+        }
+    }
+}
+
 #[derive(Clone, Debug, PartialEq)]
 pub struct StructDeclaration {
     pub specs: Vec<SpecifierQualifier>,
@@ -89,7 +111,7 @@ pub struct StructDeclaration {
 #[derive(Clone, Debug, PartialEq)]
 pub enum StructDeclarator {
     Declarator(Declarator),
-    WithExpr(Option<Declarator>, ConstantExpr),
+    BitField(Option<Declarator>, ConstantExpr),
 }
 
 #[derive(Clone, Debug, PartialEq)]

@@ -282,13 +282,30 @@ impl Codegen {
         match assign {
             Assign::Const(c) => self.gen_constant_expr(c),
             Assign::Assign(unary, kind, a) => {
-                let var_type_size;
+                let mut var_type_size = 999;
                 if let Unary::Deref(u) = unary {
                     var_type_size = u.get_type(&self.symbol_table).get_inner().unwrap().sizeof();
                     self.gen_unary(*u);
                 } else if let Unary::Identity(Primary::Ident(ident)) = unary {
                     var_type_size = self.symbol_table.get_var_type(&ident).sizeof();
                     self.gen_lval(&ident);
+                } else if let Unary::Field(u, f) = unary {
+                    let Ty::Struct(sds) = u.get_type(&self.symbol_table) else {
+                        unreachable!()
+                    };
+                    let mut offset = 0;
+                    for (s, ty) in sds {
+                        if s == f {
+                            var_type_size = ty.sizeof();
+                            break;
+                        }
+                        offset += ty.sizeof();
+                    }
+
+                    self.gen_unary(*u);
+                    println!("  pop rax");
+                    println!("  add rax, {}", offset);
+                    println!("  push rax");
                 } else {
                     panic!("Invalid l-value for assignment: {:?}", unary);
                 }
@@ -397,6 +414,26 @@ impl Codegen {
                 println!("  mov rsp, rbp");
                 println!("  pop rbp");
                 println!("  push rax");
+            }
+            Unary::Field(unary, field) => {
+                let Ty::Struct(sds) = unary.get_type(&self.symbol_table) else {
+                    unreachable!()
+                };
+                let mut offset = 0;
+                let mut size = 0;
+                for (s, ty) in sds {
+                    if s == field {
+                        size = ty.sizeof();
+                        break;
+                    }
+                    offset += ty.sizeof();
+                }
+
+                self.gen_unary(*unary);
+                println!("  pop rax");
+                println!("  add rax, {}", offset);
+                println!("  push rax");
+                gen_deref(size);
             }
             _ => todo!(),
         }

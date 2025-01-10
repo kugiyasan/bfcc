@@ -470,8 +470,8 @@ impl Parser {
         }
 
         let mut declarators = vec![self.parse_struct_declarator().unwrap()];
-        while let Some(sd) = self.parse_struct_declarator() {
-            declarators.push(sd);
+        while self.consume(&TokenKind::Comma) {
+            declarators.push(self.parse_struct_declarator().unwrap());
         }
 
         self.expect(&TokenKind::SemiColon);
@@ -496,7 +496,7 @@ impl Parser {
         let d = self.parse_declarator();
         if self.consume(&TokenKind::Colon) {
             let c = self.parse_constant_expr();
-            Some(StructDeclarator::WithExpr(d, c))
+            Some(StructDeclarator::BitField(d, c))
         } else {
             Some(StructDeclarator::Declarator(d?))
         }
