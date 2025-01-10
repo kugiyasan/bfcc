@@ -1,9 +1,3 @@
-use crate::parser::{
-    ConstantExpr, DeclarationSpecifier, Declarator, DirectDeclarator, ExprKind, Primary,
-    StructDeclarator, StructOrUnion, StructOrUnionSpecifier, TypeSpecifier, TypeSpecifierTrait,
-    Unary,
-};
-
 #[derive(Clone, Debug, PartialEq)]
 pub enum Ty {
     Void,
@@ -48,85 +42,6 @@ impl Ty {
         match self {
             Ty::Ptr(ty) | Ty::Array(ty, _) => Some(*ty.clone()),
             _ => None,
-        }
-    }
-
-    pub fn from_specs_and_declarator(
-        specs: &Vec<DeclarationSpecifier>,
-        declarator: &Declarator,
-    ) -> Ty {
-        Self::parse_declarator(Self::parse_primary_type(specs), declarator)
-    }
-
-    fn parse_primary_type<T>(specs: &Vec<T>) -> Ty
-    where
-        T: TypeSpecifierTrait,
-    {
-        for spec in specs {
-            if let Some(ts) = spec.get_type_specifier() {
-                return match ts {
-                    TypeSpecifier::Void => Ty::Void,
-                    TypeSpecifier::Char => Ty::Char,
-                    TypeSpecifier::Short => Ty::Short,
-                    TypeSpecifier::Int => Ty::Int,
-                    TypeSpecifier::Long => Ty::Long,
-                    TypeSpecifier::StructOrUnionSpecifier(s) => {
-                        Self::parse_struct_or_union_specifier(s)
-                    }
-                    _ => todo!(),
-                };
-            }
-        }
-        panic!("Variable of unknown type");
-    }
-
-    fn parse_struct_or_union_specifier(s: &StructOrUnionSpecifier) -> Ty {
-        let mut tys = vec![];
-
-        match s {
-            StructOrUnionSpecifier::WithDeclaration(StructOrUnion::Struct, ident, sds) => {
-                for struct_declaration in sds {
-                    let ty = Self::parse_primary_type(&struct_declaration.specs);
-                    for sd in struct_declaration.declarators.iter() {
-                        let StructDeclarator::Declarator(d) = sd else {
-                            todo!();
-                        };
-                        let t = Self::parse_declarator(ty.clone(), d);
-                        tys.push((d.direct.get_name(), t));
-                    }
-                }
-            }
-            _ => todo!(),
-        };
-
-        Ty::Struct(tys)
-    }
-
-    fn parse_declarator(mut t: Ty, declarator: &Declarator) -> Ty {
-        let mut pointer = &declarator.pointer;
-        while let Some(p) = pointer {
-            t = Ty::Ptr(Box::new(t));
-            pointer = &p.pointer;
-        }
-
-        Self::parse_direct_declarator(t, &declarator.direct)
-    }
-
-    fn parse_direct_declarator(t: Ty, direct_declarator: &DirectDeclarator) -> Ty {
-        match direct_declarator {
-            DirectDeclarator::Ident(_) => t,
-            DirectDeclarator::Declarator(d) => Self::parse_declarator(t, d),
-            DirectDeclarator::Array(dd, e) => {
-                let t = Self::parse_direct_declarator(t, dd);
-                let Some(ConstantExpr::Identity(ExprKind::Unary(Unary::Identity(Primary::Num(
-                    size,
-                ))))) = e
-                else {
-                    todo!("Can't handle ConstExpr");
-                };
-                Ty::Array(Box::new(t), *size as usize)
-            }
-            _ => todo!(),
         }
     }
 }

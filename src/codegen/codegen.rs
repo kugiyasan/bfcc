@@ -112,7 +112,7 @@ impl Codegen {
                 let InitDeclarator::Declarator(ref declarator) = inits[0] else {
                     todo!();
                 };
-                let ty = Ty::from_specs_and_declarator(&specs, declarator);
+                let ty = self.symbol_table.from_specs_and_declarator(&specs, declarator);
 
                 println!(".data");
                 println!("{}:", declarator.direct.get_name());
