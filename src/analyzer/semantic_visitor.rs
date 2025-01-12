@@ -224,8 +224,9 @@ impl SemanticVisitor {
 
                 match (t1, t2) {
                     (Ty::Ptr(ref p), t2) if t2.is_numeric() => {
-                        let size =
-                            ExprKind::Unary(Unary::Identity(Primary::Num(t2.sizeof(&self.symbol_table) as i32)));
+                        let size = ExprKind::Unary(Unary::Identity(Primary::Num(
+                            t2.sizeof(&self.symbol_table) as i32,
+                        )));
                         *right = Box::new(ExprKind::Binary(
                             BinOpKind::Mul,
                             right.clone(),
@@ -234,8 +235,9 @@ impl SemanticVisitor {
                         Ty::Ptr(p.clone())
                     }
                     (t2, Ty::Ptr(ref p)) if t2.is_numeric() => {
-                        let size =
-                            ExprKind::Unary(Unary::Identity(Primary::Num(t2.sizeof(&self.symbol_table) as i32)));
+                        let size = ExprKind::Unary(Unary::Identity(Primary::Num(
+                            t2.sizeof(&self.symbol_table) as i32,
+                        )));
                         *left = Box::new(ExprKind::Binary(
                             BinOpKind::Mul,
                             left.clone(),
@@ -244,13 +246,17 @@ impl SemanticVisitor {
                         Ty::Ptr(p.clone())
                     }
                     (Ty::Array(t, size), t2) if t2.is_numeric() => {
-                        let s = ExprKind::Unary(Unary::Identity(Primary::Num(t.sizeof(&self.symbol_table) as i32)));
+                        let s = ExprKind::Unary(Unary::Identity(Primary::Num(
+                            t.sizeof(&self.symbol_table) as i32,
+                        )));
                         *right =
                             Box::new(ExprKind::Binary(BinOpKind::Mul, right.clone(), Box::new(s)));
                         Ty::Array(t, size)
                     }
                     (t2, Ty::Array(t, size)) if t2.is_numeric() => {
-                        let s = ExprKind::Unary(Unary::Identity(Primary::Num(t.sizeof(&self.symbol_table) as i32)));
+                        let s = ExprKind::Unary(Unary::Identity(Primary::Num(
+                            t.sizeof(&self.symbol_table) as i32,
+                        )));
                         *left =
                             Box::new(ExprKind::Binary(BinOpKind::Mul, left.clone(), Box::new(s)));
                         Ty::Array(t, size)
@@ -302,13 +308,8 @@ impl SemanticVisitor {
                 let Ty::Struct(name) = u.get_type(&self.symbol_table) else {
                     panic!("Accessing a field on a non-struct type");
                 };
-                let sds = self.symbol_table.get_struct_definition(&name);
-                for (s, ty) in sds {
-                    if s == f {
-                        return ty.clone();
-                    }
-                }
-                panic!("Accessing unknown field {:?} on struct {:?}", f, u);
+                let (_, ty) = self.symbol_table.get_struct_field(&name, f);
+                ty.clone()
             }
             Unary::PointerField(u, f) => {
                 // desugar from u->f to (*u).f

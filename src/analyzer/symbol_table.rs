@@ -153,6 +153,20 @@ impl SymbolTable {
             .expect("Undefined struct")
     }
 
+    pub fn get_struct_field(&self, name: &str, field: &str) -> (usize, &Ty) {
+        let sds = self.get_struct_definition(&name);
+        let mut offset = 0;
+
+        for (s, ty) in sds {
+            if s == field {
+                return (offset, ty);
+            }
+            offset += ty.sizeof(&self);
+        }
+
+        panic!("Accessing unknown field {:?} on struct {:?}", field, name);
+    }
+
     pub fn from_specs_and_declarator(
         &mut self,
         specs: &Vec<DeclarationSpecifier>,

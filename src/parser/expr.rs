@@ -137,13 +137,8 @@ impl Unary {
                 let Ty::Struct(name) = u.get_type(symbol_table) else {
                     panic!("Accessing a field on a non-struct type");
                 };
-                let sds = symbol_table.get_struct_definition(&name);
-                for (s, ty) in sds {
-                    if s == f {
-                        return ty.clone();
-                    }
-                }
-                panic!("Accessing unknown field {:?} on struct {:?}", f, u);
+                let (_, ty) = symbol_table.get_struct_field(&name, f);
+                ty.clone()
             }
             Unary::PointerField(_, _) => unreachable!(),
 
