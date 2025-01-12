@@ -39,7 +39,7 @@ impl Ty {
         }
     }
 
-    fn is_numeric(&self) -> bool {
+    pub fn is_numeric(&self) -> bool {
         matches!(self, Ty::Char | Ty::Short | Ty::Int | Ty::Long)
     }
 

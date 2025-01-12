@@ -223,7 +223,7 @@ impl SemanticVisitor {
                 let t2 = self.visit_expr_kind(right);
 
                 match (t1, t2) {
-                    (Ty::Ptr(ref p), t2) if p.is_compatible(&t2) => {
+                    (Ty::Ptr(ref p), t2) if t2.is_numeric() => {
                         let size =
                             ExprKind::Unary(Unary::Identity(Primary::Num(t2.sizeof(&self.symbol_table) as i32)));
                         *right = Box::new(ExprKind::Binary(
@@ -231,9 +231,9 @@ impl SemanticVisitor {
                             right.clone(),
                             Box::new(size),
                         ));
-                        Ty::Ptr(Box::new(t2))
+                        Ty::Ptr(p.clone())
                     }
-                    (t2, Ty::Ptr(ref p)) if p.is_compatible(&t2) => {
+                    (t2, Ty::Ptr(ref p)) if t2.is_numeric() => {
                         let size =
                             ExprKind::Unary(Unary::Identity(Primary::Num(t2.sizeof(&self.symbol_table) as i32)));
                         *left = Box::new(ExprKind::Binary(
@@ -241,15 +241,15 @@ impl SemanticVisitor {
                             left.clone(),
                             Box::new(size),
                         ));
-                        Ty::Ptr(Box::new(t2))
+                        Ty::Ptr(p.clone())
                     }
-                    (Ty::Array(t, size), t2) if t.is_compatible(&t2) => {
+                    (Ty::Array(t, size), t2) if t2.is_numeric() => {
                         let s = ExprKind::Unary(Unary::Identity(Primary::Num(t.sizeof(&self.symbol_table) as i32)));
                         *right =
                             Box::new(ExprKind::Binary(BinOpKind::Mul, right.clone(), Box::new(s)));
                         Ty::Array(t, size)
                     }
-                    (t2, Ty::Array(t, size)) if t.is_compatible(&t2) => {
+                    (t2, Ty::Array(t, size)) if t2.is_numeric() => {
                         let s = ExprKind::Unary(Unary::Identity(Primary::Num(t.sizeof(&self.symbol_table) as i32)));
                         *left =
                             Box::new(ExprKind::Binary(BinOpKind::Mul, left.clone(), Box::new(s)));
@@ -298,6 +298,7 @@ impl SemanticVisitor {
             Unary::Call(_, None) => Ty::Void, // todo
             Unary::Call(_, Some(expr)) => self.visit_expr(expr),
             Unary::Field(u, f) => {
+                self.visit_unary(u);
                 let Ty::Struct(name) = u.get_type(&self.symbol_table) else {
                     panic!("Accessing a field on a non-struct type");
                 };

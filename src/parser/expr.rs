@@ -133,8 +133,19 @@ impl Unary {
                 panic!("lvalue required as left operand of assignment")
             }
             Unary::Index(_, _) => panic!("Semantic visitor should have desugared indexing"),
-            Unary::Field(_, _) => todo!(),
-            Unary::PointerField(_, _) => todo!(),
+            Unary::Field(u, f) => {
+                let Ty::Struct(name) = u.get_type(symbol_table) else {
+                    panic!("Accessing a field on a non-struct type");
+                };
+                let sds = symbol_table.get_struct_definition(&name);
+                for (s, ty) in sds {
+                    if s == f {
+                        return ty.clone();
+                    }
+                }
+                panic!("Accessing unknown field {:?} on struct {:?}", f, u);
+            }
+            Unary::PointerField(_, _) => unreachable!(),
 
             Unary::Ref(u) => Ty::Ptr(Box::new(u.get_type(symbol_table))),
             Unary::Deref(u) => u.get_type(symbol_table).get_inner().unwrap(),

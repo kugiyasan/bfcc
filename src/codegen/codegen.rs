@@ -448,7 +448,7 @@ impl Codegen {
             Primary::Ident(ident) => {
                 self.gen_lval(&ident);
                 let ty = self.symbol_table.get_var_type(&ident);
-                if let Ty::Array(_, _) = ty {
+                if matches!(ty, Ty::Array(_, _) | Ty::Struct(_)) {
                     return;
                 }
 
