@@ -1,5 +1,7 @@
 use crate::analyzer::{SymbolTable, Ty};
 
+use super::TypeName;
+
 #[derive(Clone, Debug, PartialEq)]
 pub struct Expr(pub Vec<Assign>);
 
@@ -106,7 +108,7 @@ impl ExprKind {
 #[derive(Clone, Debug, PartialEq)]
 pub enum Unary {
     Identity(Primary),
-    Cast((), Box<Unary>), // todo
+    Cast(Box<TypeName>, Box<Unary>),
 
     Neg(Box<Unary>),
     Ref(Box<Unary>),
@@ -116,6 +118,7 @@ pub enum Unary {
     PrefixIncrement(Box<Unary>),
     PrefixDecrement(Box<Unary>),
     Sizeof(Box<Unary>),
+    SizeofType(Box<TypeName>),
 
     Index(Box<Unary>, Expr),
     Call(Box<Unary>, Option<Expr>),
@@ -152,6 +155,8 @@ impl Unary {
             | Unary::Sizeof(u)
             | Unary::PostfixIncrement(u)
             | Unary::PostfixDecrement(u) => u.get_type(symbol_table),
+
+            Unary::SizeofType(_) => todo!(),
         }
     }
 }

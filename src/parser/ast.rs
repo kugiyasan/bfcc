@@ -1,4 +1,4 @@
-use super::{ConstantExpr, Expr};
+use super::{Assign, ConstantExpr, Expr};
 
 #[derive(Clone, Debug, PartialEq)]
 pub struct TranslationUnit(pub Vec<ExternalDeclaration>);
@@ -69,7 +69,7 @@ pub enum StructOrUnion {
 #[derive(Clone, Debug, PartialEq)]
 pub enum InitDeclarator {
     Declarator(Declarator),
-    DeclaratorAndInitializer(Declarator, ()), // todo
+    DeclaratorAndInitializer(Declarator, Initializer),
 }
 
 #[derive(Clone, Debug, PartialEq)]
@@ -166,7 +166,32 @@ pub struct ParamTypeList {
 #[derive(Clone, Debug, PartialEq)]
 pub enum ParamDeclaration {
     Declarator(Vec<DeclarationSpecifier>, Box<Declarator>),
-    AbstractDeclarator(Vec<DeclarationSpecifier>, Box<Declarator>), // todo
+    AbstractDeclarator(Vec<DeclarationSpecifier>, Option<Box<AbstractDeclarator>>),
+}
+
+#[derive(Clone, Debug, PartialEq)]
+pub enum Initializer {
+    Assign(Assign),
+    Vec(Vec<Initializer>),
+}
+
+#[derive(Clone, Debug, PartialEq)]
+pub struct TypeName {
+    specs: Vec<SpecifierQualifier>,
+    declarator: Option<AbstractDeclarator>,
+}
+
+#[derive(Clone, Debug, PartialEq)]
+pub enum AbstractDeclarator {
+    Pointer(Pointer),
+    DirectAbstractDeclarator(Option<Pointer>, DirectAbstractDeclarator),
+}
+
+#[derive(Clone, Debug, PartialEq)]
+pub enum DirectAbstractDeclarator {
+    AbstractDeclarator(Box<AbstractDeclarator>),
+    Array(Option<Box<DirectAbstractDeclarator>>, Option<ConstantExpr>),
+    ParamTypeList(Option<Box<DirectAbstractDeclarator>>, Option<ParamTypeList>),
 }
 
 #[derive(Clone, Debug, PartialEq)]
