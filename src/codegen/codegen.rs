@@ -287,7 +287,7 @@ impl Codegen {
                 let var_type_size;
                 if let Unary::Deref(u) = unary {
                     var_type_size = u
-                        .get_type(&self.symbol_table)
+                        .get_type(&mut self.symbol_table)
                         .get_inner()
                         .unwrap()
                         .sizeof(&self.symbol_table);
@@ -299,7 +299,7 @@ impl Codegen {
                         .sizeof(&self.symbol_table);
                     self.gen_lval(&ident);
                 } else if let Unary::Field(u, f) = unary {
-                    let Ty::Struct(name) = u.get_type(&self.symbol_table) else {
+                    let Ty::Struct(name) = u.get_type(&mut self.symbol_table) else {
                         unreachable!()
                     };
                     let (offset, ty) = self.symbol_table.get_struct_field(&name, &f);
@@ -388,7 +388,7 @@ impl Codegen {
                 _ => todo!("properly gen_lval only when the expression is an l-value"),
             },
             Unary::Deref(unary) => {
-                let ty = unary.get_type(&self.symbol_table);
+                let ty = unary.get_type(&mut self.symbol_table);
                 self.gen_unary(*unary);
                 gen_deref(ty.get_inner().unwrap().sizeof(&self.symbol_table));
             }
@@ -418,7 +418,7 @@ impl Codegen {
                 println!("  push rax");
             }
             Unary::Field(unary, field) => {
-                let Ty::Struct(name) = unary.get_type(&self.symbol_table) else {
+                let Ty::Struct(name) = unary.get_type(&mut self.symbol_table) else {
                     unreachable!()
                 };
                 let (offset, ty) = self.symbol_table.get_struct_field(&name, &field);

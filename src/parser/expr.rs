@@ -6,7 +6,7 @@ use super::TypeName;
 pub struct Expr(pub Vec<Assign>);
 
 impl Expr {
-    pub fn get_type(&self, symbol_table: &SymbolTable) -> Ty {
+    pub fn get_type(&self, symbol_table: &mut SymbolTable) -> Ty {
         self.0
             .last()
             .map(|a| a.get_type(symbol_table))
@@ -36,7 +36,7 @@ pub enum Assign {
 }
 
 impl Assign {
-    pub fn get_type(&self, symbol_table: &SymbolTable) -> Ty {
+    pub fn get_type(&self, symbol_table: &mut SymbolTable) -> Ty {
         match self {
             Assign::Const(c) => c.get_type(symbol_table),
             Assign::Assign(_, _, a) => a.get_type(symbol_table),
@@ -51,7 +51,7 @@ pub enum ConstantExpr {
 }
 
 impl ConstantExpr {
-    pub fn get_type(&self, symbol_table: &SymbolTable) -> Ty {
+    pub fn get_type(&self, symbol_table: &mut SymbolTable) -> Ty {
         match self {
             ConstantExpr::Identity(e) => e.get_type(symbol_table),
             ConstantExpr::Ternary(_, e, _) => e.get_type(symbol_table),
@@ -88,7 +88,7 @@ pub enum ExprKind {
 }
 
 impl ExprKind {
-    pub fn get_type(&self, symbol_table: &SymbolTable) -> Ty {
+    pub fn get_type(&self, symbol_table: &mut SymbolTable) -> Ty {
         match self {
             ExprKind::Unary(u) => u.get_type(symbol_table),
             ExprKind::Binary(_, e1, e2) => {
@@ -129,12 +129,11 @@ pub enum Unary {
 }
 
 impl Unary {
-    pub fn get_type(&self, symbol_table: &SymbolTable) -> Ty {
+    pub fn get_type(&self, symbol_table: &mut SymbolTable) -> Ty {
         match self {
             Unary::Identity(p) => p.get_type(symbol_table),
-            Unary::Cast(_, _) | Unary::Call(_, _) => {
-                panic!("lvalue required as left operand of assignment")
-            }
+            Unary::Cast(tn, _) => symbol_table.from_type_name(tn),
+            Unary::Call(_, _) => todo!(),
             Unary::Index(_, _) => panic!("Semantic visitor should have desugared indexing"),
             Unary::Field(u, f) => {
                 let Ty::Struct(name) = u.get_type(symbol_table) else {
@@ -170,7 +169,7 @@ pub enum Primary {
 }
 
 impl Primary {
-    pub fn get_type(&self, symbol_table: &SymbolTable) -> Ty {
+    pub fn get_type(&self, symbol_table: &mut SymbolTable) -> Ty {
         match self {
             Primary::Num(_) => Ty::Int, // todo
             Primary::Ident(name) => symbol_table.get_var_type(name),

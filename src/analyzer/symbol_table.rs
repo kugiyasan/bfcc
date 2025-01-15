@@ -1,9 +1,9 @@
 use std::collections::{HashMap, HashSet};
 
 use crate::parser::{
-    ConstantExpr, DeclarationSpecifier, Declarator, DirectDeclarator, ExprKind, Primary,
-    StructDeclarator, StructOrUnion, StructOrUnionSpecifier, TypeSpecifier, TypeSpecifierTrait,
-    Unary,
+    AbstractDeclarator, ConstantExpr, DeclarationSpecifier, Declarator, DirectAbstractDeclarator,
+    DirectDeclarator, ExprKind, Pointer, Primary, StructDeclarator, StructOrUnion,
+    StructOrUnionSpecifier, TypeName, TypeSpecifier, TypeSpecifierTrait, Unary,
 };
 
 use super::Ty;
@@ -229,14 +229,19 @@ impl SymbolTable {
         }
     }
 
-    fn parse_declarator(&mut self, mut t: Ty, declarator: &Declarator) -> Ty {
-        let mut pointer = &declarator.pointer;
+    fn parse_pointer(&self, mut ty: Ty, mut pointer: &Option<Pointer>) -> Ty {
         while let Some(p) = pointer {
-            t = Ty::Ptr(Box::new(t));
+            ty = Ty::Ptr(Box::new(ty));
             pointer = &p.pointer;
         }
 
-        self.parse_direct_declarator(t, &declarator.direct)
+        ty
+    }
+
+    fn parse_declarator(&mut self, mut ty: Ty, declarator: &Declarator) -> Ty {
+        ty = self.parse_pointer(ty, &declarator.pointer);
+
+        self.parse_direct_declarator(ty, &declarator.direct)
     }
 
     fn parse_direct_declarator(&mut self, t: Ty, direct_declarator: &DirectDeclarator) -> Ty {
@@ -253,7 +258,51 @@ impl SymbolTable {
                 };
                 Ty::Array(Box::new(t), *size as usize)
             }
-            _ => todo!(),
+            DirectDeclarator::ParamTypeList(_, _) => todo!(),
+        }
+    }
+
+    fn parse_abstract_declarator(&mut self, mut ty: Ty, declarator: &AbstractDeclarator) -> Ty {
+        match declarator {
+            AbstractDeclarator::Pointer(p) => self.parse_pointer(ty, &Some(p.clone())),
+            AbstractDeclarator::DirectAbstractDeclarator(p, dad) => {
+                ty = self.parse_pointer(ty, p);
+                self.parse_direct_abstract_declarator(ty, dad)
+            }
+        }
+    }
+
+    fn parse_direct_abstract_declarator(
+        &mut self,
+        mut t: Ty,
+        direct_abstract_declarator: &DirectAbstractDeclarator,
+    ) -> Ty {
+        match direct_abstract_declarator {
+            DirectAbstractDeclarator::AbstractDeclarator(dad) => {
+                self.parse_abstract_declarator(t, dad)
+            }
+            DirectAbstractDeclarator::Array(dad, e) => {
+                if let Some(d) = dad {
+                    t = self.parse_direct_abstract_declarator(t, d);
+                }
+                let Some(ConstantExpr::Identity(ExprKind::Unary(Unary::Identity(Primary::Num(
+                    size,
+                ))))) = e
+                else {
+                    todo!("Can't handle ConstExpr");
+                };
+                Ty::Array(Box::new(t), *size as usize)
+            }
+            DirectAbstractDeclarator::ParamTypeList(_, _) => todo!(),
+        }
+    }
+
+    pub fn from_type_name(&mut self, tn: &TypeName) -> Ty {
+        let ty = self.parse_primary_type(&tn.specs);
+        if let Some(d) = &tn.declarator {
+            self.parse_abstract_declarator(ty, d)
+        } else {
+            ty
         }
     }
 }
