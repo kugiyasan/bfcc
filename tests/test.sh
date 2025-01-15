@@ -357,4 +357,35 @@ assertImplicitMain 8 '
 return 32 / 2 / 2;
 '
 
+assertImplicitMain 11 '
+int* arr[5];
+int **p;
+p = arr;
+int a;
+int b;
+a = 5;
+b = 6;
+arr[3] = &a;
+p[4] = &b;
+return *arr[3] + *p[4];
+'
+
+assertImplicitMain 0 '
+struct S { int x; int y; } s;
+struct S *p;
+
+p = &s;
+s.x = 1;
+p->y = 2;
+return p->y + s.x - 3;
+'
+
+assertImplicitMain 3 '
+struct S { int x; int y; } s;
+struct S *p;
+p = &s;
+s.y = 3;
+return p->y;
+'
+
 echo 'All tests passed!'

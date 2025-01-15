@@ -1,7 +1,8 @@
 use crate::parser::{
-    Assign, BinOpKind, CompoundStmt, ConstantExpr, Declaration, DeclarationOrStmt, Declarator,
-    DirectDeclarator, Expr, ExprKind, ExternalDeclaration, FuncDef, InitDeclarator,
-    ParamDeclaration, Primary, Stmt, TranslationUnit, Unary,
+    AbstractDeclarator, Assign, BinOpKind, CompoundStmt, ConstantExpr, Declaration,
+    DeclarationOrStmt, Declarator, DirectDeclarator, Expr, ExprKind, ExternalDeclaration, FuncDef,
+    InitDeclarator, ParamDeclaration, Pointer, Primary, SpecifierQualifier, Stmt, TranslationUnit,
+    TypeName, TypeSpecifier, Unary,
 };
 
 use super::{symbol_table::SymbolTable, Ty};
@@ -225,7 +226,7 @@ impl SemanticVisitor {
                 match (t1, t2) {
                     (Ty::Ptr(ref p), t2) if t2.is_numeric() => {
                         let size = ExprKind::Unary(Unary::Identity(Primary::Num(
-                            t2.sizeof(&self.symbol_table) as i32,
+                            p.sizeof(&self.symbol_table) as i32,
                         )));
                         *right = Box::new(ExprKind::Binary(
                             BinOpKind::Mul,
@@ -236,7 +237,7 @@ impl SemanticVisitor {
                     }
                     (t2, Ty::Ptr(ref p)) if t2.is_numeric() => {
                         let size = ExprKind::Unary(Unary::Identity(Primary::Num(
-                            t2.sizeof(&self.symbol_table) as i32,
+                            p.sizeof(&self.symbol_table) as i32,
                         )));
                         *left = Box::new(ExprKind::Binary(
                             BinOpKind::Mul,
@@ -274,6 +275,10 @@ impl SemanticVisitor {
     fn visit_unary(&mut self, unary: &mut Unary) -> Ty {
         match unary {
             Unary::Identity(primary) => self.visit_primary(primary),
+            Unary::Cast(tn, u) => {
+                self.visit_unary(u);
+                self.symbol_table.from_type_name(tn)
+            }
             Unary::Neg(u) => self.visit_unary(u.as_mut()),
             Unary::Ref(u) => {
                 let t = self.visit_unary(u.as_mut());
@@ -304,12 +309,42 @@ impl SemanticVisitor {
             Unary::Call(_, None) => Ty::Void, // todo
             Unary::Call(_, Some(expr)) => self.visit_expr(expr),
             Unary::Field(u, f) => {
-                self.visit_unary(u);
-                let Ty::Struct(name) = u.get_type(&self.symbol_table) else {
+                // desugar from u.f to *(T*)((char*)u + offset)
+                let Ty::Struct(name) = u.get_type(&mut self.symbol_table) else {
                     panic!("Accessing a field on a non-struct type");
                 };
-                let (_, ty) = self.symbol_table.get_struct_field(&name, f);
-                ty.clone()
+                let (offset, ty) = self.symbol_table.get_struct_field(&name, f);
+                let ty = ty.clone();
+
+                let tn = TypeName {
+                    specs: vec![SpecifierQualifier::TypeSpecifier(TypeSpecifier::Char)],
+                    declarator: Some(AbstractDeclarator::Pointer(Pointer {
+                        qualifiers: vec![],
+                        pointer: Box::new(None),
+                    })),
+                };
+                let u = Unary::Cast(Box::new(tn), Box::new(*u.clone()));
+                let offset = Box::new(ExprKind::Unary(Unary::Identity(Primary::Num(
+                    offset as i32,
+                ))));
+                let binop = ExprKind::Binary(BinOpKind::Add, Box::new(ExprKind::Unary(u)), offset);
+                let expr = Expr(vec![Assign::Const(ConstantExpr::Identity(binop))]);
+
+                let tn = TypeName {
+                    specs: vec![SpecifierQualifier::TypeSpecifier(TypeSpecifier::Int)], // todo
+                    declarator: Some(AbstractDeclarator::Pointer(Pointer {
+                        qualifiers: vec![],
+                        pointer: Box::new(None),
+                    })),
+                };
+                let binop = ExprKind::Unary(Unary::Cast(
+                    Box::new(tn),
+                    Box::new(Unary::Identity(Primary::Expr(Box::new(expr)))),
+                ));
+                let expr = Expr(vec![Assign::Const(ConstantExpr::Identity(binop))]);
+                *unary = Unary::Deref(Box::new(Unary::Identity(Primary::Expr(Box::new(expr)))));
+                self.visit_unary(unary);
+                ty
             }
             Unary::PointerField(u, f) => {
                 // desugar from u->f to (*u).f

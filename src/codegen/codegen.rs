@@ -298,16 +298,6 @@ impl Codegen {
                         .get_var_type(&ident)
                         .sizeof(&self.symbol_table);
                     self.gen_lval(&ident);
-                } else if let Unary::Field(u, f) = unary {
-                    let Ty::Struct(name) = u.get_type(&mut self.symbol_table) else {
-                        unreachable!()
-                    };
-                    let (offset, ty) = self.symbol_table.get_struct_field(&name, &f);
-                    var_type_size = ty.sizeof(&self.symbol_table);
-
-                    println!("  pop rax");
-                    println!("  add rax, {}", offset);
-                    println!("  push rax");
                 } else {
                     panic!("Invalid l-value for assignment: {:?}", unary);
                 }
@@ -375,9 +365,8 @@ impl Codegen {
 
     fn gen_unary(&mut self, unary: Unary) {
         match unary {
-            Unary::Identity(primary) => {
-                self.gen_primary(primary);
-            }
+            Unary::Identity(primary) => self.gen_primary(primary),
+            Unary::Cast(_, u) => self.gen_unary(*u),
             Unary::Neg(unary) => {
                 self.gen_unary(*unary);
                 self.gen_oneop("  neg rax");
@@ -390,7 +379,11 @@ impl Codegen {
             Unary::Deref(unary) => {
                 let ty = unary.get_type(&mut self.symbol_table);
                 self.gen_unary(*unary);
-                gen_deref(ty.get_inner().unwrap().sizeof(&self.symbol_table));
+                let inner = ty.get_inner();
+                if let Some(Ty::Struct(_)) = inner {
+                    return;
+                }
+                gen_deref(inner.unwrap().sizeof(&self.symbol_table));
             }
             Unary::Call(unary, expr) => {
                 let Unary::Identity(Primary::Ident(ident)) = *unary else {
@@ -416,19 +409,6 @@ impl Codegen {
                 println!("  mov rsp, rbp");
                 println!("  pop rbp");
                 println!("  push rax");
-            }
-            Unary::Field(unary, field) => {
-                let Ty::Struct(name) = unary.get_type(&mut self.symbol_table) else {
-                    unreachable!()
-                };
-                let (offset, ty) = self.symbol_table.get_struct_field(&name, &field);
-                let size = ty.sizeof(&self.symbol_table);
-
-                self.gen_unary(*unary);
-                println!("  pop rax");
-                println!("  add rax, {}", offset);
-                println!("  push rax");
-                gen_deref(size);
             }
             _ => todo!(),
         }
