@@ -134,7 +134,7 @@ pub struct Declarator {
 
 #[derive(Clone, Debug, PartialEq)]
 pub struct Pointer {
-    pub types: Vec<TypeQualifier>,
+    pub qualifiers: Vec<TypeQualifier>,
     pub pointer: Box<Option<Pointer>>,
 }
 
@@ -177,8 +177,8 @@ pub enum Initializer {
 
 #[derive(Clone, Debug, PartialEq)]
 pub struct TypeName {
-    specs: Vec<SpecifierQualifier>,
-    declarator: Option<AbstractDeclarator>,
+    pub specs: Vec<SpecifierQualifier>,
+    pub declarator: Option<AbstractDeclarator>,
 }
 
 #[derive(Clone, Debug, PartialEq)]

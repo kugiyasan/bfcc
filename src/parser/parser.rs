@@ -262,13 +262,13 @@ impl Parser {
             return None;
         };
 
-        let mut types = vec![];
+        let mut qualifiers = vec![];
         while let Some(t) = self.parse_type_qualifier() {
-            types.push(t);
+            qualifiers.push(t);
         }
 
         Some(Pointer {
-            types,
+            qualifiers,
             pointer: Box::new(self.parse_pointer()),
         })
     }
