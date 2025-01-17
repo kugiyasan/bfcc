@@ -3,13 +3,16 @@ pub mod codegen;
 pub mod lexer;
 pub mod parser;
 
+use std::collections::HashMap;
+
 use analyzer::SemanticVisitor;
 use codegen::Codegen;
 use lexer::Lexer;
 use parser::Parser;
 
 pub fn compile(user_input: &str) {
-    let tokens = Lexer::tokenize(user_input);
+    let mut defines = HashMap::new();
+    let tokens = Lexer::tokenize(user_input, &mut defines);
 
     let mut parser = Parser::new(tokens);
     let mut translation_unit = parser.parse();
