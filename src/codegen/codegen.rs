@@ -109,16 +109,18 @@ impl Codegen {
         match external_declaration {
             ExternalDeclaration::FuncDef(f) => self.gen_func_def(f),
             ExternalDeclaration::Declaration(Declaration { specs, inits }) => {
-                let InitDeclarator::Declarator(ref declarator) = inits[0] else {
-                    todo!();
-                };
-                let ty = self
-                    .symbol_table
-                    .from_specs_and_declarator(&specs, declarator);
+                for init in inits {
+                    let InitDeclarator::Declarator(ref declarator) = init else {
+                        todo!();
+                    };
+                    let ty = self
+                        .symbol_table
+                        .from_specs_and_declarator(&specs, declarator);
 
-                println!(".data");
-                println!("{}:", declarator.direct.get_name());
-                println!("  .zero {}", ty.sizeof(&self.symbol_table));
+                    println!(".data");
+                    println!("{}:", declarator.direct.get_name());
+                    println!("  .zero {}", ty.sizeof(&self.symbol_table));
+                }
             }
         }
     }
@@ -303,15 +305,15 @@ impl Codegen {
                 }
                 self.gen_assign(*a);
 
+                let src_reg = match var_type_size {
+                    1 => "dil",
+                    2 => "di",
+                    4 => "edi",
+                    8 => "rdi",
+                    _ => panic!("Unexpected variable type size: {}", var_type_size),
+                };
                 match kind {
                     AssignOpKind::Assign => {
-                        let src_reg = match var_type_size {
-                            1 => "dil",
-                            2 => "di",
-                            4 => "edi",
-                            8 => "rdi",
-                            _ => panic!("Unexpected variable type size: {}", var_type_size),
-                        };
                         println!("  pop rdi");
                         println!("  pop rax");
                         println!("  mov [rax], {}", src_reg);

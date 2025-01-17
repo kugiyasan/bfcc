@@ -3,9 +3,10 @@ use crate::lexer::{Token, TokenKind};
 use super::{
     Assign, AssignOpKind, BinOpKind, CompoundStmt, ConstantExpr, Declaration, DeclarationOrStmt,
     DeclarationSpecifier, Declarator, DirectDeclarator, EnumSpecifier, Enumerator, Expr, ExprKind,
-    ExternalDeclaration, FuncDef, InitDeclarator, ParamDeclaration, ParamTypeList, Pointer,
-    Primary, SpecifierQualifier, Stmt, StorageClassSpecifier, StructDeclaration, StructDeclarator,
-    StructOrUnion, StructOrUnionSpecifier, TranslationUnit, TypeQualifier, TypeSpecifier, Unary,
+    ExternalDeclaration, FuncDef, InitDeclarator, Initializer, ParamDeclaration, ParamTypeList,
+    Pointer, Primary, SpecifierQualifier, Stmt, StorageClassSpecifier, StructDeclaration,
+    StructDeclarator, StructOrUnion, StructOrUnionSpecifier, TranslationUnit, TypeQualifier,
+    TypeSpecifier, Unary,
 };
 
 pub struct Parser {
@@ -117,11 +118,10 @@ impl Parser {
             };
             ExternalDeclaration::FuncDef(fd)
         } else {
-            let inits = vec![InitDeclarator::Declarator(declarator)];
-            // todo: replaced while with if, this disables recursive init declarator
-            // if let Some(i) = self.parse_init_declarator() {
-            //     inits.push(i);
-            // }
+            let mut inits = vec![InitDeclarator::Declarator(declarator)];
+            while self.consume(&TokenKind::Comma) {
+                inits.push(self.parse_init_declarator().unwrap());
+            }
             self.expect(&TokenKind::SemiColon);
 
             let d = Declaration { specs, inits };
@@ -240,9 +240,8 @@ impl Parser {
     fn parse_init_declarator(&mut self) -> Option<InitDeclarator> {
         let d = self.parse_declarator().unwrap();
         if self.consume(&TokenKind::Equal) {
-            todo!();
-            // let i = self.parse_initializer();
-            // return Some(InitDeclarator::DeclaratorAndInitializer(d, i));
+            let i = self.parse_initializer();
+            return Some(InitDeclarator::DeclaratorAndInitializer(d, i));
         }
         Some(InitDeclarator::Declarator(d))
     }
@@ -345,6 +344,24 @@ impl Parser {
 
         let d = self.parse_declarator().unwrap();
         Some(ParamDeclaration::Declarator(specs, Box::new(d)))
+    }
+
+    /// initializer = assign
+    ///             | "{" (initializer ",")* (initializer ","?)? "}"
+    /// **This initializer allows the non-standard empty initializer**
+    fn parse_initializer(&mut self) -> Initializer {
+        if self.consume(&TokenKind::LeftCurlyBrace) {
+            let mut inits = vec![];
+            while !self.consume(&TokenKind::RightCurlyBrace) {
+                inits.push(self.parse_initializer());
+                if !self.consume(&TokenKind::Comma) && self.consume(&TokenKind::RightCurlyBrace) {
+                    break;
+                }
+            }
+            Initializer::Vec(inits)
+        } else {
+            Initializer::Assign(self.parse_assign())
+        }
     }
 
     /// declaration-specifiers = declaration-specifier*
