@@ -226,10 +226,9 @@ impl Parser {
             return None;
         }
 
-        let mut inits = vec![];
-        // todo: replaced while with if, this disables recursive init declarator
-        if let Some(i) = self.parse_init_declarator() {
-            inits.push(i);
+        let mut inits = vec![self.parse_init_declarator().unwrap()];
+        while self.consume(&TokenKind::Comma) {
+            inits.push(self.parse_init_declarator().unwrap());
         }
 
         self.expect(&TokenKind::SemiColon);
