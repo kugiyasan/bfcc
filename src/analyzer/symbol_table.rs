@@ -245,12 +245,12 @@ impl SymbolTable {
         self.parse_direct_declarator(ty, &declarator.direct)
     }
 
-    fn parse_direct_declarator(&mut self, t: Ty, direct_declarator: &DirectDeclarator) -> Ty {
+    fn parse_direct_declarator(&mut self, ty: Ty, direct_declarator: &DirectDeclarator) -> Ty {
         match direct_declarator {
-            DirectDeclarator::Ident(_) => t,
-            DirectDeclarator::Declarator(d) => self.parse_declarator(t, d),
+            DirectDeclarator::Ident(_) => ty,
+            DirectDeclarator::Declarator(d) => self.parse_declarator(ty, d),
             DirectDeclarator::Array(dd, e) => {
-                let t = self.parse_direct_declarator(t, dd);
+                let t = self.parse_direct_declarator(ty, dd);
                 let Some(ConstantExpr::Identity(BinOp::Unary(Unary::Identity(Primary::Num(size))))) =
                     e
                 else {
@@ -259,7 +259,7 @@ impl SymbolTable {
                 Ty::Array(Box::new(t), *size as usize)
             }
             DirectDeclarator::ParamTypeList(dd, ptl) => {
-                let return_ty = self.parse_direct_declarator(t, dd);
+                let return_ty = self.parse_direct_declarator(ty, dd);
 
                 let args = ptl
                     .params
@@ -291,23 +291,23 @@ impl SymbolTable {
 
     fn parse_direct_abstract_declarator(
         &mut self,
-        mut t: Ty,
+        mut ty: Ty,
         direct_abstract_declarator: &DirectAbstractDeclarator,
     ) -> Ty {
         match direct_abstract_declarator {
             DirectAbstractDeclarator::AbstractDeclarator(dad) => {
-                self.parse_abstract_declarator(t, dad)
+                self.parse_abstract_declarator(ty, dad)
             }
             DirectAbstractDeclarator::Array(dad, e) => {
                 if let Some(d) = dad {
-                    t = self.parse_direct_abstract_declarator(t, d);
+                    ty = self.parse_direct_abstract_declarator(ty, d);
                 }
                 let Some(ConstantExpr::Identity(BinOp::Unary(Unary::Identity(Primary::Num(size))))) =
                     e
                 else {
                     todo!("Can't handle ConstExpr");
                 };
-                Ty::Array(Box::new(t), *size as usize)
+                Ty::Array(Box::new(ty), *size as usize)
             }
             DirectAbstractDeclarator::ParamTypeList(_, _) => todo!(),
         }
