@@ -1,12 +1,12 @@
 use crate::lexer::{Token, TokenKind};
 
 use super::{
-    Assign, AssignOpKind, BinOpKind, CompoundStmt, ConstantExpr, Declaration, DeclarationOrStmt,
-    DeclarationSpecifier, Declarator, DirectDeclarator, EnumSpecifier, Enumerator, Expr, ExprKind,
-    ExternalDeclaration, FuncDef, InitDeclarator, Initializer, ParamDeclaration, ParamTypeList,
-    Pointer, Primary, SpecifierQualifier, Stmt, StorageClassSpecifier, StructDeclaration,
-    StructDeclarator, StructOrUnion, StructOrUnionSpecifier, TranslationUnit, TypeQualifier,
-    TypeSpecifier, Unary,
+    AbstractDeclarator, Assign, AssignOpKind, BinOpKind, CompoundStmt, ConstantExpr, Declaration,
+    DeclarationOrStmt, DeclarationSpecifier, Declarator, DirectAbstractDeclarator,
+    DirectDeclarator, EnumSpecifier, Enumerator, Expr, ExprKind, ExternalDeclaration, FuncDef,
+    InitDeclarator, Initializer, ParamDeclaration, ParamTypeList, Pointer, Primary,
+    SpecifierQualifier, Stmt, StorageClassSpecifier, StructDeclaration, StructDeclarator,
+    StructOrUnion, StructOrUnionSpecifier, TranslationUnit, TypeQualifier, TypeSpecifier, Unary,
 };
 
 pub struct Parser {
@@ -342,8 +342,15 @@ impl Parser {
             return None;
         }
 
-        let d = self.parse_declarator().unwrap();
-        Some(ParamDeclaration::Declarator(specs, Box::new(d)))
+        if let Some(d) = self.parse_declarator() {
+            Some(ParamDeclaration::Declarator(specs, Box::new(d)))
+        } else {
+            let ad = self.parse_abstract_declarator();
+            Some(ParamDeclaration::AbstractDeclarator(
+                specs,
+                Some(Box::new(ad)),
+            ))
+        }
     }
 
     /// initializer = assign
@@ -361,6 +368,56 @@ impl Parser {
             Initializer::Vec(inits)
         } else {
             Initializer::Assign(self.parse_assign())
+        }
+    }
+
+    /// abstract-declarator = pointer
+    ///                     | pointer? direct-abstract-declarator
+    fn parse_abstract_declarator(&mut self) -> AbstractDeclarator {
+        let p = self.parse_pointer();
+        if let Some(dad) = self.parse_direct_abstract_declarator() {
+            AbstractDeclarator::DirectAbstractDeclarator(p, dad)
+        } else if let Some(p) = p {
+            AbstractDeclarator::Pointer(p)
+        } else {
+            panic!("Tried to parse abstract declarator, but no pointer nor direct abstract declarator found");
+        }
+    }
+
+    /// direct-abstract-declarator = "(" abstract-declarator ")"
+    ///                            | direct-abstract-declarator? "[" constant-expr? "]"
+    ///                            | direct-abstract-declarator? "(" param-type-list? ")"
+    fn parse_direct_abstract_declarator(&mut self) -> Option<DirectAbstractDeclarator> {
+        if self.consume(&TokenKind::LeftParen) {
+            let ad = self.parse_abstract_declarator();
+            self.expect(&TokenKind::RightParen);
+            return Some(DirectAbstractDeclarator::AbstractDeclarator(Box::new(ad)));
+        }
+
+        let mut node = None;
+
+        loop {
+            if self.consume(&TokenKind::LeftSquareBrace) {
+                if self.consume(&TokenKind::RightSquareBrace) {
+                    node = Some(DirectAbstractDeclarator::Array(node.map(Box::new), None));
+                } else {
+                    let ce = self.parse_constant_expr();
+                    self.expect(&TokenKind::RightSquareBrace);
+                    node = Some(DirectAbstractDeclarator::Array(
+                        node.map(Box::new),
+                        Some(ce),
+                    ));
+                }
+            } else if self.consume(&TokenKind::LeftParen) {
+                let ptl = self.parse_param_type_list();
+                self.expect(&TokenKind::RightParen);
+                node = Some(DirectAbstractDeclarator::ParamTypeList(
+                    node.map(Box::new),
+                    ptl,
+                ));
+            } else {
+                return node;
+            }
         }
     }
 

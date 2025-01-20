@@ -15,7 +15,7 @@ declaration-specifiers:
   storage-class-specifier declaration-specifiers_opt
   type-specifier declaration-specifiers_opt
   type-qualifier declaration-specifiers_opt
-storage-class specifier: one of
+storage-class-specifier: one of
   auto register static extern typedef
 type specifier: one of
   void char short int long float double signed
