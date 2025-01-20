@@ -248,10 +248,16 @@ impl Parser {
 
     /// declarator = pointer? direct-declarator
     fn parse_declarator(&mut self) -> Option<Declarator> {
-        Some(Declarator {
-            pointer: self.parse_pointer(),
-            direct: self.parse_direct_declarator()?,
-        })
+        let pointer = self.parse_pointer();
+
+        if let Some(direct) = self.parse_direct_declarator() {
+            Some(Declarator { pointer, direct })
+        } else {
+            if let Some(p) = pointer {
+                self.index -= p.get_number_of_consumed_tokens();
+            }
+            None
+        }
     }
 
     /// pointer = "*" type-qualifier* pointer?

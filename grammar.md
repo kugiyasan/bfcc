@@ -17,7 +17,7 @@ declaration-specifiers:
   type-qualifier declaration-specifiers_opt
 storage-class-specifier: one of
   auto register static extern typedef
-type specifier: one of
+type-specifier: one of
   void char short int long float double signed
   unsigned struct-or-union-specifier enum-specifier typedef-name
 type-qualifier: one of

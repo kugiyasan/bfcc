@@ -138,6 +138,16 @@ pub struct Pointer {
     pub pointer: Box<Option<Pointer>>,
 }
 
+impl Pointer {
+    pub fn get_number_of_consumed_tokens(&self) -> usize {
+        let ct = &(*self.pointer)
+            .as_ref()
+            .map_or(0, |p| p.get_number_of_consumed_tokens());
+
+        return 1 + self.qualifiers.len() + ct;
+    }
+}
+
 #[derive(Clone, Debug, PartialEq)]
 pub enum DirectDeclarator {
     Ident(String),

@@ -68,12 +68,15 @@ impl Lexer {
                 self.index += 1;
             } else if c2 == "//" {
                 self.index += 2;
-                while chars[self.index] != '\n' {
+                while self.index < chars.len() && chars[self.index] != '\n' {
                     self.index += 1;
                 }
             } else if c2 == "/*" {
                 self.index += 2;
-                while chars[self.index] != '*' && chars[self.index + 1] != '/' {
+                while self.index < chars.len()
+                    && chars[self.index] != '*'
+                    && chars[self.index + 1] != '/'
+                {
                     self.index += 1;
                 }
             } else if c.is_numeric() {

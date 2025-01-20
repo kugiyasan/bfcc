@@ -117,6 +117,10 @@ impl Codegen {
                         .symbol_table
                         .from_specs_and_declarator(&specs, declarator);
 
+                    if let Ty::Func(_, _) = ty {
+                        return;
+                    }
+
                     println!(".data");
                     println!("{}:", declarator.direct.get_name());
                     println!("  .zero {}", ty.sizeof(&self.symbol_table));

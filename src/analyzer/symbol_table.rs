@@ -2,8 +2,8 @@ use std::collections::{HashMap, HashSet};
 
 use crate::parser::{
     AbstractDeclarator, ConstantExpr, DeclarationSpecifier, Declarator, DirectAbstractDeclarator,
-    DirectDeclarator, ExprKind, Pointer, Primary, StructDeclarator, StructOrUnion,
-    StructOrUnionSpecifier, TypeName, TypeSpecifier, TypeSpecifierTrait, Unary,
+    DirectDeclarator, ExprKind, ParamDeclaration, Pointer, Primary, StructDeclarator,
+    StructOrUnion, StructOrUnionSpecifier, TypeName, TypeSpecifier, TypeSpecifierTrait, Unary,
 };
 
 use super::Ty;
@@ -258,7 +258,24 @@ impl SymbolTable {
                 };
                 Ty::Array(Box::new(t), *size as usize)
             }
-            DirectDeclarator::ParamTypeList(_, _) => todo!(),
+            DirectDeclarator::ParamTypeList(dd, ptl) => {
+                let return_ty = self.parse_direct_declarator(t, dd);
+
+                let args = ptl
+                    .params
+                    .iter()
+                    .map(|pd| match pd {
+                        ParamDeclaration::Declarator(s, d) => self.from_specs_and_declarator(s, d),
+                        ParamDeclaration::AbstractDeclarator(s, None) => self.parse_primary_type(s),
+                        ParamDeclaration::AbstractDeclarator(s, Some(ad)) => {
+                            let ty = self.parse_primary_type(s);
+                            self.parse_abstract_declarator(ty, ad)
+                        }
+                    })
+                    .collect();
+
+                Ty::Func(Box::new(return_ty), args)
+            }
         }
     }
 

@@ -10,6 +10,8 @@ use parser::Parser;
 
 pub fn compile(user_input: &str) {
     let tokens = Lexer::tokenize(user_input);
+    // let token_kinds = tokens.iter().map(|t| &t.kind).collect::<Vec<_>>();
+    // dbg!(token_kinds);
 
     let mut parser = Parser::new(tokens);
     let mut translation_unit = parser.parse();
