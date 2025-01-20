@@ -1,9 +1,9 @@
 use crate::{
     analyzer::{LvarOffset, SymbolTable, Ty},
     parser::{
-        Assign, AssignOpKind, BinOpKind, CompoundStmt, ConstantExpr, Declaration,
-        DeclarationOrStmt, DirectDeclarator, Expr, ExprKind, ExternalDeclaration, FuncDef,
-        InitDeclarator, Primary, Stmt, TranslationUnit, Unary,
+        Assign, AssignOpKind, BinOp, BinOpKind, CompoundStmt, ConstantExpr, Declaration,
+        DeclarationOrStmt, DirectDeclarator, Expr, ExternalDeclaration, FuncDef, InitDeclarator,
+        Primary, Stmt, TranslationUnit, Unary,
     },
 };
 
@@ -336,14 +336,14 @@ impl Codegen {
         }
     }
 
-    fn gen_expr_kind(&mut self, expr_kind: ExprKind) {
+    fn gen_expr_kind(&mut self, expr_kind: BinOp) {
         match expr_kind {
-            ExprKind::Binary(kind, left, right) => {
+            BinOp::Binary(kind, left, right) => {
                 self.gen_expr_kind(*left);
                 self.gen_expr_kind(*right);
                 self.gen_bin_op_kind(kind);
             }
-            ExprKind::Unary(unary) => self.gen_unary(unary),
+            BinOp::Unary(unary) => self.gen_unary(unary),
         }
     }
 

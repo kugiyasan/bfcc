@@ -1,6 +1,6 @@
 use crate::parser::{
-    AbstractDeclarator, Assign, BinOpKind, CompoundStmt, ConstantExpr, Declaration,
-    DeclarationOrStmt, Declarator, DirectDeclarator, Expr, ExprKind, ExternalDeclaration, FuncDef,
+    AbstractDeclarator, Assign, BinOp, BinOpKind, CompoundStmt, ConstantExpr, Declaration,
+    DeclarationOrStmt, Declarator, DirectDeclarator, Expr, ExternalDeclaration, FuncDef,
     InitDeclarator, ParamDeclaration, Pointer, Primary, SpecifierQualifier, Stmt, TranslationUnit,
     TypeName, TypeSpecifier, Unary,
 };
@@ -217,49 +217,42 @@ impl SemanticVisitor {
         }
     }
 
-    fn visit_expr_kind(&mut self, expr_kind: &mut ExprKind) -> Ty {
+    fn visit_expr_kind(&mut self, expr_kind: &mut BinOp) -> Ty {
         match expr_kind {
-            ExprKind::Binary(_kind, left, right) => {
+            BinOp::Binary(_kind, left, right) => {
                 let t1 = self.visit_expr_kind(left);
                 let t2 = self.visit_expr_kind(right);
 
                 match (t1, t2) {
                     (Ty::Ptr(ref p), t2) if t2.is_numeric() => {
-                        let size = ExprKind::Unary(Unary::Identity(Primary::Num(
+                        let size = BinOp::Unary(Unary::Identity(Primary::Num(
                             p.sizeof(&self.symbol_table) as i32,
                         )));
-                        *right = Box::new(ExprKind::Binary(
-                            BinOpKind::Mul,
-                            right.clone(),
-                            Box::new(size),
-                        ));
+                        *right =
+                            Box::new(BinOp::Binary(BinOpKind::Mul, right.clone(), Box::new(size)));
                         Ty::Ptr(p.clone())
                     }
                     (t2, Ty::Ptr(ref p)) if t2.is_numeric() => {
-                        let size = ExprKind::Unary(Unary::Identity(Primary::Num(
+                        let size = BinOp::Unary(Unary::Identity(Primary::Num(
                             p.sizeof(&self.symbol_table) as i32,
                         )));
-                        *left = Box::new(ExprKind::Binary(
-                            BinOpKind::Mul,
-                            left.clone(),
-                            Box::new(size),
-                        ));
+                        *left =
+                            Box::new(BinOp::Binary(BinOpKind::Mul, left.clone(), Box::new(size)));
                         Ty::Ptr(p.clone())
                     }
                     (Ty::Array(t, size), t2) if t2.is_numeric() => {
-                        let s = ExprKind::Unary(Unary::Identity(Primary::Num(
+                        let s = BinOp::Unary(Unary::Identity(Primary::Num(
                             t.sizeof(&self.symbol_table) as i32,
                         )));
                         *right =
-                            Box::new(ExprKind::Binary(BinOpKind::Mul, right.clone(), Box::new(s)));
+                            Box::new(BinOp::Binary(BinOpKind::Mul, right.clone(), Box::new(s)));
                         Ty::Array(t, size)
                     }
                     (t2, Ty::Array(t, size)) if t2.is_numeric() => {
-                        let s = ExprKind::Unary(Unary::Identity(Primary::Num(
+                        let s = BinOp::Unary(Unary::Identity(Primary::Num(
                             t.sizeof(&self.symbol_table) as i32,
                         )));
-                        *left =
-                            Box::new(ExprKind::Binary(BinOpKind::Mul, left.clone(), Box::new(s)));
+                        *left = Box::new(BinOp::Binary(BinOpKind::Mul, left.clone(), Box::new(s)));
                         Ty::Array(t, size)
                     }
                     (t1, t2) => {
@@ -268,7 +261,7 @@ impl SemanticVisitor {
                     }
                 }
             }
-            ExprKind::Unary(unary) => self.visit_unary(unary),
+            BinOp::Unary(unary) => self.visit_unary(unary),
         }
     }
 
@@ -299,9 +292,9 @@ impl SemanticVisitor {
             }
             Unary::Index(u, e) => {
                 // desugar from u[e] to *(u + e)
-                let u = ExprKind::Unary(*u.clone());
-                let e = ExprKind::Unary(Unary::Identity(Primary::Expr(Box::new(e.clone()))));
-                let binary = ExprKind::Binary(BinOpKind::Add, Box::new(u), Box::new(e));
+                let u = BinOp::Unary(*u.clone());
+                let e = BinOp::Unary(Unary::Identity(Primary::Expr(Box::new(e.clone()))));
+                let binary = BinOp::Binary(BinOpKind::Add, Box::new(u), Box::new(e));
                 let expr = Expr(vec![Assign::Const(ConstantExpr::Identity(binary))]);
                 *unary = Unary::Deref(Box::new(Unary::Identity(Primary::Expr(Box::new(expr)))));
                 self.visit_unary(unary)
@@ -324,10 +317,8 @@ impl SemanticVisitor {
                     })),
                 };
                 let u = Unary::Cast(Box::new(tn), Box::new(*u.clone()));
-                let offset = Box::new(ExprKind::Unary(Unary::Identity(Primary::Num(
-                    offset as i32,
-                ))));
-                let binop = ExprKind::Binary(BinOpKind::Add, Box::new(ExprKind::Unary(u)), offset);
+                let offset = Box::new(BinOp::Unary(Unary::Identity(Primary::Num(offset as i32))));
+                let binop = BinOp::Binary(BinOpKind::Add, Box::new(BinOp::Unary(u)), offset);
                 let expr = Expr(vec![Assign::Const(ConstantExpr::Identity(binop))]);
 
                 let tn = TypeName {
@@ -337,7 +328,7 @@ impl SemanticVisitor {
                         pointer: Box::new(None),
                     })),
                 };
-                let binop = ExprKind::Unary(Unary::Cast(
+                let binop = BinOp::Unary(Unary::Cast(
                     Box::new(tn),
                     Box::new(Unary::Identity(Primary::Expr(Box::new(expr)))),
                 ));

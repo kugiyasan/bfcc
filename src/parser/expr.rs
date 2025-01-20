@@ -46,8 +46,8 @@ impl Assign {
 
 #[derive(Clone, Debug, PartialEq)]
 pub enum ConstantExpr {
-    Identity(ExprKind),
-    Ternary(ExprKind, Expr, Box<ConstantExpr>),
+    Identity(BinOp),
+    Ternary(BinOp, Expr, Box<ConstantExpr>),
 }
 
 impl ConstantExpr {
@@ -82,16 +82,16 @@ pub enum BinOpKind {
 }
 
 #[derive(Clone, Debug, PartialEq)]
-pub enum ExprKind {
+pub enum BinOp {
     Unary(Unary),
-    Binary(BinOpKind, Box<ExprKind>, Box<ExprKind>),
+    Binary(BinOpKind, Box<BinOp>, Box<BinOp>),
 }
 
-impl ExprKind {
+impl BinOp {
     pub fn get_type(&self, symbol_table: &mut SymbolTable) -> Ty {
         match self {
-            ExprKind::Unary(u) => u.get_type(symbol_table),
-            ExprKind::Binary(_, e1, e2) => {
+            BinOp::Unary(u) => u.get_type(symbol_table),
+            BinOp::Binary(_, e1, e2) => {
                 let t1 = e1.get_type(symbol_table);
                 let t2 = e2.get_type(symbol_table);
                 match (t1, t2) {

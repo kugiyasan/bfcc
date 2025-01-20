@@ -1,9 +1,10 @@
 use std::collections::{HashMap, HashSet};
 
 use crate::parser::{
-    AbstractDeclarator, ConstantExpr, DeclarationSpecifier, Declarator, DirectAbstractDeclarator,
-    DirectDeclarator, ExprKind, ParamDeclaration, Pointer, Primary, StructDeclarator,
-    StructOrUnion, StructOrUnionSpecifier, TypeName, TypeSpecifier, TypeSpecifierTrait, Unary,
+    AbstractDeclarator, BinOp, ConstantExpr, DeclarationSpecifier, Declarator,
+    DirectAbstractDeclarator, DirectDeclarator, ParamDeclaration, Pointer, Primary,
+    StructDeclarator, StructOrUnion, StructOrUnionSpecifier, TypeName, TypeSpecifier,
+    TypeSpecifierTrait, Unary,
 };
 
 use super::Ty;
@@ -250,9 +251,8 @@ impl SymbolTable {
             DirectDeclarator::Declarator(d) => self.parse_declarator(t, d),
             DirectDeclarator::Array(dd, e) => {
                 let t = self.parse_direct_declarator(t, dd);
-                let Some(ConstantExpr::Identity(ExprKind::Unary(Unary::Identity(Primary::Num(
-                    size,
-                ))))) = e
+                let Some(ConstantExpr::Identity(BinOp::Unary(Unary::Identity(Primary::Num(size))))) =
+                    e
                 else {
                     todo!("Can't handle ConstExpr");
                 };
@@ -302,9 +302,8 @@ impl SymbolTable {
                 if let Some(d) = dad {
                     t = self.parse_direct_abstract_declarator(t, d);
                 }
-                let Some(ConstantExpr::Identity(ExprKind::Unary(Unary::Identity(Primary::Num(
-                    size,
-                ))))) = e
+                let Some(ConstantExpr::Identity(BinOp::Unary(Unary::Identity(Primary::Num(size))))) =
+                    e
                 else {
                     todo!("Can't handle ConstExpr");
                 };

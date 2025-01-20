@@ -1,9 +1,9 @@
 use crate::lexer::{Token, TokenKind};
 
 use super::{
-    AbstractDeclarator, Assign, AssignOpKind, BinOpKind, CompoundStmt, ConstantExpr, Declaration,
-    DeclarationOrStmt, DeclarationSpecifier, Declarator, DirectAbstractDeclarator,
-    DirectDeclarator, EnumSpecifier, Enumerator, Expr, ExprKind, ExternalDeclaration, FuncDef,
+    AbstractDeclarator, Assign, AssignOpKind, BinOp, BinOpKind, CompoundStmt, ConstantExpr,
+    Declaration, DeclarationOrStmt, DeclarationSpecifier, Declarator, DirectAbstractDeclarator,
+    DirectDeclarator, EnumSpecifier, Enumerator, Expr, ExternalDeclaration, FuncDef,
     InitDeclarator, Initializer, ParamDeclaration, ParamTypeList, Pointer, Primary,
     SpecifierQualifier, Stmt, StorageClassSpecifier, StructDeclaration, StructDeclarator,
     StructOrUnion, StructOrUnionSpecifier, TranslationUnit, TypeQualifier, TypeSpecifier, Unary,
@@ -649,7 +649,7 @@ impl Parser {
     fn parse_assign(&mut self) -> Assign {
         let c = self.parse_constant_expr();
         if let Some(kind) = self.parse_assign_op_kind() {
-            let ConstantExpr::Identity(ExprKind::Unary(unary)) = c else {
+            let ConstantExpr::Identity(BinOp::Unary(unary)) = c else {
                 panic!(
                     "Unexpected non-unary expression on the left hand of an assignment: {:?}",
                     c
@@ -706,18 +706,18 @@ impl Parser {
     }
 
     /// equality = rel (("==" | "!=" ) rel)*
-    fn parse_equality(&mut self) -> ExprKind {
+    fn parse_equality(&mut self) -> BinOp {
         let mut node = self.parse_relational();
 
         loop {
             if self.consume(&TokenKind::DoubleEqual) {
-                node = ExprKind::Binary(
+                node = BinOp::Binary(
                     BinOpKind::Equal,
                     Box::new(node),
                     Box::new(self.parse_equality()),
                 );
             } else if self.consume(&TokenKind::NotEqual) {
-                node = ExprKind::Binary(
+                node = BinOp::Binary(
                     BinOpKind::NotEqual,
                     Box::new(node),
                     Box::new(self.parse_equality()),
@@ -729,30 +729,30 @@ impl Parser {
     }
 
     /// rel = add (("<" | "<=" | ">" | ">=" ) add)*
-    fn parse_relational(&mut self) -> ExprKind {
+    fn parse_relational(&mut self) -> BinOp {
         let mut node = self.parse_add();
 
         loop {
             if self.consume(&TokenKind::LessThan) {
-                node = ExprKind::Binary(
+                node = BinOp::Binary(
                     BinOpKind::LessThan,
                     Box::new(node),
                     Box::new(self.parse_relational()),
                 );
             } else if self.consume(&TokenKind::LessEqual) {
-                node = ExprKind::Binary(
+                node = BinOp::Binary(
                     BinOpKind::LessEqual,
                     Box::new(node),
                     Box::new(self.parse_relational()),
                 );
             } else if self.consume(&TokenKind::GreaterThan) {
-                node = ExprKind::Binary(
+                node = BinOp::Binary(
                     BinOpKind::GreaterThan,
                     Box::new(node),
                     Box::new(self.parse_relational()),
                 );
             } else if self.consume(&TokenKind::GreaterEqual) {
-                node = ExprKind::Binary(
+                node = BinOp::Binary(
                     BinOpKind::GreaterEqual,
                     Box::new(node),
                     Box::new(self.parse_relational()),
@@ -764,14 +764,14 @@ impl Parser {
     }
 
     /// add = mul (("+" | "-") mul)*
-    fn parse_add(&mut self) -> ExprKind {
+    fn parse_add(&mut self) -> BinOp {
         let mut node = self.parse_mul();
 
         loop {
             if self.consume(&TokenKind::Plus) {
-                node = ExprKind::Binary(BinOpKind::Add, Box::new(node), Box::new(self.parse_mul()));
+                node = BinOp::Binary(BinOpKind::Add, Box::new(node), Box::new(self.parse_mul()));
             } else if self.consume(&TokenKind::Minus) {
-                node = ExprKind::Binary(BinOpKind::Sub, Box::new(node), Box::new(self.parse_mul()));
+                node = BinOp::Binary(BinOpKind::Sub, Box::new(node), Box::new(self.parse_mul()));
             } else {
                 return node;
             }
@@ -779,27 +779,27 @@ impl Parser {
     }
 
     /// mul = cast (("*" | "/" | "%") cast)*
-    fn parse_mul(&mut self) -> ExprKind {
-        let mut node = ExprKind::Unary(self.parse_cast());
+    fn parse_mul(&mut self) -> BinOp {
+        let mut node = BinOp::Unary(self.parse_cast());
 
         loop {
             if self.consume(&TokenKind::Star) {
-                node = ExprKind::Binary(
+                node = BinOp::Binary(
                     BinOpKind::Mul,
                     Box::new(node),
-                    Box::new(ExprKind::Unary(self.parse_cast())),
+                    Box::new(BinOp::Unary(self.parse_cast())),
                 );
             } else if self.consume(&TokenKind::Slash) {
-                node = ExprKind::Binary(
+                node = BinOp::Binary(
                     BinOpKind::Div,
                     Box::new(node),
-                    Box::new(ExprKind::Unary(self.parse_cast())),
+                    Box::new(BinOp::Unary(self.parse_cast())),
                 );
             } else if self.consume(&TokenKind::Percent) {
-                node = ExprKind::Binary(
+                node = BinOp::Binary(
                     BinOpKind::Mod,
                     Box::new(node),
-                    Box::new(ExprKind::Unary(self.parse_cast())),
+                    Box::new(BinOp::Unary(self.parse_cast())),
                 );
             } else {
                 return node;
