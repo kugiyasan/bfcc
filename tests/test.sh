@@ -171,8 +171,20 @@ for (i = 0; i < 10; i = i + 1) {
 return tot;
 '
 # step 14
-assertImplicitMain 0 'foo();'
-assertImplicitMain 0 'fooxy(3, 4);'
+assert 0 '
+int foo();
+
+int main() {
+  foo();
+}
+'
+assert 0 '
+int fooxy(int x, int);
+
+int main() {
+  fooxy(3, 4);
+}
+'
 # step 15
 assert 15 '
 int ret() {
@@ -254,14 +266,18 @@ y = &x;
 return x;
 '
 # step 19
-assertImplicitMain 8 '
-int *p;
-alloc4(&p, 1, 2, 4, 8);
-int *q;
-q = p + 2;
-*q;
-q = p + 3;
-return *q;
+assert 8 '
+int alloc4(int **p, int a, int b, int c, int d);
+
+int main() {
+  int *p;
+  alloc4(&p, 1, 2, 4, 8);
+  int *q;
+  q = p + 2;
+  *q;
+  q = p + 3;
+  return *q;
+}
 '
 # step 20
 assertImplicitMain 7 '

@@ -2,7 +2,7 @@ use std::collections::{HashMap, HashSet};
 
 use crate::parser::{
     AbstractDeclarator, BinOp, ConstantExpr, DeclarationSpecifier, Declarator,
-    DirectAbstractDeclarator, DirectDeclarator, ParamDeclaration, Pointer, Primary,
+    DirectAbstractDeclarator, DirectDeclarator, ParamDeclaration, ParamTypeList, Pointer, Primary,
     StructDeclarator, StructOrUnion, StructOrUnionSpecifier, TypeName, TypeSpecifier,
     TypeSpecifierTrait, Unary,
 };
@@ -67,15 +67,15 @@ impl SymbolTable {
         *self.total_offset.get(func_name).expect("Unknown function")
     }
 
-    pub fn declare_local(&mut self, specs: Vec<DeclarationSpecifier>, declarator: Declarator) {
-        let ty = self.from_specs_and_declarator(&specs, &declarator);
+    pub fn declare_local(&mut self, specs: &Vec<DeclarationSpecifier>, declarator: &Declarator) {
+        let ty = self.from_specs_and_declarator(specs, declarator);
         let var_name = declarator.direct.get_name();
         let name = self.format_var_name(&var_name);
         self._declare_var(ty, name);
     }
 
-    pub fn declare_global(&mut self, specs: Vec<DeclarationSpecifier>, declarator: Declarator) {
-        let ty = self.from_specs_and_declarator(&specs, &declarator);
+    pub fn declare_global(&mut self, specs: &Vec<DeclarationSpecifier>, declarator: &Declarator) {
+        let ty = self.from_specs_and_declarator(specs, declarator);
         let var_name = declarator.direct.get_name();
         self.globals.insert(var_name, ty);
     }
@@ -258,25 +258,27 @@ impl SymbolTable {
                 };
                 Ty::Array(Box::new(t), *size as usize)
             }
-            DirectDeclarator::ParamTypeList(dd, ptl) => {
-                let return_ty = self.parse_direct_declarator(ty, dd);
-
-                let args = ptl
-                    .params
-                    .iter()
-                    .map(|pd| match pd {
-                        ParamDeclaration::Declarator(s, d) => self.from_specs_and_declarator(s, d),
-                        ParamDeclaration::AbstractDeclarator(s, None) => self.parse_primary_type(s),
-                        ParamDeclaration::AbstractDeclarator(s, Some(ad)) => {
-                            let ty = self.parse_primary_type(s);
-                            self.parse_abstract_declarator(ty, ad)
-                        }
-                    })
-                    .collect();
-
-                Ty::Func(Box::new(return_ty), args)
-            }
+            DirectDeclarator::ParamTypeList(dd, ptl) => self.parse_param_type_list(ty, dd, ptl),
         }
+    }
+
+    fn parse_param_type_list(&mut self, ty: Ty, dd: &DirectDeclarator, ptl: &ParamTypeList) -> Ty {
+        let return_ty = self.parse_direct_declarator(ty, dd);
+
+        let args = ptl
+            .params
+            .iter()
+            .map(|pd| match pd {
+                ParamDeclaration::Declarator(s, d) => self.from_specs_and_declarator(s, d),
+                ParamDeclaration::AbstractDeclarator(s, None) => self.parse_primary_type(s),
+                ParamDeclaration::AbstractDeclarator(s, Some(ad)) => {
+                    let ty = self.parse_primary_type(s);
+                    self.parse_abstract_declarator(ty, ad)
+                }
+            })
+            .collect();
+
+        Ty::Func(Box::new(return_ty), args)
     }
 
     fn parse_abstract_declarator(&mut self, mut ty: Ty, declarator: &AbstractDeclarator) -> Ty {

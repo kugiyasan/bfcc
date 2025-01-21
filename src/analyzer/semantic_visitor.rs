@@ -38,6 +38,9 @@ impl SemanticVisitor {
     }
 
     fn visit_func_def(&mut self, func_def: &mut FuncDef) {
+        self.symbol_table
+            .declare_global(&func_def.specs, &func_def.declarator);
+
         let DirectDeclarator::ParamTypeList(dd, ptl) = &mut func_def.declarator.direct else {
             panic!("Function declarator should be a ParamTypeList");
         };
@@ -165,11 +168,9 @@ impl SemanticVisitor {
         for init in declaration.inits.iter_mut() {
             if let InitDeclarator::Declarator(d) = init {
                 if is_global {
-                    self.symbol_table
-                        .declare_global(declaration.specs.clone(), d.clone());
+                    self.symbol_table.declare_global(&declaration.specs, &d);
                 } else {
-                    self.symbol_table
-                        .declare_local(declaration.specs.clone(), d.clone());
+                    self.symbol_table.declare_local(&declaration.specs, &d);
                 }
             }
         }
@@ -256,7 +257,12 @@ impl SemanticVisitor {
                         Ty::Array(t, size)
                     }
                     (t1, t2) => {
-                        assert!(t1.is_compatible(&t2));
+                        assert!(
+                            t1.is_compatible(&t2),
+                            "{:?} is not compatible with {:?}",
+                            t1,
+                            t2
+                        );
                         t1
                     }
                 }
@@ -299,8 +305,16 @@ impl SemanticVisitor {
                 *unary = Unary::Deref(Box::new(Unary::Identity(Primary::Expr(Box::new(expr)))));
                 self.visit_unary(unary)
             }
-            Unary::Call(_, None) => Ty::Void, // todo
-            Unary::Call(_, Some(expr)) => self.visit_expr(expr),
+            Unary::Call(u, expr) => {
+                if let Some(e) = expr {
+                    self.visit_expr(e);
+                }
+                let ty = u.get_type(&mut self.symbol_table);
+                let Ty::Func(return_ty, _) = ty else {
+                    panic!("Tried to call invalid type {:?}", ty);
+                };
+                *return_ty
+            }
             Unary::Field(u, f) => {
                 // desugar from u.f to *(T*)((char*)u + offset)
                 let Ty::Struct(name) = u.get_type(&mut self.symbol_table) else {

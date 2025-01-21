@@ -354,7 +354,7 @@ impl Parser {
             let ad = self.parse_abstract_declarator();
             Some(ParamDeclaration::AbstractDeclarator(
                 specs,
-                Some(Box::new(ad)),
+                ad.map(Box::new),
             ))
         }
     }
@@ -379,14 +379,14 @@ impl Parser {
 
     /// abstract-declarator = pointer
     ///                     | pointer? direct-abstract-declarator
-    fn parse_abstract_declarator(&mut self) -> AbstractDeclarator {
+    fn parse_abstract_declarator(&mut self) -> Option<AbstractDeclarator> {
         let p = self.parse_pointer();
         if let Some(dad) = self.parse_direct_abstract_declarator() {
-            AbstractDeclarator::DirectAbstractDeclarator(p, dad)
+            Some(AbstractDeclarator::DirectAbstractDeclarator(p, dad))
         } else if let Some(p) = p {
-            AbstractDeclarator::Pointer(p)
+            Some(AbstractDeclarator::Pointer(p))
         } else {
-            panic!("Tried to parse abstract declarator, but no pointer nor direct abstract declarator found");
+            None
         }
     }
 
@@ -395,7 +395,7 @@ impl Parser {
     ///                            | direct-abstract-declarator? "(" param-type-list? ")"
     fn parse_direct_abstract_declarator(&mut self) -> Option<DirectAbstractDeclarator> {
         if self.consume(&TokenKind::LeftParen) {
-            let ad = self.parse_abstract_declarator();
+            let ad = self.parse_abstract_declarator().unwrap();
             self.expect(&TokenKind::RightParen);
             return Some(DirectAbstractDeclarator::AbstractDeclarator(Box::new(ad)));
         }
