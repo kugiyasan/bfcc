@@ -705,106 +705,8 @@ impl Parser {
         }
     }
 
-    /// equality = rel (("==" | "!=" ) rel)*
-    fn parse_equality(&mut self) -> BinOp {
-        let mut node = self.parse_relational();
-
-        loop {
-            if self.consume(&TokenKind::DoubleEqual) {
-                node = BinOp::Binary(
-                    BinOpKind::Equal,
-                    Box::new(node),
-                    Box::new(self.parse_equality()),
-                );
-            } else if self.consume(&TokenKind::NotEqual) {
-                node = BinOp::Binary(
-                    BinOpKind::NotEqual,
-                    Box::new(node),
-                    Box::new(self.parse_equality()),
-                );
-            } else {
-                return node;
-            }
-        }
-    }
-
-    /// rel = add (("<" | "<=" | ">" | ">=" ) add)*
-    fn parse_relational(&mut self) -> BinOp {
-        let mut node = self.parse_add();
-
-        loop {
-            if self.consume(&TokenKind::LessThan) {
-                node = BinOp::Binary(
-                    BinOpKind::LessThan,
-                    Box::new(node),
-                    Box::new(self.parse_relational()),
-                );
-            } else if self.consume(&TokenKind::LessEqual) {
-                node = BinOp::Binary(
-                    BinOpKind::LessEqual,
-                    Box::new(node),
-                    Box::new(self.parse_relational()),
-                );
-            } else if self.consume(&TokenKind::GreaterThan) {
-                node = BinOp::Binary(
-                    BinOpKind::GreaterThan,
-                    Box::new(node),
-                    Box::new(self.parse_relational()),
-                );
-            } else if self.consume(&TokenKind::GreaterEqual) {
-                node = BinOp::Binary(
-                    BinOpKind::GreaterEqual,
-                    Box::new(node),
-                    Box::new(self.parse_relational()),
-                );
-            } else {
-                return node;
-            }
-        }
-    }
-
-    /// add = mul (("+" | "-") mul)*
-    fn parse_add(&mut self) -> BinOp {
-        let mut node = self.parse_mul();
-
-        loop {
-            if self.consume(&TokenKind::Plus) {
-                node = BinOp::Binary(BinOpKind::Add, Box::new(node), Box::new(self.parse_mul()));
-            } else if self.consume(&TokenKind::Minus) {
-                node = BinOp::Binary(BinOpKind::Sub, Box::new(node), Box::new(self.parse_mul()));
-            } else {
-                return node;
-            }
-        }
-    }
-
-    /// mul = cast (("*" | "/" | "%") cast)*
-    fn parse_mul(&mut self) -> BinOp {
-        let mut node = BinOp::Unary(self.parse_cast());
-
-        loop {
-            if self.consume(&TokenKind::Star) {
-                node = BinOp::Binary(
-                    BinOpKind::Mul,
-                    Box::new(node),
-                    Box::new(BinOp::Unary(self.parse_cast())),
-                );
-            } else if self.consume(&TokenKind::Slash) {
-                node = BinOp::Binary(
-                    BinOpKind::Div,
-                    Box::new(node),
-                    Box::new(BinOp::Unary(self.parse_cast())),
-                );
-            } else if self.consume(&TokenKind::Percent) {
-                node = BinOp::Binary(
-                    BinOpKind::Mod,
-                    Box::new(node),
-                    Box::new(BinOp::Unary(self.parse_cast())),
-                );
-            } else {
-                return node;
-            }
-        }
+    fn parse_cast_wrapped(&mut self) -> BinOp {
+        BinOp::Unary(self.parse_cast())
     }
 
     /// cast = unary
@@ -915,3 +817,61 @@ impl Parser {
         }
     }
 }
+
+macro_rules! parse_binop {
+    ($fn_name: ident, $inner: ident, $($tk: expr => $bok: expr,)+) => {
+        impl Parser {
+            /// arg1 = arg2 (bin-op-kind arg2)*
+            fn $fn_name(&mut self) -> BinOp {
+                let mut node = self.$inner();
+
+                loop {
+                    $(if self.consume(&$tk) {
+                        node = BinOp::Binary(
+                            $bok,
+                            Box::new(node),
+                            Box::new(self.$inner()),
+                        );
+                        continue;
+                    })+
+                    return node;
+                }
+            }
+        }
+    };
+}
+
+// equality = rel (("==" | "!=" ) rel)*
+parse_binop!(
+    parse_equality,
+    parse_rel,
+    TokenKind::DoubleEqual => BinOpKind::Equal,
+    TokenKind::NotEqual => BinOpKind::NotEqual,
+);
+
+// rel = add (("<" | "<=" | ">" | ">=" ) add)*
+parse_binop!(
+    parse_rel,
+    parse_add,
+    TokenKind::LessThan => BinOpKind::LessThan,
+    TokenKind::LessEqual => BinOpKind::LessEqual,
+    TokenKind::GreaterThan => BinOpKind::GreaterThan,
+    TokenKind::GreaterEqual => BinOpKind::GreaterEqual,
+);
+
+// add = mul (("+" | "-") mul)*
+parse_binop!(
+    parse_add,
+    parse_mul,
+    TokenKind::Plus => BinOpKind::Add,
+    TokenKind::Minus => BinOpKind::Sub,
+);
+
+// mul = cast (("*" | "/" | "%") cast)*
+parse_binop!(
+    parse_mul,
+    parse_cast_wrapped,
+    TokenKind::Star => BinOpKind::Mul,
+    TokenKind::Slash => BinOpKind::Div,
+    TokenKind::Percent => BinOpKind::Mod,
+);
