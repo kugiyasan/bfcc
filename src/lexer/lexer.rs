@@ -81,7 +81,7 @@ impl Lexer {
                 }
             } else if c.is_numeric() {
                 self.parse_number(&chars[self.index..]);
-            } else if c.is_ascii_alphabetic() {
+            } else if c.is_ascii_alphabetic() || c == '_' {
                 self.parse_identifier(&chars[self.index..]);
             } else if let Some(kind) = THREE_SYMBOLS_TOKENS.get(&c3) {
                 self.new_token(kind.clone(), 3);
@@ -94,7 +94,7 @@ impl Lexer {
                 self.parse_string(&chars[self.index..]);
                 self.index += 1;
             } else {
-                panic!("can't tokenize {:?}", c);
+                panic!("can't tokenize {:?} at index {}", c, self.index);
             }
         }
     }

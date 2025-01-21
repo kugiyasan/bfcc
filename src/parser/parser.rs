@@ -819,9 +819,9 @@ impl Parser {
 }
 
 macro_rules! parse_binop {
-    ($fn_name: ident, $inner: ident, $($tk: expr => $bok: expr,)+) => {
+    ($doc: literal, $fn_name: ident, $inner: ident, $($tk: expr => $bok: expr,)+) => {
         impl Parser {
-            /// arg1 = arg2 (bin-op-kind arg2)*
+            #[doc=$doc]
             fn $fn_name(&mut self) -> BinOp {
                 let mut node = self.$inner();
 
@@ -841,51 +841,51 @@ macro_rules! parse_binop {
     };
 }
 
-// logical-or = logical-and ("||" logical-and)*
 parse_binop!(
+    "logical-or = logical-and (\"||\" logical-and)*",
     parse_logical_or,
     parse_logical_and,
     TokenKind::PipePipe => BinOpKind::LogicalOr,
 );
 
-// logical-and = bitwise-or ("&&" bitwise-or)*
 parse_binop!(
+    "logical-and = bitwise-or (\"&&\" bitwise-or)*",
     parse_logical_and,
     parse_bitwise_or,
     TokenKind::AmpersandAmpersand => BinOpKind::LogicalAnd,
 );
 
-// bitwise-or = bitwise-xor ("|" bitwise-xor)*
 parse_binop!(
+    "bitwise-or = bitwise-xor (\"|\" bitwise-xor)*",
     parse_bitwise_or,
     parse_bitwise_xor,
     TokenKind::Pipe => BinOpKind::BitwiseOr,
 );
 
-// bitwise-xor = bitwise-and ("^" bitwise-and)*
 parse_binop!(
+    "bitwise-xor = bitwise-and (\"^\" bitwise-and)*",
     parse_bitwise_xor,
     parse_bitwise_and,
     TokenKind::Hat => BinOpKind::BitwiseXor,
 );
 
-// bitwise-and = equality ("&" equality)*
 parse_binop!(
+    "bitwise-and = equality (\"&\" equality)*",
     parse_bitwise_and,
     parse_equality,
     TokenKind::Ampersand => BinOpKind::BitwiseAnd,
 );
 
-// equality = rel (("==" | "!=" ) rel)*
 parse_binop!(
+    "equality = rel ((\"==\" | \"!=\" ) rel)*",
     parse_equality,
     parse_rel,
     TokenKind::DoubleEqual => BinOpKind::Equal,
     TokenKind::NotEqual => BinOpKind::NotEqual,
 );
 
-// rel = shift (("<" | "<=" | ">" | ">=" ) shift)*
 parse_binop!(
+    "rel = shift ((\"<\" | \"<=\" | \">\" | \">=\" ) shift)*",
     parse_rel,
     parse_shift,
     TokenKind::LessThan => BinOpKind::LessThan,
@@ -894,24 +894,24 @@ parse_binop!(
     TokenKind::GreaterEqual => BinOpKind::GreaterEqual,
 );
 
-// shift = add (("<<" | ">>") add)*
 parse_binop!(
+    "shift = add ((\"<<\" | \">>\") add)*",
     parse_shift,
     parse_add,
     TokenKind::LeftShift => BinOpKind::LeftShift,
     TokenKind::RightShift => BinOpKind::RightShift,
 );
 
-// add = mul (("+" | "-") mul)*
 parse_binop!(
+    "add = mul ((\"+\" | \"-\") mul)*",
     parse_add,
     parse_mul,
     TokenKind::Plus => BinOpKind::Add,
     TokenKind::Minus => BinOpKind::Sub,
 );
 
-// mul = cast (("*" | "/" | "%") cast)*
 parse_binop!(
+    "mul = cast ((\"*\" | \"/\" | \"%\") cast)*",
     parse_mul,
     parse_cast_wrapped,
     TokenKind::Star => BinOpKind::Mul,
