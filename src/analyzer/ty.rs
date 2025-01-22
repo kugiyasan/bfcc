@@ -11,6 +11,7 @@ pub enum Ty {
     Array(Box<Ty>, usize),
     Func(Box<Ty>, Vec<Ty>),
     Struct(String),
+    Union(String),
 }
 
 impl Ty {
@@ -26,6 +27,13 @@ impl Ty {
             Ty::Struct(name) => {
                 let tys = symbol_table.get_struct_definition(name);
                 tys.iter().map(|(_, ty)| ty.sizeof(symbol_table)).sum()
+            }
+            Ty::Union(name) => {
+                let tys = symbol_table.get_union_definition(name);
+                tys.iter()
+                    .map(|(_, ty)| ty.sizeof(symbol_table))
+                    .max()
+                    .expect("Zero-sized unions are not supported")
             }
             Ty::Func(_, _) => panic!("sizeof function is not allowed"),
         }

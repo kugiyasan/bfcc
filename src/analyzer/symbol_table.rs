@@ -23,9 +23,11 @@ pub struct SymbolTable {
     strings: HashMap<String, usize>,
     labels: HashSet<String>,
     structs: HashMap<String, Option<Vec<(String, Ty)>>>,
+    unions: HashMap<String, Option<Vec<(String, Ty)>>>,
     typedefs: Typedefs,
 
     last_anonymous_struct_id: usize,
+    last_anonymous_union_id: usize,
     current_func_name: String,
 }
 
@@ -39,16 +41,8 @@ pub enum LvarOffset {
 impl SymbolTable {
     pub fn new(typedefs: Typedefs) -> Self {
         Self {
-            locals: HashMap::new(),
-            globals: HashMap::new(),
-            total_offset: HashMap::new(),
-            strings: HashMap::new(),
-            labels: HashSet::new(),
-            structs: HashMap::new(),
             typedefs,
-
-            last_anonymous_struct_id: 0,
-            current_func_name: "".to_string(),
+            ..Default::default()
         }
     }
 
@@ -72,6 +66,12 @@ impl SymbolTable {
     fn new_anonymous_struct(&mut self) -> String {
         let s = format!(".anonymous_struct{}", self.last_anonymous_struct_id);
         self.last_anonymous_struct_id += 1;
+        s
+    }
+
+    fn new_anonymous_union(&mut self) -> String {
+        let s = format!(".anonymous_union{}", self.last_anonymous_union_id);
+        self.last_anonymous_union_id += 1;
         s
     }
 
@@ -166,6 +166,14 @@ impl SymbolTable {
             .expect("Undefined struct")
     }
 
+    pub fn get_union_definition(&self, name: &str) -> &Vec<(String, Ty)> {
+        self.unions
+            .get(name)
+            .expect("Undefined union")
+            .as_ref()
+            .expect("Undefined union")
+    }
+
     pub fn get_struct_field(&self, name: &str, field: &str) -> (usize, &Ty) {
         let sds = self.get_struct_definition(&name);
         let mut offset = 0;
@@ -245,7 +253,31 @@ impl SymbolTable {
             StructOrUnionSpecifier::Identifier(StructOrUnion::Struct, ident) => {
                 Ty::Struct(ident.clone())
             }
-            s => todo!("{:?}", s),
+            StructOrUnionSpecifier::WithDeclaration(StructOrUnion::Union, ident, sds) => {
+                let u = ident
+                    .as_ref()
+                    .map(|s| s.clone())
+                    .unwrap_or_else(|| self.new_anonymous_union());
+                self.unions.insert(u.clone(), None);
+
+                let mut tys = vec![];
+                for struct_declaration in sds {
+                    let ty = self.parse_primary_type(&struct_declaration.specs);
+                    for sd in struct_declaration.declarators.iter() {
+                        let StructDeclarator::Declarator(d) = sd else {
+                            todo!();
+                        };
+                        let t = self.parse_declarator(ty.clone(), d);
+                        tys.push((d.direct.get_name(), t));
+                    }
+                }
+
+                self.unions.insert(u.clone(), Some(tys));
+                Ty::Union(u)
+            }
+            StructOrUnionSpecifier::Identifier(StructOrUnion::Union, ident) => {
+                Ty::Union(ident.clone())
+            }
         }
     }
 
