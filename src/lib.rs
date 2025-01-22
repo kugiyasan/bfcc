@@ -15,9 +15,10 @@ pub fn compile(user_input: &str) {
 
     let mut parser = Parser::new(tokens);
     let mut translation_unit = parser.parse();
+    let typedefs = parser.get_typedefs();
     // dbg!(&translation_unit);
 
-    let mut visitor = SemanticVisitor::new();
+    let mut visitor = SemanticVisitor::new(typedefs.clone());
     let symbol_table = visitor.visit_translation_unit(&mut translation_unit);
     // dbg!(&translation_unit);
     dbg!(&symbol_table);

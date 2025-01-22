@@ -23,6 +23,12 @@ pub enum DeclarationSpecifier {
     TypeQualifier(TypeQualifier),
 }
 
+impl DeclarationSpecifier {
+    pub fn is_typedef(&self) -> bool {
+        *self == DeclarationSpecifier::StorageClassSpecifier(StorageClassSpecifier::Typedef)
+    }
+}
+
 #[derive(Clone, Debug, PartialEq)]
 pub enum StorageClassSpecifier {
     Auto,

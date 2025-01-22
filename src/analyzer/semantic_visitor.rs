@@ -2,7 +2,7 @@ use crate::parser::{
     AbstractDeclarator, Assign, BinOp, BinOpKind, CompoundStmt, ConstantExpr, Declaration,
     DeclarationOrStmt, Declarator, DirectDeclarator, Expr, ExternalDeclaration, FuncDef,
     InitDeclarator, ParamDeclaration, Pointer, Primary, SpecifierQualifier, Stmt, TranslationUnit,
-    TypeName, TypeSpecifier, Unary,
+    TypeName, TypeSpecifier, Typedefs, Unary,
 };
 
 use super::{symbol_table::SymbolTable, Ty};
@@ -13,9 +13,9 @@ pub struct SemanticVisitor {
 }
 
 impl SemanticVisitor {
-    pub fn new() -> Self {
+    pub fn new(typedefs: Typedefs) -> Self {
         Self {
-            symbol_table: SymbolTable::new(),
+            symbol_table: SymbolTable::new(typedefs),
         }
     }
 
@@ -165,6 +165,9 @@ impl SemanticVisitor {
     }
 
     fn visit_declaration(&mut self, declaration: &mut Declaration, is_global: bool) {
+        if declaration.specs.iter().any(|s| s.is_typedef()) {
+            return;
+        }
         for init in declaration.inits.iter_mut() {
             if let InitDeclarator::Declarator(d) = init {
                 if is_global {

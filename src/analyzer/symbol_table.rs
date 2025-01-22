@@ -4,7 +4,7 @@ use crate::parser::{
     AbstractDeclarator, BinOp, ConstantExpr, DeclarationSpecifier, Declarator,
     DirectAbstractDeclarator, DirectDeclarator, ParamDeclaration, ParamTypeList, Pointer, Primary,
     StructDeclarator, StructOrUnion, StructOrUnionSpecifier, TypeName, TypeSpecifier,
-    TypeSpecifierTrait, Unary,
+    TypeSpecifierTrait, Typedefs, Unary,
 };
 
 use super::Ty;
@@ -23,8 +23,9 @@ pub struct SymbolTable {
     strings: HashMap<String, usize>,
     labels: HashSet<String>,
     structs: HashMap<String, Option<Vec<(String, Ty)>>>,
-    last_anonymous_struct_id: usize,
+    typedefs: Typedefs,
 
+    last_anonymous_struct_id: usize,
     current_func_name: String,
 }
 
@@ -36,8 +37,19 @@ pub enum LvarOffset {
 }
 
 impl SymbolTable {
-    pub fn new() -> Self {
-        Self::default()
+    pub fn new(typedefs: Typedefs) -> Self {
+        Self {
+            locals: HashMap::new(),
+            globals: HashMap::new(),
+            total_offset: HashMap::new(),
+            strings: HashMap::new(),
+            labels: HashSet::new(),
+            structs: HashMap::new(),
+            typedefs,
+
+            last_anonymous_struct_id: 0,
+            current_func_name: "".to_string(),
+        }
     }
 
     pub fn declare_func(&mut self, func_name: String) {
@@ -192,7 +204,14 @@ impl SymbolTable {
                     TypeSpecifier::StructOrUnionSpecifier(s) => {
                         self.parse_struct_or_union_specifier(s)
                     }
-                    _ => todo!(),
+                    TypeSpecifier::TypedefName(typedef_name) => {
+                        let (s, d) = self
+                            .typedefs
+                            .get(typedef_name)
+                            .expect("Typedef name is not in the typedef HashMap");
+                        self.from_specs_and_declarator(&s.clone(), &d.clone())
+                    }
+                    ts => todo!("{:?}", ts),
                 };
             }
         }
@@ -226,7 +245,7 @@ impl SymbolTable {
             StructOrUnionSpecifier::Identifier(StructOrUnion::Struct, ident) => {
                 Ty::Struct(ident.clone())
             }
-            _ => todo!(),
+            s => todo!("{:?}", s),
         }
     }
 

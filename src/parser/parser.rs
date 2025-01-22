@@ -1,3 +1,5 @@
+use std::collections::HashMap;
+
 use crate::lexer::{Token, TokenKind};
 
 use super::{
@@ -6,17 +8,41 @@ use super::{
     DirectDeclarator, EnumSpecifier, Enumerator, Expr, ExternalDeclaration, FuncDef,
     InitDeclarator, Initializer, ParamDeclaration, ParamTypeList, Pointer, Primary,
     SpecifierQualifier, Stmt, StorageClassSpecifier, StructDeclaration, StructDeclarator,
-    StructOrUnion, StructOrUnionSpecifier, TranslationUnit, TypeQualifier, TypeSpecifier, Unary,
+    StructOrUnion, StructOrUnionSpecifier, TranslationUnit, TypeName, TypeQualifier, TypeSpecifier,
+    Unary,
 };
+
+pub type Typedefs = HashMap<String, (Vec<DeclarationSpecifier>, Declarator)>;
 
 pub struct Parser {
     tokens: Vec<Token>,
     index: usize,
+    typedefs: Typedefs,
 }
 
 impl Parser {
     pub fn new(tokens: Vec<Token>) -> Self {
-        Self { tokens, index: 0 }
+        let mut typedefs = HashMap::new();
+        let specs = vec![DeclarationSpecifier::TypeSpecifier(TypeSpecifier::Char)];
+        let p = Pointer {
+            qualifiers: vec![],
+            pointer: Box::new(None),
+        };
+        let d = Declarator {
+            pointer: Some(p),
+            direct: DirectDeclarator::Ident("".to_string()),
+        };
+        typedefs.insert("__builtin_va_list".to_string(), (specs, d));
+
+        Self {
+            tokens,
+            index: 0,
+            typedefs,
+        }
+    }
+
+    pub fn get_typedefs(&self) -> &Typedefs {
+        &self.typedefs
     }
 
     pub fn parse(&mut self) -> TranslationUnit {
@@ -104,7 +130,13 @@ impl Parser {
     /// func-def = declaration-specifiers? declarator compound-stmt
     fn parse_external_declaration(&mut self) -> ExternalDeclaration {
         let specs = self.parse_declaration_specifiers();
-        let declarator = self.parse_declarator().unwrap();
+        let Some(declarator) = self.parse_declarator() else {
+            self.expect(&TokenKind::SemiColon);
+            return ExternalDeclaration::Declaration(Declaration {
+                specs,
+                inits: vec![],
+            });
+        };
 
         if self.consume(&TokenKind::LeftCurlyBrace) {
             let mut stmts = vec![];
@@ -123,6 +155,17 @@ impl Parser {
                 inits.push(self.parse_init_declarator().unwrap());
             }
             self.expect(&TokenKind::SemiColon);
+
+            if specs.iter().any(|s| s.is_typedef()) {
+                for init in &inits {
+                    let InitDeclarator::Declarator(d) = init else {
+                        panic!("Illegal initializer in typedef");
+                    };
+
+                    self.typedefs
+                        .insert(d.direct.get_name(), (specs.clone(), d.clone()));
+                }
+            }
 
             let d = Declaration { specs, inits };
             ExternalDeclaration::Declaration(d)
@@ -221,8 +264,13 @@ impl Parser {
         } else if self.consume(&TokenKind::Enum) {
             let spec = self.parse_enum_specifier();
             Some(TypeSpecifier::EnumSpecifier(spec))
-        // } else if let Some(ident) = self.consume_ident() {
-        //     Some(TypeSpecifier::TypedefName(ident))
+        } else if let Some(ident) = self.consume_ident() {
+            if self.typedefs.contains_key(&ident) {
+                Some(TypeSpecifier::TypedefName(ident))
+            } else {
+                self.index -= 1;
+                None
+            }
         } else {
             None
         }
@@ -475,6 +523,19 @@ impl Parser {
         }
     }
 
+    /// type-name = specifier-qualifier+ abstract-declarator?
+    fn parse_type_name(&mut self) -> Option<TypeName> {
+        let mut specs = vec![self.parse_specifier_qualifier()?];
+        while let Some(sq) = self.parse_specifier_qualifier() {
+            specs.push(sq);
+        }
+        let ad = self.parse_abstract_declarator();
+        Some(TypeName {
+            specs,
+            declarator: ad,
+        })
+    }
+
     /// abstract-declarator = pointer
     ///                     | pointer? direct-abstract-declarator
     fn parse_abstract_declarator(&mut self) -> Option<AbstractDeclarator> {
@@ -710,8 +771,16 @@ impl Parser {
     }
 
     /// cast = unary
-    ///      | "(" typename ")" cast
+    ///      | "(" type-name ")" cast
     fn parse_cast(&mut self) -> Unary {
+        if self.consume(&TokenKind::LeftParen) {
+            if let Some(tn) = self.parse_type_name() {
+                self.expect(&TokenKind::RightParen);
+                return Unary::Cast(Box::new(tn), Box::new(self.parse_cast()));
+            } else {
+                self.index -= 1;
+            }
+        }
         self.parse_unary()
     }
 
@@ -725,6 +794,7 @@ impl Parser {
     ///       | "++" unary
     ///       | "--" unary
     ///       | "sizeof" unary
+    ///       | "sizeof" "(" type-name ")"
     fn parse_unary(&mut self) -> Unary {
         if self.consume(&TokenKind::Plus) {
             self.parse_cast()
@@ -743,6 +813,14 @@ impl Parser {
         } else if self.consume(&TokenKind::MinusMinus) {
             Unary::PrefixDecrement(Box::new(self.parse_cast()))
         } else if self.consume(&TokenKind::Sizeof) {
+            if self.consume(&TokenKind::LeftParen) {
+                if let Some(tn) = self.parse_type_name() {
+                    self.expect(&TokenKind::RightParen);
+                    return Unary::SizeofType(Box::new(tn));
+                } else {
+                    self.index -= 1;
+                }
+            }
             Unary::Sizeof(Box::new(self.parse_unary()))
         } else {
             self.parse_postfix_expr()
