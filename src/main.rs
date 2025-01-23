@@ -1,15 +1,58 @@
 // https://www.sigbus.info/compilerbook
 // https://cs.wmich.edu/~gupta/teaching/cs4850/sumII06/The%20syntax%20of%20C%20in%20Backus-Naur%20form.htm
 
-use std::env;
+use clap::Parser;
+use clap_stdin::FileOrStdin;
+use std::{
+    io::Write,
+    path::PathBuf,
+    process::{Command, Stdio},
+};
 
-fn main() {
-    let mut env: Vec<_> = env::args_os().map(|s| s.into_string().unwrap()).collect();
-    if env.len() != 2 {
-        eprintln!("Wrong number of arguments!");
-        return;
+#[derive(Parser)]
+#[command(version, about, long_about = None)]
+struct Cli {
+    input_file: FileOrStdin,
+
+    #[arg(short, long, value_name = "FILE")]
+    output_file: Option<PathBuf>,
+}
+
+fn run_preprocessor(input_file_content: &[u8]) -> Result<String, Box<dyn std::error::Error>> {
+    let args = [
+        "-E",
+        "-P",
+        "-D",
+        "__attribute__(x)=",
+        "-D",
+        "__restrict=",
+        "-D",
+        "__asm__(x)=",
+        "-",
+    ];
+    let mut gcc = Command::new("gcc")
+        .stdin(Stdio::piped())
+        .stdout(Stdio::piped())
+        .args(args)
+        .spawn()?;
+
+    let mut stdin = gcc.stdin.take().unwrap();
+    stdin.write_all(input_file_content)?;
+    drop(stdin);
+
+    let output = gcc.wait_with_output()?;
+    if !output.status.success() {
+        return Err(output.status.to_string().into());
     }
+    let preprocessed_content = String::from_utf8(output.stdout)?;
+    Ok(preprocessed_content)
+}
 
-    let user_input = env.pop().unwrap();
-    bfcc::compile(&user_input);
+fn main() -> Result<(), Box<dyn std::error::Error>> {
+    let cli = Cli::parse();
+    let input_file_content = cli.input_file.contents()?;
+
+    let preprocessed_content = run_preprocessor(input_file_content.as_bytes())?;
+    bfcc::compile(&preprocessed_content);
+    Ok(())
 }

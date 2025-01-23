@@ -15,7 +15,7 @@ assert() {
   expected="$1"
   input="$2"
 
-  "$BFCC" "$input" > tmp.s
+  printf '%s' "$input" | "$BFCC" - > tmp.s
   cc -o tmp tmp.s foo.o
   printf '%b' "$PURPLE"
   ./tmp
