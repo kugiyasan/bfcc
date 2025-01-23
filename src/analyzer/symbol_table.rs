@@ -15,6 +15,20 @@ struct VarType {
     offset: usize,
 }
 
+mod ty_counter {
+    pub const VOID: usize = 1 << 0;
+    // pub const BOOL: usize = 1 << 2;
+    pub const CHAR: usize = 1 << 4;
+    pub const SHORT: usize = 1 << 6;
+    pub const INT: usize = 1 << 8;
+    pub const LONG: usize = 1 << 10;
+    pub const FLOAT: usize = 1 << 12;
+    pub const DOUBLE: usize = 1 << 14;
+    // pub const OTHER: usize = 1 << 16;
+    pub const SIGNED: usize = 1 << 17;
+    pub const UNSIGNED: usize = 1 << 18;
+}
+
 #[derive(Clone, Debug, Default)]
 pub struct SymbolTable {
     locals: HashMap<String, VarType>,
@@ -121,7 +135,7 @@ impl SymbolTable {
 
     pub fn declare_string(&mut self, s: Vec<u8>) {
         let name = s.iter().map(|&b| b as char).collect::<String>();
-        let ty = Ty::Array(Box::new(Ty::Char), s.len());
+        let ty = Ty::Array(Box::new(Ty::I8), s.len());
         self._declare_var(ty, name.clone());
         self.strings.insert(name, self.strings.len());
     }
@@ -197,33 +211,85 @@ impl SymbolTable {
         self.parse_declarator(ty, declarator)
     }
 
+    /// inspired from https://github.com/rui314/chibicc/blob/main/parse.c#L381
     fn parse_primary_type<T>(&mut self, specs: &Vec<T>) -> Ty
     where
         T: TypeSpecifierTrait,
     {
+        let mut counter = 0;
         for spec in specs {
             if let Some(ts) = spec.get_type_specifier() {
-                return match ts {
-                    TypeSpecifier::Void => Ty::Void,
-                    TypeSpecifier::Char => Ty::Char,
-                    TypeSpecifier::Short => Ty::Short,
-                    TypeSpecifier::Int => Ty::Int,
-                    TypeSpecifier::Long => Ty::Long,
+                match ts {
+                    TypeSpecifier::Void => counter += ty_counter::VOID,
+                    TypeSpecifier::Char => counter += ty_counter::CHAR,
+                    TypeSpecifier::Short => counter += ty_counter::SHORT,
+                    TypeSpecifier::Int => counter += ty_counter::INT,
+                    TypeSpecifier::Long => counter += ty_counter::LONG,
+
+                    TypeSpecifier::Float => counter += ty_counter::FLOAT,
+                    TypeSpecifier::Double => counter += ty_counter::DOUBLE,
+                    TypeSpecifier::Signed => counter += ty_counter::SIGNED,
+                    TypeSpecifier::Unsigned => counter += ty_counter::UNSIGNED,
+
                     TypeSpecifier::StructOrUnionSpecifier(s) => {
-                        self.parse_struct_or_union_specifier(s)
+                        return self.parse_struct_or_union_specifier(s);
+                    }
+                    TypeSpecifier::EnumSpecifier(_) => {
+                        todo!();
                     }
                     TypeSpecifier::TypedefName(typedef_name) => {
                         let (s, d) = self
                             .typedefs
                             .get(typedef_name)
                             .expect("Typedef name is not in the typedef HashMap");
-                        self.from_specs_and_declarator(&s.clone(), &d.clone())
+                        return self.from_specs_and_declarator(&s.clone(), &d.clone());
                     }
-                    ts => todo!("{:?}", ts),
                 };
             }
         }
-        panic!("Variable of unknown type");
+        self.counter_to_ty(counter)
+    }
+
+    fn counter_to_ty(&self, counter: usize) -> Ty {
+        use ty_counter::*;
+        match counter {
+            VOID => Ty::Void,
+            // ty_counter::BOOL => Ty::Bool,
+            v if v == CHAR || v == SIGNED + CHAR => Ty::I8,
+            v if v == UNSIGNED + CHAR => Ty::U8,
+            v if v == SHORT
+                || v == SHORT + INT
+                || v == SIGNED + SHORT
+                || v == SIGNED + SHORT + INT =>
+            {
+                Ty::I16
+            }
+            v if v == UNSIGNED + SHORT || v == UNSIGNED + SHORT + INT => Ty::U16,
+            v if v == INT || v == SIGNED || v == SIGNED + INT => Ty::I32,
+            v if v == UNSIGNED || v == UNSIGNED + INT => Ty::U32,
+            v if v == LONG
+                || v == LONG + INT
+                || v == LONG + LONG
+                || v == LONG + LONG + INT
+                || v == SIGNED + LONG
+                || v == SIGNED + LONG + INT
+                || v == SIGNED + LONG + LONG
+                || v == SIGNED + LONG + LONG + INT =>
+            {
+                Ty::I64
+            }
+            v if v == UNSIGNED + LONG
+                || v == UNSIGNED + LONG + INT
+                || v == UNSIGNED + LONG + LONG
+                || v == UNSIGNED + LONG + LONG + INT =>
+            {
+                Ty::U64
+            }
+            v if v == FLOAT => Ty::F32,
+            v if v == DOUBLE => Ty::F64,
+            v if v == LONG + DOUBLE => todo!(),
+            _ => panic!("Variable of unknown type"),
+        }
     }
 
     fn parse_struct_or_union_specifier(&mut self, s: &StructOrUnionSpecifier) -> Ty {

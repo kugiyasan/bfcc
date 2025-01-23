@@ -109,6 +109,9 @@ impl Codegen {
         match external_declaration {
             ExternalDeclaration::FuncDef(f) => self.gen_func_def(f),
             ExternalDeclaration::Declaration(Declaration { specs, inits }) => {
+                if specs.iter().any(|s| s.is_typedef()) {
+                    return;
+                }
                 for init in inits {
                     let InitDeclarator::Declarator(ref declarator) = init else {
                         todo!();

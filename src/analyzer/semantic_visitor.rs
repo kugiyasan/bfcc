@@ -297,7 +297,7 @@ impl SemanticVisitor {
             Unary::Sizeof(u) => {
                 let t = self.visit_unary(u.as_mut());
                 *unary = Unary::Identity(Primary::Num(t.sizeof(&self.symbol_table) as i32));
-                Ty::Int
+                Ty::I32
             }
             Unary::Index(u, e) => {
                 // desugar from u[e] to *(u + e)
@@ -366,10 +366,10 @@ impl SemanticVisitor {
     fn visit_primary(&mut self, primary: &mut Primary) -> Ty {
         match primary {
             Primary::Ident(ident) => self.symbol_table.get_var_type(ident),
-            Primary::Num(_) => Ty::Int,
+            Primary::Num(_) => Ty::I32,
             Primary::String(b) => {
                 self.symbol_table.declare_string(b.clone());
-                Ty::Array(Box::new(Ty::Char), b.len())
+                Ty::Array(Box::new(Ty::I8), b.len())
             }
             Primary::Expr(expr) => self.visit_expr(expr.as_mut()),
         }
