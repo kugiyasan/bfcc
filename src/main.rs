@@ -14,6 +14,9 @@ use std::{
 struct Cli {
     input_file: FileOrStdin,
 
+    #[arg(short, long)]
+    print_preprocessed: bool,
+
     #[arg(short, long, value_name = "FILE")]
     output_file: Option<PathBuf>,
 }
@@ -53,6 +56,12 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     let input_file_content = cli.input_file.contents()?;
 
     let preprocessed_content = run_preprocessor(input_file_content.as_bytes())?;
+
+    if cli.print_preprocessed {
+        println!("{}", preprocessed_content);
+        return Ok(());
+    }
+
     bfcc::compile(&preprocessed_content);
     Ok(())
 }
