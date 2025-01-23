@@ -27,6 +27,10 @@ impl DeclarationSpecifier {
     pub fn is_typedef(&self) -> bool {
         *self == DeclarationSpecifier::StorageClassSpecifier(StorageClassSpecifier::Typedef)
     }
+
+    pub fn is_extern(&self) -> bool {
+        *self == DeclarationSpecifier::StorageClassSpecifier(StorageClassSpecifier::Extern)
+    }
 }
 
 #[derive(Clone, Debug, PartialEq)]

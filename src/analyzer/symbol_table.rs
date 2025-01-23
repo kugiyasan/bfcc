@@ -136,7 +136,7 @@ impl SymbolTable {
     pub fn declare_string(&mut self, s: Vec<u8>) {
         let name = s.iter().map(|&b| b as char).collect::<String>();
         let ty = Ty::Array(Box::new(Ty::I8), s.len());
-        self._declare_var(ty, name.clone());
+        self._declare_var_with_offset(ty, name.clone(), 8);
         self.strings.insert(name, self.strings.len());
     }
 

@@ -109,7 +109,7 @@ impl Codegen {
         match external_declaration {
             ExternalDeclaration::FuncDef(f) => self.gen_func_def(f),
             ExternalDeclaration::Declaration(Declaration { specs, inits }) => {
-                if specs.iter().any(|s| s.is_typedef()) {
+                if specs.iter().any(|s| s.is_typedef() || s.is_extern()) {
                     return;
                 }
                 for init in inits {
