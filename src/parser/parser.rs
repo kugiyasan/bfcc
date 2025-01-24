@@ -662,9 +662,13 @@ impl Parser {
             self.expect(&TokenKind::SemiColon);
             Stmt::Break
         } else if self.consume(&TokenKind::Return) {
-            let expr = self.parse_expr();
-            self.expect(&TokenKind::SemiColon);
-            Stmt::Return(expr)
+            if self.consume(&TokenKind::SemiColon) {
+                Stmt::Return(None)
+            } else {
+                let expr = self.parse_expr();
+                self.expect(&TokenKind::SemiColon);
+                Stmt::Return(Some(expr))
+            }
         } else {
             let expr = self.parse_expr();
             self.expect(&TokenKind::SemiColon);

@@ -161,9 +161,10 @@ impl SemanticVisitor {
             Stmt::Goto(_) => (),
             Stmt::Continue => todo!(),
             Stmt::Break => todo!(),
-            Stmt::Return(expr) => {
+            Stmt::Return(Some(expr)) => {
                 self.visit_expr(expr);
             }
+            Stmt::Return(None) => (),
         };
     }
 

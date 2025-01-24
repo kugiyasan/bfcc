@@ -187,9 +187,12 @@ impl Codegen {
             Stmt::Goto(ident) => {
                 println!("  jmp {}", ident);
             }
-            Stmt::Return(expr) => {
+            Stmt::Return(Some(expr)) => {
                 self.gen_expr(expr);
                 println!("  pop rax");
+                epilogue();
+            }
+            Stmt::Return(None) => {
                 epilogue();
             }
             _ => todo!(),

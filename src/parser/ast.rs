@@ -236,7 +236,7 @@ pub enum Stmt {
     Goto(String),
     Continue,
     Break,
-    Return(Expr),
+    Return(Option<Expr>),
 }
 
 #[derive(Clone, Debug, PartialEq)]
