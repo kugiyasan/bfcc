@@ -242,6 +242,8 @@ impl Parser {
     fn parse_type_specifier(&mut self) -> Option<TypeSpecifier> {
         if self.consume(&TokenKind::Void) {
             Some(TypeSpecifier::Void)
+        } else if self.consume(&TokenKind::Bool) {
+            Some(TypeSpecifier::Bool)
         } else if self.consume(&TokenKind::Char) {
             Some(TypeSpecifier::Char)
         } else if self.consume(&TokenKind::Short) {

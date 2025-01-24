@@ -37,6 +37,7 @@ pub(super) static KEYWORDS: phf::Map<&str, TokenKind> = phf_map! {
     "void" => TokenKind::Void,
     "volatile" => TokenKind::Volatile,
     "while" => TokenKind::While,
+    "_Bool" => TokenKind::Bool,
     "_Complex" => TokenKind::Complex,
     "_Imaginary" => TokenKind::Imaginary,
 };
@@ -105,6 +106,7 @@ pub(super) static THREE_SYMBOLS_TOKENS: phf::Map<&str, TokenKind> = phf_map! {
 #[derive(Clone, Debug, PartialEq)]
 pub enum TokenKind {
     Auto,
+    Bool,
     Break,
     Case,
     Char,

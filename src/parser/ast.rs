@@ -45,6 +45,7 @@ pub enum StorageClassSpecifier {
 #[derive(Clone, Debug, PartialEq)]
 pub enum TypeSpecifier {
     Void,
+    Bool,
     Char,
     Short,
     Int,

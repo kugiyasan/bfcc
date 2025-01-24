@@ -17,7 +17,7 @@ struct VarType {
 
 mod ty_counter {
     pub const VOID: usize = 1 << 0;
-    // pub const BOOL: usize = 1 << 2;
+    pub const BOOL: usize = 1 << 2;
     pub const CHAR: usize = 1 << 4;
     pub const SHORT: usize = 1 << 6;
     pub const INT: usize = 1 << 8;
@@ -221,6 +221,7 @@ impl SymbolTable {
             if let Some(ts) = spec.get_type_specifier() {
                 match ts {
                     TypeSpecifier::Void => counter += ty_counter::VOID,
+                    TypeSpecifier::Bool => counter += ty_counter::BOOL,
                     TypeSpecifier::Char => counter += ty_counter::CHAR,
                     TypeSpecifier::Short => counter += ty_counter::SHORT,
                     TypeSpecifier::Int => counter += ty_counter::INT,
@@ -254,7 +255,7 @@ impl SymbolTable {
         use ty_counter::*;
         match counter {
             VOID => Ty::Void,
-            // ty_counter::BOOL => Ty::Bool,
+            v if v == BOOL => Ty::Bool,
             v if v == CHAR || v == SIGNED + CHAR => Ty::I8,
             v if v == UNSIGNED + CHAR => Ty::U8,
             v if v == SHORT

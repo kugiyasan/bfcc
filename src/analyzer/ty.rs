@@ -3,6 +3,7 @@ use super::SymbolTable;
 #[derive(Clone, Debug, PartialEq)]
 pub enum Ty {
     Void,
+    Bool,
     I8,
     I16,
     I32,
@@ -24,7 +25,7 @@ impl Ty {
     pub fn sizeof(&self, symbol_table: &SymbolTable) -> usize {
         match self {
             Ty::Void => 0,
-            Ty::I8 | Ty::U8 => 1,
+            Ty::Bool | Ty::I8 | Ty::U8 => 1,
             Ty::I16 | Ty::U16 => 2,
             Ty::I32 | Ty::U32 | Ty::F32 => 4,
             Ty::I64 | Ty::U64 | Ty::F64 | Ty::Ptr(_) => 8,
