@@ -35,6 +35,12 @@ fn run_preprocessor(input_file_content: &[u8]) -> Result<String, Box<dyn std::er
         "__extension__=",
         "-D",
         "__inline=",
+        "-D",
+        "__builtin_bswap16=__bswap_constant_16",
+        "-D",
+        "__builtin_bswap32=__bswap_constant_32",
+        "-D",
+        "__builtin_bswap64=__bswap_constant_64",
         "-",
     ];
     let mut gcc = Command::new("gcc")

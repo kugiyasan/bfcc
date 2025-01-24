@@ -215,10 +215,9 @@ impl Parser {
             Some(DeclarationSpecifier::StorageClassSpecifier(s))
         } else if let Some(s) = self.parse_type_specifier() {
             Some(DeclarationSpecifier::TypeSpecifier(s))
-        } else if let Some(q) = self.parse_type_qualifier() {
-            Some(DeclarationSpecifier::TypeQualifier(q))
         } else {
-            None
+            self.parse_type_qualifier()
+                .map(DeclarationSpecifier::TypeQualifier)
         }
     }
 
@@ -349,10 +348,9 @@ impl Parser {
     fn parse_specifier_qualifier(&mut self) -> Option<SpecifierQualifier> {
         if let Some(ts) = self.parse_type_specifier() {
             Some(SpecifierQualifier::TypeSpecifier(ts))
-        } else if let Some(tq) = self.parse_type_qualifier() {
-            Some(SpecifierQualifier::TypeQualifier(tq))
         } else {
-            None
+            self.parse_type_qualifier()
+                .map(SpecifierQualifier::TypeQualifier)
         }
     }
 
@@ -549,10 +547,8 @@ impl Parser {
         let p = self.parse_pointer();
         if let Some(dad) = self.parse_direct_abstract_declarator() {
             Some(AbstractDeclarator::DirectAbstractDeclarator(p, dad))
-        } else if let Some(p) = p {
-            Some(AbstractDeclarator::Pointer(p))
         } else {
-            None
+            p.map(AbstractDeclarator::Pointer)
         }
     }
 

@@ -119,7 +119,7 @@ impl SymbolTable {
     }
 
     fn _declare_var(&mut self, ty: Ty, name: String) {
-        let size = ty.sizeof(&self);
+        let size = ty.sizeof(self);
         self._declare_var_with_offset(ty, name, size)
     }
 
@@ -160,12 +160,12 @@ impl SymbolTable {
 
     pub fn get_var_type(&self, var_name: &str) -> Ty {
         let name = self.format_var_name(var_name);
-        let ty = self
-            .locals
+        self.locals
             .get(&name)
             .map(|v| &v.ty)
-            .or_else(|| self.globals.get(var_name));
-        ty.expect("Undeclared variable").clone()
+            .or_else(|| self.globals.get(var_name))
+            .unwrap_or_else(|| panic!("Undeclared variable: {}", var_name))
+            .clone()
     }
 
     pub fn add_label(&mut self, name: String) {
@@ -189,14 +189,14 @@ impl SymbolTable {
     }
 
     pub fn get_struct_field(&self, name: &str, field: &str) -> (usize, &Ty) {
-        let sds = self.get_struct_definition(&name);
+        let sds = self.get_struct_definition(name);
         let mut offset = 0;
 
         for (s, ty) in sds {
             if s == field {
                 return (offset, ty);
             }
-            offset += ty.sizeof(&self);
+            offset += ty.sizeof(self);
         }
 
         panic!("Accessing unknown field {:?} on struct {:?}", field, name);
@@ -297,8 +297,7 @@ impl SymbolTable {
         match s {
             StructOrUnionSpecifier::WithDeclaration(StructOrUnion::Struct, ident, sds) => {
                 let s = ident
-                    .as_ref()
-                    .map(|s| s.clone())
+                    .clone()
                     .unwrap_or_else(|| self.new_anonymous_struct());
                 self.structs.insert(s.clone(), None);
 
@@ -322,8 +321,7 @@ impl SymbolTable {
             }
             StructOrUnionSpecifier::WithDeclaration(StructOrUnion::Union, ident, sds) => {
                 let u = ident
-                    .as_ref()
-                    .map(|s| s.clone())
+                    .clone()
                     .unwrap_or_else(|| self.new_anonymous_union());
                 self.unions.insert(u.clone(), None);
 

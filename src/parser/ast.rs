@@ -155,7 +155,7 @@ impl Pointer {
             .as_ref()
             .map_or(0, |p| p.get_number_of_consumed_tokens());
 
-        return 1 + self.qualifiers.len() + ct;
+        1 + self.qualifiers.len() + ct
     }
 }
 
