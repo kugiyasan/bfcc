@@ -45,10 +45,21 @@ impl Ty {
         }
     }
 
+    pub fn assert_compatible(&self, other: &Self) {
+        assert!(
+            self.is_compatible(other),
+            "{:?} is not compatible with {:?}",
+            self,
+            other
+        );
+    }
+
     pub fn is_compatible(&self, other: &Self) -> bool {
         match (self, other) {
             (t1, t2) if t1 == t2 => true,
             (t1, t2) if t1.is_numeric() && t2.is_numeric() => true,
+            (Ty::Ptr(p1), Ty::Ptr(p2)) => p1.is_compatible(p2),
+            (Ty::Void, _) | (_, Ty::Void) => true,
             _ => false,
         }
     }
