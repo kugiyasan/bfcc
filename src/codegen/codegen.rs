@@ -284,8 +284,12 @@ impl Codegen {
     }
 
     fn gen_expr(&mut self, expr: Expr) {
-        for assign in expr.0 {
+        let len = expr.0.len();
+        for (i, assign) in expr.0.into_iter().enumerate() {
             self.gen_assign(assign);
+            if i + 1 < len {
+                println!("  pop rax");
+            }
         }
     }
 
