@@ -301,7 +301,8 @@ impl SemanticVisitor {
             Unary::Identity(primary) => self.visit_primary(primary),
             Unary::Cast(tn, u) => {
                 self.visit_unary(u);
-                self.symbol_table.from_type_name(tn)
+                self.symbol_table
+                    .from_specs_and_abstract_declarator(&tn.specs, &tn.declarator)
             }
             Unary::Neg(u) => self.visit_unary(u.as_mut()),
             Unary::Ref(u) => {
@@ -350,7 +351,9 @@ impl SemanticVisitor {
                 Ty::I32
             }
             Unary::SizeofType(tn) => {
-                let ty = self.symbol_table.from_type_name(tn);
+                let ty = self
+                    .symbol_table
+                    .from_specs_and_abstract_declarator(&tn.specs, &tn.declarator);
                 *unary = Unary::Identity(Primary::Num(ty.sizeof(&self.symbol_table) as i32));
                 Ty::I32
             }

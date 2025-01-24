@@ -3,8 +3,8 @@ use std::collections::{HashMap, HashSet};
 use crate::parser::{
     AbstractDeclarator, BinOp, ConstantExpr, DeclarationSpecifier, Declarator,
     DirectAbstractDeclarator, DirectDeclarator, ParamDeclaration, ParamTypeList, Pointer, Primary,
-    StructDeclarator, StructOrUnion, StructOrUnionSpecifier, TypeName, TypeSpecifier,
-    TypeSpecifierTrait, Typedefs, Unary,
+    StructDeclarator, StructOrUnion, StructOrUnionSpecifier, TypeSpecifier, TypeSpecifierTrait,
+    Typedefs, Unary,
 };
 
 use super::Ty;
@@ -211,6 +211,22 @@ impl SymbolTable {
         self.parse_declarator(ty, declarator)
     }
 
+    pub fn from_specs_and_abstract_declarator<T>(
+        &mut self,
+        specs: &Vec<T>,
+        declarator: &Option<AbstractDeclarator>,
+    ) -> Ty
+    where
+        T: TypeSpecifierTrait,
+    {
+        let ty = self.parse_primary_type(specs);
+        if let Some(d) = declarator {
+            self.parse_abstract_declarator(ty, d)
+        } else {
+            ty
+        }
+    }
+
     /// inspired from https://github.com/rui314/chibicc/blob/main/parse.c#L381
     fn parse_primary_type<T>(&mut self, specs: &Vec<T>) -> Ty
     where
@@ -296,9 +312,7 @@ impl SymbolTable {
     fn parse_struct_or_union_specifier(&mut self, s: &StructOrUnionSpecifier) -> Ty {
         match s {
             StructOrUnionSpecifier::WithDeclaration(StructOrUnion::Struct, ident, sds) => {
-                let s = ident
-                    .clone()
-                    .unwrap_or_else(|| self.new_anonymous_struct());
+                let s = ident.clone().unwrap_or_else(|| self.new_anonymous_struct());
                 self.structs.insert(s.clone(), None);
 
                 let mut tys = vec![];
@@ -320,9 +334,7 @@ impl SymbolTable {
                 Ty::Struct(ident.clone())
             }
             StructOrUnionSpecifier::WithDeclaration(StructOrUnion::Union, ident, sds) => {
-                let u = ident
-                    .clone()
-                    .unwrap_or_else(|| self.new_anonymous_union());
+                let u = ident.clone().unwrap_or_else(|| self.new_anonymous_union());
                 self.unions.insert(u.clone(), None);
 
                 let mut tys = vec![];
@@ -428,15 +440,6 @@ impl SymbolTable {
                 Ty::Array(Box::new(ty), *size as usize)
             }
             DirectAbstractDeclarator::ParamTypeList(_, _) => todo!(),
-        }
-    }
-
-    pub fn from_type_name(&mut self, tn: &TypeName) -> Ty {
-        let ty = self.parse_primary_type(&tn.specs);
-        if let Some(d) = &tn.declarator {
-            self.parse_abstract_declarator(ty, d)
-        } else {
-            ty
         }
     }
 }

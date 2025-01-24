@@ -150,7 +150,9 @@ impl Unary {
     pub fn get_type(&self, symbol_table: &mut SymbolTable) -> Ty {
         match self {
             Unary::Identity(p) => p.get_type(symbol_table),
-            Unary::Cast(tn, _) => symbol_table.from_type_name(tn),
+            Unary::Cast(tn, _) => {
+                symbol_table.from_specs_and_abstract_declarator(&tn.specs, &tn.declarator)
+            }
             Unary::Call(_, _) => todo!(),
             Unary::Index(_, _) => panic!("Semantic visitor should have desugared indexing"),
             Unary::Field(u, f) => {
