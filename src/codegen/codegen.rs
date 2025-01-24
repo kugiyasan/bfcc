@@ -293,6 +293,10 @@ impl Codegen {
         match assign {
             Assign::Const(c) => self.gen_constant_expr(c),
             Assign::Assign(unary, kind, a) => {
+                if kind != AssignOpKind::Assign {
+                    unreachable!("Complex assignments should be desugared by SemanticVisitor");
+                }
+
                 let var_type_size;
                 if let Unary::Deref(u) = unary {
                     var_type_size = u
@@ -319,15 +323,10 @@ impl Codegen {
                     8 => "rdi",
                     _ => panic!("Unexpected variable type size: {}", var_type_size),
                 };
-                match kind {
-                    AssignOpKind::Assign => {
-                        println!("  pop rdi");
-                        println!("  pop rax");
-                        println!("  mov [rax], {}", src_reg);
-                        println!("  push rdi");
-                    }
-                    _ => todo!(),
-                }
+                println!("  pop rdi");
+                println!("  pop rax");
+                println!("  mov [rax], {}", src_reg);
+                println!("  push rdi");
             }
         }
     }

@@ -29,6 +29,24 @@ pub enum AssignOpKind {
     OrAssign,
 }
 
+impl AssignOpKind {
+    pub fn to_bin_op_kind(&self) -> BinOpKind {
+        match self {
+            AssignOpKind::Assign => unreachable!(),
+            AssignOpKind::MulAssign => BinOpKind::Mul,
+            AssignOpKind::DivAssign => BinOpKind::Div,
+            AssignOpKind::ModAssign => BinOpKind::Mod,
+            AssignOpKind::AddAssign => BinOpKind::Add,
+            AssignOpKind::SubAssign => BinOpKind::Sub,
+            AssignOpKind::LeftShiftAssign => BinOpKind::LeftShift,
+            AssignOpKind::RightShiftAssign => BinOpKind::RightShift,
+            AssignOpKind::AndAssign => BinOpKind::BitwiseAnd,
+            AssignOpKind::XorAssign => BinOpKind::BitwiseXor,
+            AssignOpKind::OrAssign => BinOpKind::BitwiseOr,
+        }
+    }
+}
+
 #[derive(Clone, Debug, PartialEq)]
 pub enum Assign {
     Const(ConstantExpr),

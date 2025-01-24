@@ -1,8 +1,8 @@
 use crate::parser::{
-    AbstractDeclarator, Assign, BinOp, BinOpKind, CompoundStmt, ConstantExpr, Declaration,
-    DeclarationOrStmt, Declarator, DirectDeclarator, Expr, ExternalDeclaration, FuncDef,
-    InitDeclarator, ParamDeclaration, Pointer, Primary, SpecifierQualifier, Stmt, TranslationUnit,
-    TypeName, TypeSpecifier, Typedefs, Unary,
+    AbstractDeclarator, Assign, AssignOpKind, BinOp, BinOpKind, CompoundStmt, ConstantExpr,
+    Declaration, DeclarationOrStmt, Declarator, DirectDeclarator, Expr, ExternalDeclaration,
+    FuncDef, InitDeclarator, ParamDeclaration, Pointer, Primary, SpecifierQualifier, Stmt,
+    TranslationUnit, TypeName, TypeSpecifier, Typedefs, Unary,
 };
 
 use super::{symbol_table::SymbolTable, Ty};
@@ -200,8 +200,24 @@ impl SemanticVisitor {
     fn visit_assign(&mut self, assign: &mut Assign) -> Ty {
         match assign {
             Assign::Const(c) => self.visit_constant_expr(c),
-            Assign::Assign(unary, _kind, a) => {
-                let t1 = self.visit_unary(unary);
+            Assign::Assign(u, kind, a) => {
+                if *kind != AssignOpKind::Assign {
+                    // desugar from u += a to u = u + a
+                    let bok = kind.to_bin_op_kind();
+                    let assign_wrapped =
+                        BinOp::Unary(Unary::Identity(Primary::Expr(Box::new(Expr(vec![
+                            *a.clone()
+                        ])))));
+                    let a = Assign::Const(ConstantExpr::Identity(BinOp::Binary(
+                        bok,
+                        Box::new(BinOp::Unary(u.clone())),
+                        Box::new(assign_wrapped),
+                    )));
+                    *assign = Assign::Assign(u.clone(), AssignOpKind::Assign, Box::new(a));
+                    return self.visit_assign(assign);
+                }
+
+                let t1 = self.visit_unary(u);
                 let t2 = self.visit_assign(a);
 
                 match (t1, t2) {
@@ -304,11 +320,45 @@ impl SemanticVisitor {
                     t => panic!("Tried to dereference non-pointer variable: {:?}", t),
                 }
             }
+            Unary::BitwiseNot(u) => self.visit_unary(u.as_mut()),
+            Unary::LogicalNot(u) => self.visit_unary(u.as_mut()),
+            Unary::PrefixIncrement(u) => {
+                // desugar from ++u to (u += 1)
+                let a = Assign::Const(ConstantExpr::Identity(BinOp::Unary(Unary::Identity(
+                    Primary::Num(1),
+                ))));
+                let expr = Expr(vec![Assign::Assign(
+                    *u.clone(),
+                    AssignOpKind::AddAssign,
+                    Box::new(a),
+                )]);
+                *unary = Unary::Identity(Primary::Expr(Box::new(expr)));
+                self.visit_unary(unary)
+            }
+            Unary::PrefixDecrement(u) => {
+                // desugar from --u to (u -= 1)
+                let a = Assign::Const(ConstantExpr::Identity(BinOp::Unary(Unary::Identity(
+                    Primary::Num(1),
+                ))));
+                let expr = Expr(vec![Assign::Assign(
+                    *u.clone(),
+                    AssignOpKind::SubAssign,
+                    Box::new(a),
+                )]);
+                *unary = Unary::Identity(Primary::Expr(Box::new(expr)));
+                self.visit_unary(unary)
+            }
             Unary::Sizeof(u) => {
-                let t = self.visit_unary(u.as_mut());
-                *unary = Unary::Identity(Primary::Num(t.sizeof(&self.symbol_table) as i32));
+                let ty = self.visit_unary(u.as_mut());
+                *unary = Unary::Identity(Primary::Num(ty.sizeof(&self.symbol_table) as i32));
                 Ty::I32
             }
+            Unary::SizeofType(tn) => {
+                let ty = self.symbol_table.from_type_name(tn);
+                *unary = Unary::Identity(Primary::Num(ty.sizeof(&self.symbol_table) as i32));
+                Ty::I32
+            }
+
             Unary::Index(u, e) => {
                 // desugar from u[e] to *(u + e)
                 let u = BinOp::Unary(*u.clone());
@@ -369,7 +419,34 @@ impl SemanticVisitor {
                 *unary = Unary::Field(Box::new(Unary::Deref(u.clone())), f.clone());
                 self.visit_unary(unary)
             }
-            u => todo!("{u:?}"),
+            Unary::PostfixIncrement(u) => {
+                // desugar from u++ to (u += 1, u - 1)
+                let one = BinOp::Unary(Unary::Identity(Primary::Num(1)));
+                let a = Assign::Const(ConstantExpr::Identity(one.clone()));
+                let a1 = Assign::Assign(*u.clone(), AssignOpKind::AddAssign, Box::new(a));
+                let a2 = Assign::Const(ConstantExpr::Identity(BinOp::Binary(
+                    BinOpKind::Sub,
+                    Box::new(BinOp::Unary(*u.clone())),
+                    Box::new(one),
+                )));
+                let expr = Expr(vec![a1, a2]);
+                *unary = Unary::Identity(Primary::Expr(Box::new(expr)));
+                self.visit_unary(unary)
+            }
+            Unary::PostfixDecrement(u) => {
+                // desugar from u-- to (u -= 1, u + 1)
+                let one = BinOp::Unary(Unary::Identity(Primary::Num(1)));
+                let a = Assign::Const(ConstantExpr::Identity(one.clone()));
+                let a1 = Assign::Assign(*u.clone(), AssignOpKind::SubAssign, Box::new(a));
+                let a2 = Assign::Const(ConstantExpr::Identity(BinOp::Binary(
+                    BinOpKind::Add,
+                    Box::new(BinOp::Unary(*u.clone())),
+                    Box::new(one),
+                )));
+                let expr = Expr(vec![a1, a2]);
+                *unary = Unary::Identity(Primary::Expr(Box::new(expr)));
+                self.visit_unary(unary)
+            }
         }
     }
 
