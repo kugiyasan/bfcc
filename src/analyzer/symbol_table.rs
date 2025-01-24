@@ -288,7 +288,7 @@ impl SymbolTable {
             }
             v if v == FLOAT => Ty::F32,
             v if v == DOUBLE => Ty::F64,
-            v if v == LONG + DOUBLE => todo!(),
+            v if v == LONG + DOUBLE => Ty::F128,
             _ => panic!("Variable of unknown type"),
         }
     }

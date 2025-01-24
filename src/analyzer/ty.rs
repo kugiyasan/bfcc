@@ -14,6 +14,7 @@ pub enum Ty {
     U64,
     F32,
     F64,
+    F128,
     Ptr(Box<Ty>),
     Array(Box<Ty>, usize),
     Func(Box<Ty>, Vec<Ty>),
@@ -29,6 +30,7 @@ impl Ty {
             Ty::I16 | Ty::U16 => 2,
             Ty::I32 | Ty::U32 | Ty::F32 => 4,
             Ty::I64 | Ty::U64 | Ty::F64 | Ty::Ptr(_) => 8,
+            Ty::F128 => 16,
             Ty::Array(t, size) => t.sizeof(symbol_table) * size,
             Ty::Struct(name) => {
                 let tys = symbol_table.get_struct_definition(name);
