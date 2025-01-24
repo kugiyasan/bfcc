@@ -231,6 +231,7 @@ pub enum Stmt {
     While(Expr, Box<Stmt>),
     DoWhile(Box<Stmt>, Expr),
     For(Option<Expr>, Option<Expr>, Option<Expr>, Box<Stmt>),
+    ForWithDeclaration(Declaration, Option<Expr>, Option<Expr>, Box<Stmt>),
 
     Goto(String),
     Continue,

@@ -603,6 +603,7 @@ impl Parser {
     ///      | switch "(" expr ")" stmt
     ///      | "while" "(" expr ")" stmt
     ///      | "do" stmt "while" "(" expr ")" ";"
+    ///      | "for" "(" declaration expr? ";" expr? ")" stmt
     ///      | "for" "(" expr? ";" expr? ";" expr? ")" stmt
     ///      | "goto" ident ";"
     ///      | "continue" ";"
@@ -678,28 +679,33 @@ impl Parser {
     fn parse_for(&mut self) -> Stmt {
         self.expect(&TokenKind::LeftParen);
         let expr1 = if !self.consume(&TokenKind::SemiColon) {
+            if let Some(d) = self.parse_declaration() {
+                let expr2 = self.parse_expr_opt(&TokenKind::SemiColon);
+                let expr3 = self.parse_expr_opt(&TokenKind::RightParen);
+                let stmt = self.parse_stmt();
+                return Stmt::ForWithDeclaration(d, expr2, expr3, Box::new(stmt));
+            }
+
             let expr = Some(self.parse_expr());
             self.expect(&TokenKind::SemiColon);
             expr
         } else {
             None
         };
-        let expr2 = if !self.consume(&TokenKind::SemiColon) {
-            let expr = Some(self.parse_expr());
-            self.expect(&TokenKind::SemiColon);
-            expr
-        } else {
-            None
-        };
-        let expr3 = if !self.consume(&TokenKind::RightParen) {
-            let expr = Some(self.parse_expr());
-            self.expect(&TokenKind::RightParen);
-            expr
-        } else {
-            None
-        };
+        let expr2 = self.parse_expr_opt(&TokenKind::SemiColon);
+        let expr3 = self.parse_expr_opt(&TokenKind::RightParen);
         let stmt = self.parse_stmt();
         Stmt::For(expr1, expr2, expr3, Box::new(stmt))
+    }
+
+    fn parse_expr_opt(&mut self, tk: &TokenKind) -> Option<Expr> {
+        if !self.consume(tk) {
+            let expr = Some(self.parse_expr());
+            self.expect(tk);
+            expr
+        } else {
+            None
+        }
     }
 
     /// expr = assign ("," assign)*

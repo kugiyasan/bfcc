@@ -148,6 +148,16 @@ impl SemanticVisitor {
                 }
                 self.visit_stmt(stmt);
             }
+            Stmt::ForWithDeclaration(d, expr2, expr3, stmt) => {
+                self.visit_declaration(d, false);
+                if let Some(e) = expr2 {
+                    self.visit_expr(e);
+                }
+                if let Some(e) = expr3 {
+                    self.visit_expr(e);
+                }
+                self.visit_stmt(stmt);
+            }
             Stmt::Goto(_) => (),
             Stmt::Continue => todo!(),
             Stmt::Break => todo!(),
