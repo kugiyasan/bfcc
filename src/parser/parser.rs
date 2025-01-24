@@ -368,7 +368,7 @@ impl Parser {
         }
     }
 
-    /// enum-specifier = "enum" identifier? "{" enumerator+ "}"
+    /// enum-specifier = "enum" identifier? "{" enumerator ("," enumerator)* ","? "}"
     ///                | "enum" identifier
     /// enumerator = identifier
     ///            | identifier "=" constant-expr
@@ -385,6 +385,9 @@ impl Parser {
                     enumerator.push(Enumerator::Init(i, c));
                 } else {
                     enumerator.push(Enumerator::Identifier(i));
+                }
+                if !self.consume(&TokenKind::Comma) {
+                    break;
                 }
             }
 
@@ -413,39 +416,41 @@ impl Parser {
     ///                   | direct-declarator [ constant-expression? ]
     ///                   | direct-declarator ( parameter-type-list? )
     fn parse_direct_declarator(&mut self) -> Option<DirectDeclarator> {
-        if self.consume(&TokenKind::LeftParen) {
+        let mut dd = if self.consume(&TokenKind::LeftParen) {
             let d = self.parse_declarator().unwrap();
             self.expect(&TokenKind::RightParen);
-            return Some(DirectDeclarator::Declarator(Box::new(d)));
-        }
-
-        let name = self.consume_ident()?;
-        let d = Box::new(DirectDeclarator::Ident(name.clone()));
-
-        if self.consume(&TokenKind::LeftSquareBrace) {
-            if self.consume(&TokenKind::RightSquareBrace) {
-                Some(DirectDeclarator::Array(d, None))
-            } else {
-                let expr = Some(self.parse_constant_expr());
-                self.expect(&TokenKind::RightSquareBrace);
-                Some(DirectDeclarator::Array(d, expr))
-            }
-        } else if self.consume(&TokenKind::LeftParen) {
-            if self.consume(&TokenKind::RightParen) {
-                let ptl = ParamTypeList {
-                    params: vec![],
-                    variadic: false,
-                };
-                Some(DirectDeclarator::ParamTypeList(d, ptl))
-            } else {
-                let param_list = self
-                    .parse_param_type_list()
-                    .expect("Expected ParamTypeList");
-                self.expect(&TokenKind::RightParen);
-                Some(DirectDeclarator::ParamTypeList(d, param_list))
-            }
+            DirectDeclarator::Declarator(Box::new(d))
         } else {
-            Some(DirectDeclarator::Ident(name))
+            let name = self.consume_ident()?;
+            DirectDeclarator::Ident(name.clone())
+        };
+
+        loop {
+            if self.consume(&TokenKind::LeftSquareBrace) {
+                if self.consume(&TokenKind::RightSquareBrace) {
+                    dd = DirectDeclarator::Array(Box::new(dd), None);
+                } else {
+                    let expr = Some(self.parse_constant_expr());
+                    self.expect(&TokenKind::RightSquareBrace);
+                    dd = DirectDeclarator::Array(Box::new(dd), expr);
+                }
+            } else if self.consume(&TokenKind::LeftParen) {
+                if self.consume(&TokenKind::RightParen) {
+                    let ptl = ParamTypeList {
+                        params: vec![],
+                        variadic: false,
+                    };
+                    dd = DirectDeclarator::ParamTypeList(Box::new(dd), ptl);
+                } else {
+                    let ptl = self
+                        .parse_param_type_list()
+                        .expect("Expected ParamTypeList");
+                    self.expect(&TokenKind::RightParen);
+                    dd = DirectDeclarator::ParamTypeList(Box::new(dd), ptl);
+                }
+            } else {
+                return Some(dd);
+            }
         }
     }
 
@@ -892,8 +897,7 @@ impl Parser {
                 self.expect(&TokenKind::RightParen);
                 Primary::Expr(Box::new(expr))
             }
-
-            t => panic!("Unexpected token: {:?}", t),
+            t => panic!("Unexpected token at index {}: {:?}", self.index, t),
         }
     }
 }

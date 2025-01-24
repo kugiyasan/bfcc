@@ -403,5 +403,10 @@ p = &s;
 s.y = 3;
 return p->y;
 '
+assert 0 '
+void (*__func) (void);
+int atexit(void (*__func) (void));
+int main() { return 0; }
+'
 
 echo 'All tests passed!'

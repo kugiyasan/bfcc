@@ -31,6 +31,10 @@ fn run_preprocessor(input_file_content: &[u8]) -> Result<String, Box<dyn std::er
         "__restrict=",
         "-D",
         "__asm__(x)=",
+        "-D",
+        "__extension__=",
+        "-D",
+        "__inline=",
         "-",
     ];
     let mut gcc = Command::new("gcc")
