@@ -452,6 +452,21 @@ impl Codegen {
                 }
                 gen_deref(inner.unwrap().sizeof(&self.symbol_table));
             }
+            Unary::BitwiseNot(u) => {
+                self.gen_unary(*u);
+                println!("  pop rax");
+                println!("  not rax");
+                println!("  push rax");
+            }
+            Unary::LogicalNot(u) => {
+                self.gen_unary(*u);
+                println!("  pop rax");
+                println!("  cmp rax, 0");
+                println!("  sete al");
+                println!("  movzx eax, al");
+                println!("  push rax");
+            }
+
             Unary::Call(unary, expr) => {
                 let Unary::Identity(Primary::Ident(ident)) = *unary else {
                     panic!("Expected single identifier function names");
@@ -477,7 +492,7 @@ impl Codegen {
                 println!("  pop rbp");
                 println!("  push rax");
             }
-            _ => todo!(),
+            u => unreachable!("{:?} should have been desugared", u),
         }
     }
 
