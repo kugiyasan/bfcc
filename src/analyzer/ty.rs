@@ -20,13 +20,14 @@ pub enum Ty {
     Func(Box<Ty>, Vec<Ty>),
     Struct(String),
     Union(String),
+    Enum(String),
 }
 
 impl Ty {
     pub fn sizeof(&self, symbol_table: &SymbolTable) -> usize {
         match self {
             Ty::Void => 0,
-            Ty::Bool | Ty::I8 | Ty::U8 => 1,
+            Ty::Bool | Ty::I8 | Ty::U8 | Ty::Enum(_) => 1,
             Ty::I16 | Ty::U16 => 2,
             Ty::I32 | Ty::U32 | Ty::F32 => 4,
             Ty::I64 | Ty::U64 | Ty::F64 | Ty::Ptr(_) => 8,
@@ -67,7 +68,10 @@ impl Ty {
     }
 
     pub fn is_numeric(&self) -> bool {
-        matches!(self, Ty::I8 | Ty::I16 | Ty::I32 | Ty::I64)
+        matches!(
+            self,
+            Ty::I8 | Ty::I16 | Ty::I32 | Ty::I64 | Ty::U8 | Ty::U16 | Ty::U32 | Ty::U64
+        )
     }
 
     pub fn get_inner(&self) -> Option<Ty> {

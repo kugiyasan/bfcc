@@ -12,6 +12,13 @@ impl Expr {
             .map(|a| a.get_type(symbol_table))
             .unwrap_or(Ty::Void)
     }
+
+    pub fn constant_fold(&self, symbol_table: &mut SymbolTable) -> i64 {
+        if self.0.len() != 1 {
+            panic!("Constant folded Expr should not have multiple Assigns");
+        }
+        self.0[0].constant_fold(symbol_table)
+    }
 }
 
 #[derive(Clone, Debug, PartialEq)]
@@ -60,6 +67,13 @@ impl Assign {
             Assign::Assign(_, _, a) => a.get_type(symbol_table),
         }
     }
+
+    pub fn constant_fold(&self, symbol_table: &mut SymbolTable) -> i64 {
+        match self {
+            Assign::Const(c) => c.constant_fold(symbol_table),
+            Assign::Assign(_, _, _) => panic!("Constant folded Assign cannot do assignments"),
+        }
+    }
 }
 
 #[derive(Clone, Debug, PartialEq)]
@@ -71,8 +85,21 @@ pub enum ConstantExpr {
 impl ConstantExpr {
     pub fn get_type(&self, symbol_table: &mut SymbolTable) -> Ty {
         match self {
-            ConstantExpr::Identity(e) => e.get_type(symbol_table),
+            ConstantExpr::Identity(binop) => binop.get_type(symbol_table),
             ConstantExpr::Ternary(_, e, _) => e.get_type(symbol_table),
+        }
+    }
+
+    pub fn constant_fold(&self, symbol_table: &mut SymbolTable) -> i64 {
+        match self {
+            ConstantExpr::Identity(binop) => binop.constant_fold(symbol_table),
+            ConstantExpr::Ternary(binop, e, c) => {
+                if binop.constant_fold(symbol_table) == 1 {
+                    e.constant_fold(symbol_table)
+                } else {
+                    c.constant_fold(symbol_table)
+                }
+            }
         }
     }
 }
@@ -117,6 +144,36 @@ impl BinOp {
                     (Ty::Ptr(t), _) | (_, Ty::Ptr(t)) => Ty::Ptr(t),
                     (Ty::Array(t, s), _) | (_, Ty::Array(t, s)) => Ty::Array(t, s),
                     _ => panic!(),
+                }
+            }
+        }
+    }
+
+    pub fn constant_fold(&self, symbol_table: &mut SymbolTable) -> i64 {
+        match self {
+            BinOp::Unary(u) => u.constant_fold(symbol_table),
+            BinOp::Binary(kind, b1, b2) => {
+                let n1 = b1.constant_fold(symbol_table);
+                let n2 = b2.constant_fold(symbol_table);
+                match kind {
+                    BinOpKind::LogicalOr => (n1 != 0 || n2 != 0) as i64,
+                    BinOpKind::LogicalAnd => (n1 != 0 && n2 != 0) as i64,
+                    BinOpKind::BitwiseOr => n1 | n2,
+                    BinOpKind::BitwiseXor => n1 ^ n2,
+                    BinOpKind::BitwiseAnd => n1 & n2,
+                    BinOpKind::Equal => (n1 == n2) as i64,
+                    BinOpKind::NotEqual => (n1 != n2) as i64,
+                    BinOpKind::LessThan => (n1 < n2) as i64,
+                    BinOpKind::LessEqual => (n1 <= n2) as i64,
+                    BinOpKind::GreaterThan => (n1 > n2) as i64,
+                    BinOpKind::GreaterEqual => (n1 >= n2) as i64,
+                    BinOpKind::LeftShift => n1 << n2,
+                    BinOpKind::RightShift => n1 >> n2,
+                    BinOpKind::Add => n1 + n2,
+                    BinOpKind::Sub => n1 - n2,
+                    BinOpKind::Mul => n1 * n2,
+                    BinOpKind::Div => n1 / n2,
+                    BinOpKind::Mod => n1 % n2,
                 }
             }
         }
@@ -178,6 +235,21 @@ impl Unary {
             Unary::SizeofType(_) => todo!(),
         }
     }
+
+    pub fn constant_fold(&self, symbol_table: &mut SymbolTable) -> i64 {
+        match self {
+            Unary::Identity(p) => p.constant_fold(symbol_table),
+            Unary::Cast(_, u) => u.constant_fold(symbol_table),
+            Unary::Neg(u) => -u.constant_fold(symbol_table),
+            Unary::BitwiseNot(u) => !u.constant_fold(symbol_table),
+            Unary::LogicalNot(u) => !u.constant_fold(symbol_table),
+            Unary::Sizeof(u) => u.get_type(symbol_table).sizeof(symbol_table) as i64,
+            Unary::SizeofType(tn) => symbol_table
+                .from_specs_and_abstract_declarator(&tn.specs, &tn.declarator)
+                .sizeof(symbol_table) as i64,
+            u => panic!("Cannot constant fold {:?}", u),
+        }
+    }
 }
 
 #[derive(Clone, Debug, PartialEq)]
@@ -195,6 +267,15 @@ impl Primary {
             Primary::Ident(name) => symbol_table.get_var_type(name),
             Primary::String(b) => Ty::Array(Box::new(Ty::I8), b.len()),
             Primary::Expr(e) => e.get_type(symbol_table),
+        }
+    }
+
+    pub fn constant_fold(&self, symbol_table: &mut SymbolTable) -> i64 {
+        match self {
+            Primary::Num(n) => *n,
+            Primary::Ident(i) => panic!("Found identifier {:?} while trying to constant fold", i),
+            Primary::String(s) => panic!("Found string {:?} while trying to constant fold", s),
+            Primary::Expr(e) => e.constant_fold(symbol_table),
         }
     }
 }

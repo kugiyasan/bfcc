@@ -2,9 +2,9 @@ use std::collections::{HashMap, HashSet};
 
 use crate::parser::{
     AbstractDeclarator, BinOp, ConstantExpr, DeclarationSpecifier, Declarator,
-    DirectAbstractDeclarator, DirectDeclarator, ParamDeclaration, ParamTypeList, Pointer, Primary,
-    StructDeclarator, StructOrUnion, StructOrUnionSpecifier, TypeSpecifier, TypeSpecifierTrait,
-    Typedefs, Unary,
+    DirectAbstractDeclarator, DirectDeclarator, EnumSpecifier, Enumerator, ParamDeclaration,
+    ParamTypeList, Pointer, Primary, StructDeclarator, StructOrUnion, StructOrUnionSpecifier,
+    TypeSpecifier, TypeSpecifierTrait, Typedefs, Unary,
 };
 
 use super::Ty;
@@ -38,10 +38,12 @@ pub struct SymbolTable {
     labels: HashSet<String>,
     structs: HashMap<String, Option<Vec<(String, Ty)>>>,
     unions: HashMap<String, Option<Vec<(String, Ty)>>>,
+    enums: HashMap<String, HashMap<String, usize>>,
     typedefs: Typedefs,
 
     last_anonymous_struct_id: usize,
     last_anonymous_union_id: usize,
+    last_anonymous_enum_id: usize,
     current_func_name: String,
 }
 
@@ -86,6 +88,12 @@ impl SymbolTable {
     fn new_anonymous_union(&mut self) -> String {
         let s = format!(".anonymous_union{}", self.last_anonymous_union_id);
         self.last_anonymous_union_id += 1;
+        s
+    }
+
+    fn new_anonymous_enum(&mut self) -> String {
+        let s = format!(".anonymous_enum{}", self.last_anonymous_enum_id);
+        self.last_anonymous_enum_id += 1;
         s
     }
 
@@ -251,8 +259,8 @@ impl SymbolTable {
                     TypeSpecifier::StructOrUnionSpecifier(s) => {
                         return self.parse_struct_or_union_specifier(s);
                     }
-                    TypeSpecifier::EnumSpecifier(_) => {
-                        todo!();
+                    TypeSpecifier::EnumSpecifier(e) => {
+                        return self.parse_enum_specifier(e);
                     }
                     TypeSpecifier::TypedefName(typedef_name) => {
                         let (s, d) = self
@@ -358,6 +366,33 @@ impl SymbolTable {
         }
     }
 
+    fn parse_enum_specifier(&mut self, e: &EnumSpecifier) -> Ty {
+        match e {
+            EnumSpecifier::WithEnumerator(ident, enumerators) => {
+                let e = ident.clone().unwrap_or_else(|| self.new_anonymous_enum());
+
+                let mut variants = HashMap::new();
+                let mut index = 0;
+                for enumerator in enumerators {
+                    match enumerator {
+                        Enumerator::Identifier(ident) => {
+                            variants.insert(ident.clone(), index);
+                        }
+                        Enumerator::Init(ident, expr) => {
+                            index = expr.constant_fold(self) as usize;
+                            variants.insert(ident.clone(), index);
+                        }
+                    };
+                    index += 1;
+                }
+
+                self.enums.insert(e.clone(), variants);
+                Ty::Enum(e)
+            }
+            EnumSpecifier::Identifier(ident) => Ty::Enum(ident.clone()),
+        }
+    }
+
     fn parse_pointer(&self, mut ty: Ty, mut pointer: &Option<Pointer>) -> Ty {
         while let Some(p) = pointer {
             ty = Ty::Ptr(Box::new(ty));
@@ -379,12 +414,12 @@ impl SymbolTable {
             DirectDeclarator::Declarator(d) => self.parse_declarator(ty, d),
             DirectDeclarator::Array(dd, e) => {
                 let t = self.parse_direct_declarator(ty, dd);
-                let Some(ConstantExpr::Identity(BinOp::Unary(Unary::Identity(Primary::Num(size))))) =
-                    e
-                else {
-                    todo!("Can't handle ConstExpr");
-                };
-                Ty::Array(Box::new(t), *size as usize)
+                if let Some(e) = e {
+                    let size = e.constant_fold(self);
+                    Ty::Array(Box::new(t), size as usize)
+                } else {
+                    Ty::Ptr(Box::new(t))
+                }
             }
             DirectDeclarator::ParamTypeList(dd, ptl) => self.parse_param_type_list(ty, dd, ptl),
         }
