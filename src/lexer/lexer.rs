@@ -27,10 +27,45 @@ impl Lexer {
         self.index += len;
     }
 
-    fn parse_number(&mut self, chars: &[char]) {
-        let s: String = chars.iter().take_while(|c| c.is_numeric()).collect();
-        let value = s.parse().unwrap();
-        self.new_token(TokenKind::Num(value), s.len());
+    fn parse_integer_suffix(&mut self, chars: &[char]) {
+        let suffixes = &[
+            "ull", "uLL", "Ull", "ULL", "llu", "llU", "LLu", "LLU", "ul", "uL", "Ul", "UL", "lu",
+            "lU", "Lu", "LU", "ll", "LL", "u", "U", "l", "L",
+        ];
+        for suffix in suffixes {
+            if chars.starts_with(&suffix.chars().collect::<Vec<_>>()) {
+                self.index += suffix.len();
+                return;
+            }
+        }
+    }
+
+    fn parse_number(&mut self, chars: &[char]) -> Result<(), Box<dyn std::error::Error>> {
+        let (value, len) = match (chars[0], chars[1]) {
+            ('0', 'x') | ('0', 'X') => {
+                let s = chars
+                    .iter()
+                    .skip(2)
+                    .take_while(|c| c.is_ascii_hexdigit())
+                    .collect::<String>();
+                (u64::from_str_radix(&s, 16)?, 2 + s.len())
+            }
+            ('0', n) if n.is_digit(8) => {
+                let s = chars
+                    .iter()
+                    .skip(1)
+                    .take_while(|c| c.is_digit(8))
+                    .collect::<String>();
+                (u64::from_str_radix(&s, 8)?, 1 + s.len())
+            }
+            _ => {
+                let s: String = chars.iter().take_while(|c| c.is_ascii_digit()).collect();
+                (u64::from_str_radix(&s, 10)?, s.len())
+            }
+        };
+        self.new_token(TokenKind::Num(value as i64), len);
+        self.parse_integer_suffix(&chars[len..]);
+        Ok(())
     }
 
     fn parse_identifier(&mut self, chars: &[char]) {
@@ -79,8 +114,15 @@ impl Lexer {
                 {
                     self.index += 1;
                 }
-            } else if c.is_numeric() {
-                self.parse_number(&chars[self.index..]);
+            } else if c.is_ascii_digit() {
+                self.parse_number(&chars[self.index..])
+                    .unwrap_or_else(|err| {
+                        panic!(
+                            "can't parse {:?}: {}",
+                            chars[self.index..].iter().take(10).collect::<String>(),
+                            err
+                        )
+                    })
             } else if c.is_ascii_alphabetic() || c == '_' {
                 self.parse_identifier(&chars[self.index..]);
             } else if let Some(kind) = THREE_SYMBOLS_TOKENS.get(&c3) {

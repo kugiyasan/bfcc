@@ -182,7 +182,7 @@ impl Unary {
 
 #[derive(Clone, Debug, PartialEq)]
 pub enum Primary {
-    Num(i32),
+    Num(i64),
     Ident(String),
     String(Vec<u8>),
     Expr(Box<Expr>),

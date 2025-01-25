@@ -200,7 +200,7 @@ pub enum TokenKind {
     LeftShiftEqual,
     ThreeDots,
 
-    Num(i32),
+    Num(i64),
     Ident(String),
     String(Vec<u8>),
 }

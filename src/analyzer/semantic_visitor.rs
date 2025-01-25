@@ -257,7 +257,7 @@ impl SemanticVisitor {
                 match (t1, t2) {
                     (Ty::Ptr(ref p), t2) if t2.is_numeric() => {
                         let size = BinOp::Unary(Unary::Identity(Primary::Num(
-                            p.sizeof(&self.symbol_table) as i32,
+                            p.sizeof(&self.symbol_table) as i64,
                         )));
                         *right =
                             Box::new(BinOp::Binary(BinOpKind::Mul, right.clone(), Box::new(size)));
@@ -265,7 +265,7 @@ impl SemanticVisitor {
                     }
                     (t2, Ty::Ptr(ref p)) if t2.is_numeric() => {
                         let size = BinOp::Unary(Unary::Identity(Primary::Num(
-                            p.sizeof(&self.symbol_table) as i32,
+                            p.sizeof(&self.symbol_table) as i64,
                         )));
                         *left =
                             Box::new(BinOp::Binary(BinOpKind::Mul, left.clone(), Box::new(size)));
@@ -273,7 +273,7 @@ impl SemanticVisitor {
                     }
                     (Ty::Array(t, size), t2) if t2.is_numeric() => {
                         let s = BinOp::Unary(Unary::Identity(Primary::Num(
-                            t.sizeof(&self.symbol_table) as i32,
+                            t.sizeof(&self.symbol_table) as i64,
                         )));
                         *right =
                             Box::new(BinOp::Binary(BinOpKind::Mul, right.clone(), Box::new(s)));
@@ -281,7 +281,7 @@ impl SemanticVisitor {
                     }
                     (t2, Ty::Array(t, size)) if t2.is_numeric() => {
                         let s = BinOp::Unary(Unary::Identity(Primary::Num(
-                            t.sizeof(&self.symbol_table) as i32,
+                            t.sizeof(&self.symbol_table) as i64,
                         )));
                         *left = Box::new(BinOp::Binary(BinOpKind::Mul, left.clone(), Box::new(s)));
                         Ty::Array(t, size)
@@ -347,14 +347,14 @@ impl SemanticVisitor {
             }
             Unary::Sizeof(u) => {
                 let ty = self.visit_unary(u.as_mut());
-                *unary = Unary::Identity(Primary::Num(ty.sizeof(&self.symbol_table) as i32));
+                *unary = Unary::Identity(Primary::Num(ty.sizeof(&self.symbol_table) as i64));
                 Ty::I32
             }
             Unary::SizeofType(tn) => {
                 let ty = self
                     .symbol_table
                     .from_specs_and_abstract_declarator(&tn.specs, &tn.declarator);
-                *unary = Unary::Identity(Primary::Num(ty.sizeof(&self.symbol_table) as i32));
+                *unary = Unary::Identity(Primary::Num(ty.sizeof(&self.symbol_table) as i64));
                 Ty::I32
             }
 
@@ -393,7 +393,7 @@ impl SemanticVisitor {
                     })),
                 };
                 let u = Unary::Cast(Box::new(tn), Box::new(*u.clone()));
-                let offset = Box::new(BinOp::Unary(Unary::Identity(Primary::Num(offset as i32))));
+                let offset = Box::new(BinOp::Unary(Unary::Identity(Primary::Num(offset as i64))));
                 let binop = BinOp::Binary(BinOpKind::Add, Box::new(BinOp::Unary(u)), offset);
                 let expr = Expr(vec![Assign::Const(ConstantExpr::Identity(binop))]);
 
