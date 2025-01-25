@@ -97,7 +97,7 @@ impl SymbolTable {
         let ty = self.from_specs_and_declarator(specs, declarator);
         let var_name = declarator.direct.get_name();
         let name = self.format_var_name(&var_name);
-        self._declare_var(ty, name);
+        self._declare_local(ty, name);
     }
 
     pub fn declare_global(&mut self, specs: &Vec<DeclarationSpecifier>, declarator: &Declarator) {
@@ -106,7 +106,7 @@ impl SymbolTable {
         self.globals.insert(var_name, ty);
     }
 
-    pub fn declare_var_with_offset(
+    pub fn declare_local_with_offset(
         &mut self,
         specs: Vec<DeclarationSpecifier>,
         declarator: Declarator,
@@ -115,15 +115,15 @@ impl SymbolTable {
         let ty = self.from_specs_and_declarator(&specs, &declarator);
         let var_name = declarator.direct.get_name();
         let name = self.format_var_name(&var_name);
-        self._declare_var_with_offset(ty, name, offset);
+        self._declare_local_with_offset(ty, name, offset);
     }
 
-    fn _declare_var(&mut self, ty: Ty, name: String) {
+    fn _declare_local(&mut self, ty: Ty, name: String) {
         let size = ty.sizeof(self);
-        self._declare_var_with_offset(ty, name, size)
+        self._declare_local_with_offset(ty, name, size)
     }
 
-    fn _declare_var_with_offset(&mut self, ty: Ty, name: String, offset: usize) {
+    fn _declare_local_with_offset(&mut self, ty: Ty, name: String, offset: usize) {
         self.total_offset
             .entry(self.current_func_name.clone())
             .and_modify(|v| *v += offset);
@@ -136,7 +136,7 @@ impl SymbolTable {
     pub fn declare_string(&mut self, s: Vec<u8>) {
         let name = s.iter().map(|&b| b as char).collect::<String>();
         let ty = Ty::Array(Box::new(Ty::I8), s.len());
-        self._declare_var_with_offset(ty, name.clone(), 8);
+        self._declare_local_with_offset(ty, name.clone(), 8);
         self.strings.insert(name, self.strings.len());
     }
 
