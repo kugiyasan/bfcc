@@ -180,11 +180,13 @@ impl SemanticVisitor {
             return;
         }
         for init in declaration.inits.iter_mut() {
-            if let InitDeclarator::Declarator(d) = init {
-                if is_global {
-                    self.symbol_table.declare_global(&declaration.specs, d);
-                } else {
-                    self.symbol_table.declare_local(&declaration.specs, d);
+            match init {
+                InitDeclarator::Declarator(d) | InitDeclarator::DeclaratorAndInitializer(d, _) => {
+                    if is_global {
+                        self.symbol_table.declare_global(&declaration.specs, d);
+                    } else {
+                        self.symbol_table.declare_local(&declaration.specs, d);
+                    }
                 }
             }
         }

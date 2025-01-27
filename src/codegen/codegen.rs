@@ -3,7 +3,7 @@ use crate::{
     parser::{
         Assign, AssignOpKind, BinOp, BinOpKind, CompoundStmt, ConstantExpr, Declaration,
         DeclarationOrStmt, DirectDeclarator, Expr, ExternalDeclaration, FuncDef, InitDeclarator,
-        Primary, Stmt, TranslationUnit, Unary,
+        Initializer, Primary, Stmt, TranslationUnit, Unary,
     },
 };
 
@@ -132,6 +132,30 @@ impl Codegen {
         }
     }
 
+    fn gen_declaration(&mut self, declaration: Declaration) {
+        for init in declaration.inits {
+            match init {
+                InitDeclarator::Declarator(_) => (),
+                InitDeclarator::DeclaratorAndInitializer(d, i) => {
+                    let ty = self
+                        .symbol_table
+                        .from_specs_and_declarator(&declaration.specs, &d);
+                    let var_type_size = ty.sizeof(&self.symbol_table);
+                    self.gen_initializer(i, var_type_size)
+                }
+            }
+        }
+    }
+
+    fn gen_initializer(&mut self, initializer: Initializer, var_type_size: usize) {
+        match initializer {
+            Initializer::Assign(a) => {
+                self._gen_assign(a, var_type_size);
+            }
+            Initializer::Vec(_) => todo!(),
+        }
+    }
+
     fn gen_func_def(
         &mut self,
         FuncDef {
@@ -184,6 +208,9 @@ impl Codegen {
             Stmt::While(expr, stmt) => self.gen_while(expr, *stmt),
             Stmt::DoWhile(stmt, expr) => self.gen_do_while(*stmt, expr),
             Stmt::For(expr1, expr2, expr3, stmt) => self.gen_for(expr1, expr2, expr3, *stmt),
+            Stmt::ForWithDeclaration(decl, expr2, expr3, stmt) => {
+                self.gen_for_with_declaration(decl, expr2, expr3, *stmt)
+            }
             Stmt::Goto(ident) => {
                 println!("  jmp {}", ident);
             }
@@ -195,7 +222,7 @@ impl Codegen {
             Stmt::Return(None) => {
                 epilogue();
             }
-            _ => todo!(),
+            s => todo!("{:?}", s),
         };
     }
 
@@ -203,7 +230,7 @@ impl Codegen {
         for ds in stmt.0 {
             match ds {
                 DeclarationOrStmt::Stmt(s) => self.gen_stmt(s),
-                DeclarationOrStmt::Declaration(_) => (),
+                DeclarationOrStmt::Declaration(d) => self.gen_declaration(d),
             }
         }
     }
@@ -286,6 +313,32 @@ impl Codegen {
         println!("{end_label}:");
     }
 
+    fn gen_for_with_declaration(
+        &mut self,
+        decl: Declaration,
+        expr2: Option<Expr>,
+        expr3: Option<Expr>,
+        stmt: Stmt,
+    ) {
+        let begin_label = self.new_label();
+        let end_label = self.new_label();
+
+        self.gen_declaration(decl);
+        println!("{begin_label}:");
+        if let Some(e) = expr2 {
+            self.gen_expr(e);
+        }
+        println!("  pop rax");
+        println!("  cmp rax, 0");
+        println!("  je {end_label}");
+        self.gen_stmt(stmt);
+        if let Some(e) = expr3 {
+            self.gen_expr(e);
+        }
+        println!("  jmp {begin_label}");
+        println!("{end_label}:");
+    }
+
     fn gen_expr(&mut self, expr: Expr) {
         let len = expr.0.len();
         for (i, assign) in expr.0.into_iter().enumerate() {
@@ -321,21 +374,25 @@ impl Codegen {
                 } else {
                     panic!("Invalid l-value for assignment: {:?}", unary);
                 }
-                self.gen_assign(*a);
-
-                let src_reg = match var_type_size {
-                    1 => "dil",
-                    2 => "di",
-                    4 => "edi",
-                    8 => "rdi",
-                    _ => panic!("Unexpected variable type size: {}", var_type_size),
-                };
-                println!("  pop rdi");
-                println!("  pop rax");
-                println!("  mov [rax], {}", src_reg);
-                println!("  push rdi");
+                self._gen_assign(*a, var_type_size);
             }
         }
+    }
+
+    fn _gen_assign(&mut self, assign: Assign, var_type_size: usize) {
+        self.gen_assign(assign);
+
+        let src_reg = match var_type_size {
+            1 => "dil",
+            2 => "di",
+            4 => "edi",
+            8 => "rdi",
+            _ => panic!("Unexpected variable type size: {}", var_type_size),
+        };
+        println!("  pop rdi");
+        println!("  pop rax");
+        println!("  mov [rax], {}", src_reg);
+        println!("  push rdi");
     }
 
     fn gen_constant_expr(&mut self, c: ConstantExpr) {
