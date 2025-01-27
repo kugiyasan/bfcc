@@ -479,8 +479,8 @@ impl Codegen {
                 self.gen_binop("  cmp rax, rdi\n  setge al\n  movzb rax, al")
             }
 
-            BinOpKind::LeftShift => self.gen_binop("  mov ecx, rdi\n  sal rax, cl"),
-            BinOpKind::RightShift => self.gen_binop("  mov ecx, rdi\n  sar rax, cl"),
+            BinOpKind::LeftShift => self.gen_binop("  mov rcx, rdi\n  sal rax, cl"),
+            BinOpKind::RightShift => self.gen_binop("  mov rcx, rdi\n  sar rax, cl"),
 
             BinOpKind::Add => self.gen_binop("  add rax, rdi"),
             BinOpKind::Sub => self.gen_binop("  sub rax, rdi"),
@@ -566,6 +566,9 @@ impl Codegen {
                 }
 
                 gen_deref(ty.sizeof(&self.symbol_table));
+            }
+            Primary::Num(num) if num < -0x80000000 || num >= 0x80000000 => {
+                println!("  mov rax, {}\n  push rax", num)
             }
             Primary::Num(num) => println!("  push {}", num),
             Primary::String(b) => self.gen_lval(&b.iter().map(|&b| b as char).collect::<String>()),
