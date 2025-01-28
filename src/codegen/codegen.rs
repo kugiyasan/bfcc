@@ -20,25 +20,6 @@ fn epilogue() {
     println!("  ret");
 }
 
-fn gen_deref(size: usize) {
-    // todo: if ty.is_signed() { "movsx" } else { "movzx" };
-    let instruction = match size {
-        8 => "mov",
-        _ => "movsx",
-    };
-    let size_directive = match size {
-        1 => "BYTE PTR",
-        2 => "WORD PTR",
-        4 => "DWORD PTR",
-        8 => "QWORD PTR",
-        _ => panic!("Unexpected variable type size: {}", size),
-    };
-
-    println!("  pop rax");
-    println!("  {} rax, {} [rax]", instruction, size_directive);
-    println!("  push rax");
-}
-
 impl Codegen {
     pub fn new(symbol_table: SymbolTable) -> Self {
         Self {
@@ -90,6 +71,28 @@ impl Codegen {
                 println!("  push rax");
             }
         }
+    }
+
+    fn gen_deref(&mut self, ty: &Ty) {
+        let size = ty.sizeof(&self.symbol_table);
+
+        let instruction_and_src = match (size, ty.is_signed()) {
+            (8, _) => "mov rax",
+            (4, false) => "mov eax",
+            (_, true) => "movsx rax",
+            (_, false) => "movzx rax",
+        };
+        let size_directive = match size {
+            1 => "BYTE PTR",
+            2 => "WORD PTR",
+            4 => "DWORD PTR",
+            8 => "QWORD PTR",
+            _ => panic!("Unexpected variable type size: {}", size),
+        };
+
+        println!("  pop rax");
+        println!("  {}, {} [rax]", instruction_and_src, size_directive);
+        println!("  push rax");
     }
 
     fn gen_strings(&mut self) {
@@ -510,7 +513,7 @@ impl Codegen {
                 if matches!(inner, Some(Ty::Struct(_) | Ty::Union(_))) {
                     return;
                 }
-                gen_deref(inner.unwrap().sizeof(&self.symbol_table));
+                self.gen_deref(&inner.unwrap());
             }
             Unary::BitwiseNot(u) => {
                 self.gen_unary(*u);
@@ -565,7 +568,7 @@ impl Codegen {
                     return;
                 }
 
-                gen_deref(ty.sizeof(&self.symbol_table));
+                self.gen_deref(&ty);
             }
             Primary::Num(num) if !(-0x80000000..=0x80000000).contains(&num) => {
                 println!("  mov rax, {}\n  push rax", num)

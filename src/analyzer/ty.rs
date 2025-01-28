@@ -80,6 +80,13 @@ impl Ty {
         )
     }
 
+    pub fn is_signed(&self) -> bool {
+        matches!(
+            self,
+            Ty::I8 | Ty::I16 | Ty::I32 | Ty::I64,
+        )
+    }
+
     pub fn get_inner(&self) -> Option<Ty> {
         match self {
             Ty::Ptr(ty) | Ty::Array(ty, _) => Some(*ty.clone()),
