@@ -39,7 +39,7 @@ pub struct SymbolTable {
     structs: HashMap<String, Option<Vec<(String, Ty)>>>,
     unions: HashMap<String, Option<Vec<(String, Ty)>>>,
     enums: HashMap<String, HashMap<String, usize>>,
-    typedefs: Typedefs,
+    typedefs: HashMap<String, Ty>,
 
     last_anonymous_struct_id: usize,
     last_anonymous_union_id: usize,
@@ -56,10 +56,14 @@ pub enum LvarOffset {
 
 impl SymbolTable {
     pub fn new(typedefs: Typedefs) -> Self {
-        Self {
-            typedefs,
-            ..Default::default()
+        let mut st = Self::default();
+
+        for (k, s, d) in typedefs {
+            let ty = st.from_specs_and_declarator(&s, &d);
+            st.typedefs.insert(k, ty);
         }
+
+        st
     }
 
     pub fn declare_func(&mut self, func_name: String) {
@@ -274,11 +278,16 @@ impl SymbolTable {
                         return self.parse_enum_specifier(e);
                     }
                     TypeSpecifier::TypedefName(typedef_name) => {
-                        let (s, d) = self
+                        return self
                             .typedefs
                             .get(typedef_name)
-                            .expect("Typedef name is not in the typedef HashMap");
-                        return self.from_specs_and_declarator(&s.clone(), &d.clone());
+                            .unwrap_or_else(|| {
+                                panic!(
+                                    "Typedef name {:?} is not in the typedef HashMap",
+                                    typedef_name
+                                )
+                            })
+                            .clone()
                     }
                 };
             }

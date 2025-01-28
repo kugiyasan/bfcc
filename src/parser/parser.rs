@@ -1,5 +1,3 @@
-use std::collections::HashMap;
-
 use crate::lexer::{Token, TokenKind};
 
 use super::{
@@ -12,7 +10,7 @@ use super::{
     Unary,
 };
 
-pub type Typedefs = HashMap<String, (Vec<DeclarationSpecifier>, Declarator)>;
+pub type Typedefs = Vec<(String, Vec<DeclarationSpecifier>, Declarator)>;
 
 pub struct Parser {
     tokens: Vec<Token>,
@@ -25,7 +23,7 @@ impl Parser {
         Self {
             tokens,
             index: 0,
-            typedefs: HashMap::new(),
+            typedefs: Vec::new(),
         }
     }
 
@@ -197,7 +195,7 @@ impl Parser {
                 };
 
                 self.typedefs
-                    .insert(d.direct.get_name(), (specs.clone(), d.clone()));
+                    .push((d.direct.get_name(), specs.clone(), d.clone()));
             }
         }
     }
@@ -272,7 +270,7 @@ impl Parser {
             let spec = self.parse_enum_specifier();
             Some(TypeSpecifier::EnumSpecifier(spec))
         } else if let Some(ident) = self.consume_ident() {
-            if self.typedefs.contains_key(&ident) {
+            if self.typedefs.iter().any(|(k, _, _)| k == &ident) {
                 Some(TypeSpecifier::TypedefName(ident))
             } else {
                 self.index -= 1;
