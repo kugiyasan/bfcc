@@ -409,4 +409,9 @@ int atexit(void (*__func) (void));
 int main() { return 0; }
 '
 
+assert 0 '
+#include <stdlib.h>
+int main() { return 0; }
+'
+
 echo 'All tests passed!'

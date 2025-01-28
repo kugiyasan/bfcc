@@ -179,6 +179,9 @@ impl SemanticVisitor {
         if declaration.specs.iter().any(|s| s.is_typedef()) {
             return;
         }
+
+        self.symbol_table.parse_primary_type(&declaration.specs);
+
         for init in declaration.inits.iter_mut() {
             match init {
                 InitDeclarator::Declarator(d) | InitDeclarator::DeclaratorAndInitializer(d, _) => {

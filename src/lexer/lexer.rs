@@ -60,7 +60,7 @@ impl Lexer {
             }
             _ => {
                 let s: String = chars.iter().take_while(|c| c.is_ascii_digit()).collect();
-                (u64::from_str_radix(&s, 10)?, s.len())
+                (s.parse()?, s.len())
             }
         };
         self.new_token(TokenKind::Num(value as i64), len);

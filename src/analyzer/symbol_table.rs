@@ -183,17 +183,17 @@ impl SymbolTable {
     pub fn get_struct_definition(&self, name: &str) -> &Vec<(String, Ty)> {
         self.structs
             .get(name)
-            .expect("Undefined struct")
+            .unwrap_or_else(|| panic!("Undefined struct: {}", name))
             .as_ref()
-            .expect("Undefined struct")
+            .unwrap_or_else(|| panic!("Undefined struct: {}", name))
     }
 
     pub fn get_union_definition(&self, name: &str) -> &Vec<(String, Ty)> {
         self.unions
             .get(name)
-            .expect("Undefined union")
+            .unwrap_or_else(|| panic!("Undefined union: {}", name))
             .as_ref()
-            .expect("Undefined union")
+            .unwrap_or_else(|| panic!("Undefined union: {}", name))
     }
 
     pub fn get_struct_field(&self, name: &str, field: &str) -> (usize, &Ty) {
@@ -247,7 +247,7 @@ impl SymbolTable {
     }
 
     /// inspired from https://github.com/rui314/chibicc/blob/main/parse.c#L381
-    fn parse_primary_type<T>(&mut self, specs: &Vec<T>) -> Ty
+    pub fn parse_primary_type<T>(&mut self, specs: &Vec<T>) -> Ty
     where
         T: TypeSpecifierTrait,
     {

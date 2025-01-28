@@ -567,7 +567,7 @@ impl Codegen {
 
                 gen_deref(ty.sizeof(&self.symbol_table));
             }
-            Primary::Num(num) if num < -0x80000000 || num >= 0x80000000 => {
+            Primary::Num(num) if !(-0x80000000..=0x80000000).contains(&num) => {
                 println!("  mov rax, {}\n  push rax", num)
             }
             Primary::Num(num) => println!("  push {}", num),
