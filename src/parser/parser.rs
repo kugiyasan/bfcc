@@ -150,24 +150,8 @@ impl Parser {
             };
             ExternalDeclaration::FuncDef(fd)
         } else {
-            let mut inits = vec![InitDeclarator::Declarator(declarator)];
-            while self.consume(&TokenKind::Comma) {
-                inits.push(self.parse_init_declarator().unwrap());
-            }
-            self.expect(&TokenKind::SemiColon);
-
-            if specs.iter().any(|s| s.is_typedef()) {
-                for init in &inits {
-                    let InitDeclarator::Declarator(d) = init else {
-                        panic!("Illegal initializer in typedef");
-                    };
-
-                    self.typedefs
-                        .insert(d.direct.get_name(), (specs.clone(), d.clone()));
-                }
-            }
-
-            let d = Declaration { specs, inits };
+            let init_declarator = self._parse_init_declarator(declarator);
+            let d = self._parse_declaration(specs, init_declarator);
             ExternalDeclaration::Declaration(d)
         }
     }
@@ -180,20 +164,54 @@ impl Parser {
         }
     }
 
-    /// declaration = declaration-specifiers init-declarator ("," init-declarator)* ";"
+    /// declaration = declaration-specifiers (init-declarator ("," init-declarator)*)? ";"
     fn parse_declaration(&mut self) -> Option<Declaration> {
         let specs = self.parse_declaration_specifiers();
         if specs.is_empty() {
             return None;
         }
 
-        let mut inits = vec![self.parse_init_declarator().unwrap()];
+        let init_declarator = self.parse_init_declarator();
+        Some(self._parse_declaration(specs, init_declarator))
+    }
+
+    fn _parse_declaration(
+        &mut self,
+        specs: Vec<DeclarationSpecifier>,
+        init_declarator: InitDeclarator,
+    ) -> Declaration {
+        let mut inits = vec![init_declarator];
+
+        if self.consume(&TokenKind::SemiColon) {
+            self.insert_to_typedefs(&specs, &inits);
+            return Declaration { specs, inits };
+        }
+
         while self.consume(&TokenKind::Comma) {
-            inits.push(self.parse_init_declarator().unwrap());
+            inits.push(self.parse_init_declarator());
         }
 
         self.expect(&TokenKind::SemiColon);
-        Some(Declaration { specs, inits })
+
+        self.insert_to_typedefs(&specs, &inits);
+        Declaration { specs, inits }
+    }
+
+    fn insert_to_typedefs(
+        &mut self,
+        specs: &Vec<DeclarationSpecifier>,
+        inits: &Vec<InitDeclarator>,
+    ) {
+        if specs.iter().any(|s| s.is_typedef()) {
+            for init in inits {
+                let InitDeclarator::Declarator(d) = init else {
+                    panic!("Illegal initializer in typedef");
+                };
+
+                self.typedefs
+                    .insert(d.direct.get_name(), (specs.clone(), d.clone()));
+            }
+        }
     }
 
     /// declaration-specifiers = declaration-specifier*
@@ -318,13 +336,18 @@ impl Parser {
 
     /// init-declarator = declarator
     ///                 | declarator "=" initializer
-    fn parse_init_declarator(&mut self) -> Option<InitDeclarator> {
+    fn parse_init_declarator(&mut self) -> InitDeclarator {
         let d = self.parse_declarator().unwrap();
+        self._parse_init_declarator(d)
+    }
+
+    fn _parse_init_declarator(&mut self, declarator: Declarator) -> InitDeclarator {
         if self.consume(&TokenKind::Equal) {
             let i = self.parse_initializer();
-            return Some(InitDeclarator::DeclaratorAndInitializer(d, i));
+            InitDeclarator::DeclaratorAndInitializer(declarator, i)
+        } else {
+            InitDeclarator::Declarator(declarator)
         }
-        Some(InitDeclarator::Declarator(d))
     }
 
     /// struct-declaration = specifier-qualifier+ struct-declarator+ ";"
