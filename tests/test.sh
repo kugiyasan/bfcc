@@ -431,4 +431,8 @@ int false_fn() { return 62; }
 int main() { return 2 < 4 ? true_fn() : false_fn(); }
 '
 
+assertImplicitMain 1 '
+return '"'abcdefgh'"' == 1633837924;
+'
+
 echo 'All tests passed!'

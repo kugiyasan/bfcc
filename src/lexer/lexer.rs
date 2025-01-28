@@ -81,6 +81,28 @@ impl Lexer {
         }
     }
 
+    fn parse_char(&mut self, chars: &[char]) {
+        let mut i = 0;
+        while chars[i] != '\'' {
+            i += 1;
+        }
+        let len = i.min(4);
+        let bytes = match len {
+            1 => [0, 0, 0, chars[0] as u8],
+            2 => [0, 0, chars[0] as u8, chars[1] as u8],
+            3 => [0, chars[0] as u8, chars[1] as u8, chars[2] as u8],
+            4 => [
+                chars[0] as u8,
+                chars[1] as u8,
+                chars[2] as u8,
+                chars[3] as u8,
+            ],
+            _ => panic!("Invalid constant char literal"),
+        };
+        let n = u32::from_be_bytes(bytes);
+        self.new_token(TokenKind::Num(n as i64), i);
+    }
+
     fn parse_string(&mut self, chars: &[char]) {
         let mut i = 0;
         while chars[i] != '"' {
@@ -131,6 +153,10 @@ impl Lexer {
                 self.new_token(kind.clone(), 2);
             } else if let Some(kind) = ONE_SYMBOL_TOKENS.get(&c) {
                 self.new_token(kind.clone(), 1);
+            } else if c == '\'' {
+                self.index += 1;
+                self.parse_char(&chars[self.index..]);
+                self.index += 1;
             } else if c == '"' {
                 self.index += 1;
                 self.parse_string(&chars[self.index..]);
