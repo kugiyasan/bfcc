@@ -1,3 +1,9 @@
+use crate::parser::{
+    AbstractDeclarator, BinOp, ConstantExpr, DirectAbstractDeclarator, EnumSpecifier, Pointer,
+    Primary, SpecifierQualifier, StructOrUnion, StructOrUnionSpecifier, TypeName, TypeSpecifier,
+    Unary,
+};
+
 use super::SymbolTable;
 
 #[derive(Clone, Debug, PartialEq)]
@@ -78,6 +84,84 @@ impl Ty {
         match self {
             Ty::Ptr(ty) | Ty::Array(ty, _) => Some(*ty.clone()),
             _ => None,
+        }
+    }
+
+    pub fn to_typename(&self) -> TypeName {
+        self._to_typename(None, None)
+    }
+
+    fn _to_typename(
+        &self,
+        pointer: Option<Pointer>,
+        dad: Option<DirectAbstractDeclarator>,
+    ) -> TypeName {
+        if let Some(specs) = self.to_specifier_qualifier() {
+            let declarator = match (pointer, dad) {
+                (None, None) => None,
+                (Some(p), None) => Some(AbstractDeclarator::Pointer(p)),
+                (p, Some(d)) => Some(AbstractDeclarator::DirectAbstractDeclarator(p, d)),
+            };
+            return TypeName { specs, declarator };
+        }
+
+        if let Ty::Ptr(ty) = self {
+            let p = Pointer {
+                qualifiers: vec![],
+                pointer: Box::new(pointer),
+            };
+            return ty._to_typename(Some(p), dad);
+        }
+        if let Ty::Array(ty, size) = self {
+            let expr =
+                ConstantExpr::Identity(BinOp::Unary(Unary::Identity(Primary::Num(*size as i64))));
+            let dad = Some(DirectAbstractDeclarator::Array(None, Some(expr)));
+            return ty._to_typename(pointer, dad);
+        }
+        if let Ty::Func(_, _) = self {
+            todo!("{:?}", self);
+        }
+
+        unreachable!("{:?}", self);
+    }
+
+    fn to_specifier_qualifier(&self) -> Option<Vec<SpecifierQualifier>> {
+        Some(
+            self.to_type_specifier()?
+                .into_iter()
+                .map(SpecifierQualifier::TypeSpecifier)
+                .collect(),
+        )
+    }
+
+    fn to_type_specifier(&self) -> Option<Vec<TypeSpecifier>> {
+        match self {
+            Ty::Void => Some(vec![TypeSpecifier::Void]),
+            Ty::Bool => Some(vec![TypeSpecifier::Bool]),
+            Ty::I8 => Some(vec![TypeSpecifier::Char]),
+            Ty::I16 => Some(vec![TypeSpecifier::Short]),
+            Ty::I32 => Some(vec![TypeSpecifier::Int]),
+            Ty::I64 => Some(vec![TypeSpecifier::Long]),
+            Ty::U8 => Some(vec![TypeSpecifier::Unsigned, TypeSpecifier::Char]),
+            Ty::U16 => Some(vec![TypeSpecifier::Unsigned, TypeSpecifier::Short]),
+            Ty::U32 => Some(vec![TypeSpecifier::Unsigned, TypeSpecifier::Int]),
+            Ty::U64 => Some(vec![TypeSpecifier::Unsigned, TypeSpecifier::Long]),
+            Ty::F32 => Some(vec![TypeSpecifier::Float]),
+            Ty::F64 => Some(vec![TypeSpecifier::Double]),
+            Ty::F128 => Some(vec![TypeSpecifier::Long, TypeSpecifier::Double]),
+
+            Ty::Ptr(_) => None,
+            Ty::Array(_, _) => None,
+            Ty::Func(_, _) => None,
+            Ty::Struct(name) => Some(vec![TypeSpecifier::StructOrUnionSpecifier(
+                StructOrUnionSpecifier::Identifier(StructOrUnion::Struct, name.clone()),
+            )]),
+            Ty::Union(name) => Some(vec![TypeSpecifier::StructOrUnionSpecifier(
+                StructOrUnionSpecifier::Identifier(StructOrUnion::Union, name.clone()),
+            )]),
+            Ty::Enum(name) => Some(vec![TypeSpecifier::EnumSpecifier(
+                EnumSpecifier::Identifier(name.clone()),
+            )]),
         }
     }
 }

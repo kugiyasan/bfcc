@@ -210,6 +210,17 @@ impl SymbolTable {
         panic!("Accessing unknown field {:?} on struct {:?}", field, name);
     }
 
+    pub fn get_union_field(&self, name: &str, field: &str) -> &Ty {
+        let uds = self.get_union_definition(name);
+        for (s, ty) in uds {
+            if s == field {
+                return ty;
+            }
+        }
+
+        panic!("Accessing unknown field {:?} on struct {:?}", field, name);
+    }
+
     pub fn from_specs_and_declarator(
         &mut self,
         specs: &Vec<DeclarationSpecifier>,

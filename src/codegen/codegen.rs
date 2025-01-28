@@ -507,7 +507,7 @@ impl Codegen {
                 let ty = unary.get_type(&mut self.symbol_table);
                 self.gen_unary(*unary);
                 let inner = ty.get_inner();
-                if let Some(Ty::Struct(_)) = inner {
+                if matches!(inner, Some(Ty::Struct(_) | Ty::Union(_))) {
                     return;
                 }
                 gen_deref(inner.unwrap().sizeof(&self.symbol_table));
@@ -561,7 +561,7 @@ impl Codegen {
             Primary::Ident(ident) => {
                 self.gen_lval(&ident);
                 let ty = self.symbol_table.get_var_type(&ident);
-                if matches!(ty, Ty::Array(_, _) | Ty::Struct(_)) {
+                if matches!(ty, Ty::Array(_, _) | Ty::Struct(_) | Ty::Union(_)) {
                     return;
                 }
 

@@ -380,7 +380,20 @@ impl SemanticVisitor {
                 *return_ty
             }
             Unary::Field(u, f) => {
-                // desugar from u.f to *(T*)((char*)u + offset)
+                // desugar from u.f to *(T*)u if u is an union
+                if let Ty::Union(name) = u.get_type(&mut self.symbol_table) {
+                    let ty = self.symbol_table.get_union_field(&name, f);
+                    let ty = ty.clone();
+
+                    let tn = Ty::Ptr(Box::new(ty.clone())).to_typename();
+                    let binop = BinOp::Unary(Unary::Cast(Box::new(tn), Box::new(*u.clone())));
+                    let expr = Expr(vec![Assign::Const(ConstantExpr::Identity(binop))]);
+                    *unary = Unary::Deref(Box::new(Unary::Identity(Primary::Expr(Box::new(expr)))));
+                    self.visit_unary(unary);
+                    return ty;
+                }
+
+                // desugar from u.f to *(T*)((char*)u + offset) if u is a struct
                 let Ty::Struct(name) = u.get_type(&mut self.symbol_table) else {
                     panic!("Accessing a field on a non-struct type");
                 };
@@ -399,13 +412,7 @@ impl SemanticVisitor {
                 let binop = BinOp::Binary(BinOpKind::Add, Box::new(BinOp::Unary(u)), offset);
                 let expr = Expr(vec![Assign::Const(ConstantExpr::Identity(binop))]);
 
-                let tn = TypeName {
-                    specs: vec![SpecifierQualifier::TypeSpecifier(TypeSpecifier::Int)], // todo
-                    declarator: Some(AbstractDeclarator::Pointer(Pointer {
-                        qualifiers: vec![],
-                        pointer: Box::new(None),
-                    })),
-                };
+                let tn = Ty::Ptr(Box::new(ty.clone())).to_typename();
                 let binop = BinOp::Unary(Unary::Cast(
                     Box::new(tn),
                     Box::new(Unary::Identity(Primary::Expr(Box::new(expr)))),
