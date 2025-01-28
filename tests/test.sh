@@ -425,4 +425,10 @@ assert 0 '
 int main() { return 0; }
 '
 
+assert 42 '
+int true_fn() { return 42; }
+int false_fn() { return 62; }
+int main() { return 2 < 4 ? true_fn() : false_fn(); }
+'
+
 echo 'All tests passed!'

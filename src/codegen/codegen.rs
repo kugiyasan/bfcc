@@ -47,7 +47,7 @@ impl Codegen {
         println!("  push rax");
     }
 
-    fn gen_binop(&mut self, s: &str) {
+    fn _gen_binop(&mut self, s: &str) {
         println!("  pop rdi");
         println!("  pop rax");
         println!("{}", s);
@@ -400,20 +400,35 @@ impl Codegen {
 
     fn gen_constant_expr(&mut self, c: ConstantExpr) {
         match c {
-            ConstantExpr::Identity(expr_kind) => self.gen_expr_kind(expr_kind),
-            ConstantExpr::Ternary(_kind, _expr, _c) => todo!(),
+            ConstantExpr::Identity(binop) => self.gen_binop(binop),
+            ConstantExpr::Ternary(cond, expr, constant_expr) => {
+                let false_label = self.new_label();
+                let end_label = self.new_label();
+
+                self.gen_binop(cond);
+                println!("  pop rax");
+                println!("  cmp al, 0");
+                println!("  je {}", false_label);
+
+                self.gen_expr(expr);
+                println!("  jmp {}", end_label);
+
+                println!("{}:", false_label);
+                self.gen_constant_expr(*constant_expr);
+                println!("{}:", end_label);
+            }
         }
     }
 
-    fn gen_expr_kind(&mut self, expr_kind: BinOp) {
-        match expr_kind {
+    fn gen_binop(&mut self, binop: BinOp) {
+        match binop {
             BinOp::Binary(BinOpKind::LogicalOr, left, right) => self.gen_logical_or(*left, *right),
             BinOp::Binary(BinOpKind::LogicalAnd, left, right) => {
                 self.gen_logical_and(*left, *right)
             }
             BinOp::Binary(kind, left, right) => {
-                self.gen_expr_kind(*left);
-                self.gen_expr_kind(*right);
+                self.gen_binop(*left);
+                self.gen_binop(*right);
                 self.gen_bin_op_kind(kind);
             }
             BinOp::Unary(unary) => self.gen_unary(unary),
@@ -425,12 +440,12 @@ impl Codegen {
         let false_label = self.new_label();
         let end_label = self.new_label();
 
-        self.gen_expr_kind(left);
+        self.gen_binop(left);
         println!("  pop rax");
         println!("  cmp rax, 0");
         println!("  jne {}", true_label);
 
-        self.gen_expr_kind(right);
+        self.gen_binop(right);
         println!("  pop rax");
         println!("  cmp rax, 0");
         println!("  je {}", false_label);
@@ -447,12 +462,12 @@ impl Codegen {
         let false_label = self.new_label();
         let end_label = self.new_label();
 
-        self.gen_expr_kind(left);
+        self.gen_binop(left);
         println!("  pop rax");
         println!("  cmp rax, 0");
         println!("  je {}", false_label);
 
-        self.gen_expr_kind(right);
+        self.gen_binop(right);
         println!("  pop rax");
         println!("  cmp rax, 0");
         println!("  je {}", false_label);
@@ -468,28 +483,28 @@ impl Codegen {
         match kind {
             BinOpKind::LogicalOr => unreachable!(),
             BinOpKind::LogicalAnd => unreachable!(),
-            BinOpKind::BitwiseOr => self.gen_binop("  or rax, rdi"),
-            BinOpKind::BitwiseXor => self.gen_binop("  xor rax, rdi"),
-            BinOpKind::BitwiseAnd => self.gen_binop("  and rax, rdi"),
+            BinOpKind::BitwiseOr => self._gen_binop("  or rax, rdi"),
+            BinOpKind::BitwiseXor => self._gen_binop("  xor rax, rdi"),
+            BinOpKind::BitwiseAnd => self._gen_binop("  and rax, rdi"),
 
-            BinOpKind::Equal => self.gen_binop("  cmp rdi, rax\n  sete al\n  movzb rax, al"),
-            BinOpKind::NotEqual => self.gen_binop("  cmp rdi, rax\n  setne al\n  movzb rax, al"),
+            BinOpKind::Equal => self._gen_binop("  cmp rdi, rax\n  sete al\n  movzb rax, al"),
+            BinOpKind::NotEqual => self._gen_binop("  cmp rdi, rax\n  setne al\n  movzb rax, al"),
 
-            BinOpKind::LessThan => self.gen_binop("  cmp rax, rdi\n  setl al\n  movzb rax, al"),
-            BinOpKind::LessEqual => self.gen_binop("  cmp rax, rdi\n  setle al\n  movzb rax, al"),
-            BinOpKind::GreaterThan => self.gen_binop("  cmp rax, rdi\n  setg al\n  movzb rax, al"),
+            BinOpKind::LessThan => self._gen_binop("  cmp rax, rdi\n  setl al\n  movzb rax, al"),
+            BinOpKind::LessEqual => self._gen_binop("  cmp rax, rdi\n  setle al\n  movzb rax, al"),
+            BinOpKind::GreaterThan => self._gen_binop("  cmp rax, rdi\n  setg al\n  movzb rax, al"),
             BinOpKind::GreaterEqual => {
-                self.gen_binop("  cmp rax, rdi\n  setge al\n  movzb rax, al")
+                self._gen_binop("  cmp rax, rdi\n  setge al\n  movzb rax, al")
             }
 
-            BinOpKind::LeftShift => self.gen_binop("  mov rcx, rdi\n  sal rax, cl"),
-            BinOpKind::RightShift => self.gen_binop("  mov rcx, rdi\n  sar rax, cl"),
+            BinOpKind::LeftShift => self._gen_binop("  mov rcx, rdi\n  sal rax, cl"),
+            BinOpKind::RightShift => self._gen_binop("  mov rcx, rdi\n  sar rax, cl"),
 
-            BinOpKind::Add => self.gen_binop("  add rax, rdi"),
-            BinOpKind::Sub => self.gen_binop("  sub rax, rdi"),
-            BinOpKind::Mul => self.gen_binop("  imul rax, rdi"),
-            BinOpKind::Div => self.gen_binop("  cqo\n  idiv rdi"),
-            BinOpKind::Mod => self.gen_binop("  cqo\n  idiv rdi\nmov rax, rdx"),
+            BinOpKind::Add => self._gen_binop("  add rax, rdi"),
+            BinOpKind::Sub => self._gen_binop("  sub rax, rdi"),
+            BinOpKind::Mul => self._gen_binop("  imul rax, rdi"),
+            BinOpKind::Div => self._gen_binop("  cqo\n  idiv rdi"),
+            BinOpKind::Mod => self._gen_binop("  cqo\n  idiv rdi\nmov rax, rdx"),
         }
     }
 
