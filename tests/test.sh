@@ -410,7 +410,18 @@ int main() { return 0; }
 '
 
 assert 0 '
+typedef long unsigned int size_t;
+extern size_t __ctype_get_mb_cur_max (void) ;
+int main() { return 0; }
+'
+
+assert 0 '
 #include <stdlib.h>
+int main() { return 0; }
+'
+
+assert 0 '
+#include <ctype.h>
 int main() { return 0; }
 '
 

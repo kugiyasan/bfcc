@@ -26,6 +26,8 @@ fn run_preprocessor(input_file_content: &[u8]) -> Result<String, Box<dyn std::er
         "-E",
         "-P",
         "-D",
+        "__builtin_va_list=char *",
+        "-D",
         "__attribute__(x)=",
         "-D",
         "__restrict=",

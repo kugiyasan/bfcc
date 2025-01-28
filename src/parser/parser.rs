@@ -22,22 +22,10 @@ pub struct Parser {
 
 impl Parser {
     pub fn new(tokens: Vec<Token>) -> Self {
-        let mut typedefs = HashMap::new();
-        let specs = vec![DeclarationSpecifier::TypeSpecifier(TypeSpecifier::Char)];
-        let p = Pointer {
-            qualifiers: vec![],
-            pointer: Box::new(None),
-        };
-        let d = Declarator {
-            pointer: Some(p),
-            direct: DirectDeclarator::Ident("".to_string()),
-        };
-        typedefs.insert("__builtin_va_list".to_string(), (specs, d));
-
         Self {
             tokens,
             index: 0,
-            typedefs,
+            typedefs: HashMap::new(),
         }
     }
 
@@ -408,6 +396,7 @@ impl Parser {
                     enumerator.push(Enumerator::Identifier(i));
                 }
                 if !self.consume(&TokenKind::Comma) {
+                    self.expect(&TokenKind::RightCurlyBrace);
                     break;
                 }
             }
