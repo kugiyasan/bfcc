@@ -242,9 +242,9 @@ impl SemanticVisitor {
 
     fn visit_constant_expr(&mut self, c: &mut ConstantExpr) -> Ty {
         match c {
-            ConstantExpr::Identity(e) => self.visit_expr_kind(e),
-            ConstantExpr::Ternary(expr_kind, expr, constant_expr) => {
-                self.visit_expr_kind(expr_kind);
+            ConstantExpr::Identity(e) => self.visit_binop(e),
+            ConstantExpr::Ternary(binop, expr, constant_expr) => {
+                self.visit_binop(binop);
                 let t2 = self.visit_expr(expr);
                 let t3 = self.visit_constant_expr(constant_expr);
                 assert_eq!(t2, t3);
@@ -253,11 +253,11 @@ impl SemanticVisitor {
         }
     }
 
-    fn visit_expr_kind(&mut self, expr_kind: &mut BinOp) -> Ty {
-        match expr_kind {
+    fn visit_binop(&mut self, binop: &mut BinOp) -> Ty {
+        match binop {
             BinOp::Binary(_kind, left, right) => {
-                let t1 = self.visit_expr_kind(left);
-                let t2 = self.visit_expr_kind(right);
+                let t1 = self.visit_binop(left);
+                let t2 = self.visit_binop(right);
 
                 match (t1, t2) {
                     (Ty::Ptr(ref p), t2) if t2.is_numeric() => {
