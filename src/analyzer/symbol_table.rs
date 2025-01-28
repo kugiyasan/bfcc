@@ -1,10 +1,10 @@
 use std::collections::{HashMap, HashSet};
 
 use crate::parser::{
-    AbstractDeclarator, BinOp, ConstantExpr, DeclarationSpecifier, Declarator,
-    DirectAbstractDeclarator, DirectDeclarator, EnumSpecifier, Enumerator, ParamDeclaration,
-    ParamTypeList, Pointer, Primary, StructDeclarator, StructOrUnion, StructOrUnionSpecifier,
-    TypeSpecifier, TypeSpecifierTrait, Typedefs, Unary,
+    AbstractDeclarator, DeclarationSpecifier, Declarator, DirectAbstractDeclarator,
+    DirectDeclarator, EnumSpecifier, Enumerator, ParamDeclaration, ParamTypeList, Pointer,
+    StructDeclarator, StructOrUnion, StructOrUnionSpecifier, TypeSpecifier, TypeSpecifierTrait,
+    Typedefs,
 };
 
 use super::Ty;
@@ -339,7 +339,7 @@ impl SymbolTable {
                     let ty = self.parse_primary_type(&struct_declaration.specs);
                     for sd in struct_declaration.declarators.iter() {
                         let StructDeclarator::Declarator(d) = sd else {
-                            todo!();
+                            unimplemented!();
                         };
                         let t = self.parse_declarator(ty.clone(), d);
                         tys.push((d.direct.get_name(), t));
@@ -361,7 +361,7 @@ impl SymbolTable {
                     let ty = self.parse_primary_type(&struct_declaration.specs);
                     for sd in struct_declaration.declarators.iter() {
                         let StructDeclarator::Declarator(d) = sd else {
-                            todo!();
+                            unimplemented!();
                         };
                         let t = self.parse_declarator(ty.clone(), d);
                         tys.push((d.direct.get_name(), t));
@@ -478,12 +478,11 @@ impl SymbolTable {
                 if let Some(d) = dad {
                     ty = self.parse_direct_abstract_declarator(ty, d);
                 }
-                let Some(ConstantExpr::Identity(BinOp::Unary(Unary::Identity(Primary::Num(size))))) =
-                    e
-                else {
-                    todo!("Can't handle ConstExpr");
-                };
-                Ty::Array(Box::new(ty), *size as usize)
+                let size = e
+                    .as_ref()
+                    .map(|e| e.constant_fold(self))
+                    .unwrap_or_else(|| todo!("Can't handle implicit sized array"));
+                Ty::Array(Box::new(ty), size as usize)
             }
             DirectAbstractDeclarator::ParamTypeList(_, _) => todo!(),
         }

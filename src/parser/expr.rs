@@ -210,7 +210,7 @@ impl Unary {
             Unary::Cast(tn, _) => {
                 symbol_table.from_specs_and_abstract_declarator(&tn.specs, &tn.declarator)
             }
-            Unary::Call(_, _) => todo!(),
+            Unary::Call(u, _) => u.get_type(symbol_table).get_return_type().unwrap(),
             Unary::Index(_, _) => panic!("Semantic visitor should have desugared indexing"),
             Unary::Field(u, f) => {
                 let Ty::Struct(name) = u.get_type(symbol_table) else {
@@ -228,11 +228,10 @@ impl Unary {
             | Unary::LogicalNot(u)
             | Unary::PrefixIncrement(u)
             | Unary::PrefixDecrement(u)
-            | Unary::Sizeof(u)
             | Unary::PostfixIncrement(u)
             | Unary::PostfixDecrement(u) => u.get_type(symbol_table),
 
-            Unary::SizeofType(_) => todo!(),
+            Unary::Sizeof(_) | Unary::SizeofType(_) => Ty::I32,
         }
     }
 

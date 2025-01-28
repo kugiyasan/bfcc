@@ -504,7 +504,7 @@ impl Codegen {
             Unary::Ref(unary) => match *unary {
                 Unary::Identity(Primary::Ident(ident)) => self.gen_lval(&ident),
                 Unary::Deref(u) => self.gen_unary(*u),
-                _ => todo!("properly gen_lval only when the expression is an l-value"),
+                _ => panic!("properly gen_lval only when the expression is an l-value"),
             },
             Unary::Deref(unary) => {
                 let ty = unary.get_type(&mut self.symbol_table);
