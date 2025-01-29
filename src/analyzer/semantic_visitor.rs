@@ -1,8 +1,8 @@
 use crate::parser::{
     AbstractDeclarator, Assign, AssignOpKind, BinOp, BinOpKind, CompoundStmt, ConstantExpr,
     Declaration, DeclarationOrStmt, Declarator, DirectDeclarator, Expr, ExternalDeclaration,
-    FuncDef, InitDeclarator, ParamDeclaration, Pointer, Primary, SpecifierQualifier, Stmt,
-    TranslationUnit, TypeName, TypeSpecifier, Typedefs, Unary,
+    FuncDef, InitDeclarator, Initializer, ParamDeclaration, Pointer, Primary, SpecifierQualifier,
+    Stmt, TranslationUnit, TypeName, TypeSpecifier, Typedefs, Unary,
 };
 
 use super::{symbol_table::SymbolTable, Ty};
@@ -184,14 +184,50 @@ impl SemanticVisitor {
 
         for init in declaration.inits.iter_mut() {
             match init {
-                InitDeclarator::Declarator(d) | InitDeclarator::DeclaratorAndInitializer(d, _) => {
+                InitDeclarator::Declarator(d) => {
                     if is_global {
                         self.symbol_table.declare_global(&declaration.specs, d);
                     } else {
                         self.symbol_table.declare_local(&declaration.specs, d);
                     }
                 }
+                InitDeclarator::DeclaratorAndInitializer(d, i) => {
+                    if is_global {
+                        self.symbol_table.declare_global(&declaration.specs, d);
+                    } else {
+                        self.symbol_table.declare_local(&declaration.specs, d);
+                    }
+
+                    let left_ty = self
+                        .symbol_table
+                        .from_specs_and_declarator(&declaration.specs, d);
+                    self.visit_initializer(i, &left_ty);
+                }
             }
+        }
+    }
+
+    fn visit_initializer(&mut self, initializer: &mut Initializer, expected_ty: &Ty) {
+        match initializer {
+            Initializer::Assign(a) => {
+                let ty = self.visit_assign(a);
+                assert_eq!(*expected_ty, ty);
+            }
+            Initializer::Vec(inits) => match expected_ty {
+                Ty::Array(inner_ty, size) => {
+                    inits.truncate(*size);
+                    for init in inits {
+                        self.visit_initializer(init, inner_ty);
+                    }
+                }
+                Ty::Struct(name) => {
+                    let sds = self.symbol_table.get_struct_definition(name).clone();
+                    for ((_field, field_ty), init) in sds.iter().zip(inits) {
+                        self.visit_initializer(init, field_ty);
+                    }
+                }
+                ty => todo!("{:?}", ty),
+            },
         }
     }
 
@@ -467,7 +503,7 @@ impl SemanticVisitor {
             Primary::Num(_) => Ty::I32,
             Primary::String(b) => {
                 self.symbol_table.declare_string(b.clone());
-                Ty::Array(Box::new(Ty::I8), b.len())
+                Ty::Ptr(Box::new(Ty::I8))
             }
             Primary::Expr(expr) => self.visit_expr(expr.as_mut()),
         }

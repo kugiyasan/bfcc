@@ -147,8 +147,6 @@ impl SymbolTable {
 
     pub fn declare_string(&mut self, s: Vec<u8>) {
         let name = s.iter().map(|&b| b as char).collect::<String>();
-        let ty = Ty::Array(Box::new(Ty::I8), s.len());
-        self._declare_local_with_offset(ty, name.clone(), 8);
         self.strings.insert(name, self.strings.len());
     }
 
@@ -172,12 +170,20 @@ impl SymbolTable {
 
     pub fn get_var_type(&self, var_name: &str) -> Ty {
         let name = self.format_var_name(var_name);
-        self.locals
-            .get(&name)
-            .map(|v| &v.ty)
-            .or_else(|| self.globals.get(var_name))
-            .unwrap_or_else(|| panic!("Undeclared variable: {}", var_name))
-            .clone()
+
+        if let Some(v) = self.locals.get(&name) {
+            v.ty.clone()
+        } else if let Some(v) = self.globals.get(var_name) {
+            v.clone()
+        } else {
+            for (name, e) in self.enums.iter() {
+                if e.keys().any(|v| v == var_name) {
+                    return Ty::Enum(name.clone());
+                }
+            }
+
+            panic!("Undeclared variable: {}", var_name);
+        }
     }
 
     pub fn add_label(&mut self, name: String) {
@@ -399,7 +405,7 @@ impl SymbolTable {
                             variants.insert(ident.clone(), index);
                         }
                         Enumerator::Init(ident, expr) => {
-                            index = expr.constant_fold(self) as usize;
+                            index = expr.constant_fold(self).expect_num() as usize;
                             variants.insert(ident.clone(), index);
                         }
                     };
@@ -435,7 +441,7 @@ impl SymbolTable {
             DirectDeclarator::Array(dd, e) => {
                 let t = self.parse_direct_declarator(ty, dd);
                 if let Some(e) = e {
-                    let size = e.constant_fold(self);
+                    let size = e.constant_fold(self).expect_num();
                     Ty::Array(Box::new(t), size as usize)
                 } else {
                     Ty::Ptr(Box::new(t))
@@ -489,7 +495,7 @@ impl SymbolTable {
                 }
                 let size = e
                     .as_ref()
-                    .map(|e| e.constant_fold(self))
+                    .map(|e| e.constant_fold(self).expect_num())
                     .unwrap_or_else(|| todo!("Can't handle implicit sized array"));
                 Ty::Array(Box::new(ty), size as usize)
             }

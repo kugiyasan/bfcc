@@ -90,9 +90,10 @@ impl Codegen {
             _ => panic!("Unexpected variable type size: {}", size),
         };
 
-        println!("  pop rax");
-        println!("  {}, {} [rax]", instruction_and_src, size_directive);
-        println!("  push rax");
+        self.gen_oneop(&format!(
+            "  {}, {} [rax]",
+            instruction_and_src, size_directive
+        ));
     }
 
     fn gen_strings(&mut self) {
@@ -116,20 +117,58 @@ impl Codegen {
                     return;
                 }
                 for init in inits {
-                    let InitDeclarator::Declarator(ref declarator) = init else {
-                        todo!();
-                    };
-                    let ty = self
-                        .symbol_table
-                        .from_specs_and_declarator(&specs, declarator);
+                    match init {
+                        InitDeclarator::Declarator(d) => {
+                            let ty = self.symbol_table.from_specs_and_declarator(&specs, &d);
 
-                    if let Ty::Func(_, _) = ty {
-                        return;
+                            if let Ty::Func(_, _) = ty {
+                                return;
+                            }
+
+                            println!(".data");
+                            println!("{}:", d.direct.get_name());
+                            println!("  .zero {}", ty.sizeof(&self.symbol_table));
+                        }
+                        InitDeclarator::DeclaratorAndInitializer(d, i) => {
+                            let ty = self.symbol_table.from_specs_and_declarator(&specs, &d);
+
+                            if let Ty::Func(_, _) = ty {
+                                return;
+                            }
+
+                            println!(".data");
+                            println!("{}:", d.direct.get_name());
+                            self.gen_global_initializer(i, &ty);
+                        }
                     }
+                }
+            }
+        }
+    }
 
-                    println!(".data");
-                    println!("{}:", declarator.direct.get_name());
-                    println!("  .zero {}", ty.sizeof(&self.symbol_table));
+    fn gen_global_initializer(&mut self, initializer: Initializer, ty: &Ty) {
+        match initializer {
+            Initializer::Assign(a) => {
+                let primary = a.constant_fold(&mut self.symbol_table);
+                match primary {
+                    Primary::Num(value) => match ty.sizeof(&self.symbol_table) {
+                        1 => println!("  .byte {}", value),
+                        2 => println!("  .value {}", value),
+                        4 => println!("  .long {}", value),
+                        8 => println!("  .quad {}", value),
+                        _ => panic!("Invalid type size"),
+                    },
+                    Primary::String(s) => {
+                        let s = s.iter().map(|c| *c as char).collect::<String>();
+                        let label = self.symbol_table.get_strings().get(&s).unwrap();
+                        println!("  .quad {}", label);
+                    }
+                    _ => unreachable!(),
+                };
+            }
+            Initializer::Vec(v) => {
+                for i in v {
+                    self.gen_global_initializer(i, ty);
                 }
             }
         }
@@ -144,13 +183,13 @@ impl Codegen {
                         .symbol_table
                         .from_specs_and_declarator(&declaration.specs, &d);
                     let var_type_size = ty.sizeof(&self.symbol_table);
-                    self.gen_initializer(i, var_type_size)
+                    self.gen_local_initializer(i, var_type_size)
                 }
             }
         }
     }
 
-    fn gen_initializer(&mut self, initializer: Initializer, var_type_size: usize) {
+    fn gen_local_initializer(&mut self, initializer: Initializer, var_type_size: usize) {
         match initializer {
             Initializer::Assign(a) => {
                 self._gen_assign(a, var_type_size);
@@ -532,9 +571,7 @@ impl Codegen {
             }
             Unary::BitwiseNot(u) => {
                 self.gen_unary(*u);
-                println!("  pop rax");
-                println!("  not rax");
-                println!("  push rax");
+                self.gen_oneop("  not rax")
             }
             Unary::LogicalNot(u) => {
                 self.gen_unary(*u);
