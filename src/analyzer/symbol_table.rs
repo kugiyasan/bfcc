@@ -231,6 +231,17 @@ impl SymbolTable {
         panic!("Accessing unknown field {:?} on struct {:?}", field, name);
     }
 
+    pub fn get_enum_value(&self, var_name: &str) -> Option<usize> {
+        for (_, e) in self.enums.iter() {
+            for (k, v) in e {
+                if k == var_name {
+                    return Some(*v);
+                }
+            }
+        }
+        None
+    }
+
     pub fn from_specs_and_declarator(
         &mut self,
         specs: &Vec<DeclarationSpecifier>,
@@ -442,9 +453,9 @@ impl SymbolTable {
                 let t = self.parse_direct_declarator(ty, dd);
                 if let Some(e) = e {
                     let size = e.constant_fold(self).expect_num();
-                    Ty::Array(Box::new(t), size as usize)
+                    Ty::Array(Box::new(t), Some(size as usize))
                 } else {
-                    Ty::Ptr(Box::new(t))
+                    Ty::Array(Box::new(t), None)
                 }
             }
             DirectDeclarator::ParamTypeList(dd, ptl) => self.parse_param_type_list(ty, dd, ptl),
@@ -497,7 +508,7 @@ impl SymbolTable {
                     .as_ref()
                     .map(|e| e.constant_fold(self).expect_num())
                     .unwrap_or_else(|| todo!("Can't handle implicit sized array"));
-                Ty::Array(Box::new(ty), size as usize)
+                Ty::Array(Box::new(ty), Some(size as usize))
             }
             DirectAbstractDeclarator::ParamTypeList(_, _) => todo!(),
         }

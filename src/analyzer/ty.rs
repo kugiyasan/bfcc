@@ -22,7 +22,7 @@ pub enum Ty {
     F64,
     F128,
     Ptr(Box<Ty>),
-    Array(Box<Ty>, usize),
+    Array(Box<Ty>, Option<usize>),
     Func(Box<Ty>, Vec<Ty>),
     Struct(String),
     Union(String),
@@ -38,7 +38,8 @@ impl Ty {
             Ty::I32 | Ty::U32 | Ty::F32 => 4,
             Ty::I64 | Ty::U64 | Ty::F64 | Ty::Ptr(_) => 8,
             Ty::F128 => 16,
-            Ty::Array(t, size) => t.sizeof(symbol_table) * size,
+            Ty::Array(t, Some(size)) => t.sizeof(symbol_table) * size,
+            Ty::Array(t, None) => unreachable!("Size of array {:?} should have been computed", t),
             Ty::Struct(name) => {
                 let tys = symbol_table.get_struct_definition(name);
                 tys.iter().map(|(_, ty)| ty.sizeof(symbol_table)).sum()
@@ -123,7 +124,7 @@ impl Ty {
             };
             return ty._to_typename(Some(p), dad);
         }
-        if let Ty::Array(ty, size) = self {
+        if let Ty::Array(ty, Some(size)) = self {
             let expr =
                 ConstantExpr::Identity(BinOp::Unary(Unary::Identity(Primary::Num(*size as i64))));
             let dad = Some(DirectAbstractDeclarator::Array(None, Some(expr)));

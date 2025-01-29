@@ -273,14 +273,19 @@ impl Primary {
         match self {
             Primary::Num(_) => Ty::I32, // todo
             Primary::Ident(name) => symbol_table.get_var_type(name),
-            Primary::String(b) => Ty::Array(Box::new(Ty::I8), b.len()),
+            Primary::String(b) => Ty::Array(Box::new(Ty::I8), Some(b.len())),
             Primary::Expr(e) => e.get_type(symbol_table),
         }
     }
 
     pub fn constant_fold(&self, symbol_table: &mut SymbolTable) -> Primary {
         match self {
-            Primary::Ident(i) => panic!("Found identifier {:?} while trying to constant fold", i),
+            Primary::Ident(i) => {
+                if let Some(v) = symbol_table.get_enum_value(i) {
+                    return Primary::Num(v as i64)
+                }
+                panic!("Found identifier {:?} while trying to constant fold", i);
+            }
             Primary::Expr(e) => e.constant_fold(symbol_table),
             p => p.clone(),
         }

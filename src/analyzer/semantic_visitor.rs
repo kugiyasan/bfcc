@@ -201,30 +201,53 @@ impl SemanticVisitor {
                     let left_ty = self
                         .symbol_table
                         .from_specs_and_declarator(&declaration.specs, d);
-                    self.visit_initializer(i, &left_ty);
+
+                    if let Some(size) = self.visit_initializer(i, &left_ty) {
+                        if let DirectDeclarator::Array(_, ce @ None) = &mut d.direct {
+                            *ce = Some(ConstantExpr::Identity(BinOp::Unary(Unary::Identity(
+                                Primary::Num(size as i64),
+                            ))));
+                        }
+                    }
                 }
             }
         }
     }
 
-    fn visit_initializer(&mut self, initializer: &mut Initializer, expected_ty: &Ty) {
+    fn visit_initializer(
+        &mut self,
+        initializer: &mut Initializer,
+        expected_ty: &Ty,
+    ) -> Option<usize> {
         match initializer {
             Initializer::Assign(a) => {
                 let ty = self.visit_assign(a);
                 assert_eq!(*expected_ty, ty);
+                None
             }
             Initializer::Vec(inits) => match expected_ty {
                 Ty::Array(inner_ty, size) => {
-                    inits.truncate(*size);
+                    if let Some(s) = size {
+                        if *s > inits.len() {
+                            eprintln!("Initializer contains too many elements");
+                            inits.truncate(*s);
+                        }
+                        if *s < inits.len() {
+                            todo!("Fill the array up to the expected size");
+                        }
+                    }
+                    let len = inits.len();
                     for init in inits {
                         self.visit_initializer(init, inner_ty);
                     }
+                    Some(len)
                 }
                 Ty::Struct(name) => {
                     let sds = self.symbol_table.get_struct_definition(name).clone();
                     for ((_field, field_ty), init) in sds.iter().zip(inits) {
                         self.visit_initializer(init, field_ty);
                     }
+                    None
                 }
                 ty => todo!("{:?}", ty),
             },

@@ -150,18 +150,19 @@ impl Codegen {
         match initializer {
             Initializer::Assign(a) => {
                 let primary = a.constant_fold(&mut self.symbol_table);
+                let assign_ty = a.get_type(&mut self.symbol_table);
                 match primary {
-                    Primary::Num(value) => match ty.sizeof(&self.symbol_table) {
+                    Primary::Num(value) => match assign_ty.sizeof(&self.symbol_table) {
                         1 => println!("  .byte {}", value),
                         2 => println!("  .value {}", value),
                         4 => println!("  .long {}", value),
                         8 => println!("  .quad {}", value),
-                        _ => panic!("Invalid type size"),
+                        s => panic!("Invalid type size: {}", s),
                     },
                     Primary::String(s) => {
                         let s = s.iter().map(|c| *c as char).collect::<String>();
                         let label = self.symbol_table.get_strings().get(&s).unwrap();
-                        println!("  .quad {}", label);
+                        println!("  .quad .LC{}", label);
                     }
                     _ => unreachable!(),
                 };
