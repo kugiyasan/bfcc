@@ -222,7 +222,7 @@ impl SemanticVisitor {
         match initializer {
             Initializer::Assign(a) => {
                 let ty = self.visit_assign(a);
-                assert_eq!(*expected_ty, ty);
+                expected_ty.assert_compatible(&ty);
                 None
             }
             Initializer::Vec(inits) => match expected_ty {
@@ -443,6 +443,8 @@ impl SemanticVisitor {
             }
             Unary::Field(u, f) => {
                 // desugar from u.f to *(T*)u if u is an union
+                self.visit_unary(u);
+
                 if let Ty::Union(name) = u.get_type(&mut self.symbol_table) {
                     let ty = self.symbol_table.get_union_field(&name, f);
                     let ty = ty.clone();

@@ -615,6 +615,10 @@ impl Codegen {
     fn gen_primary(&mut self, primary: Primary) {
         match primary {
             Primary::Ident(ident) => {
+                if let Some(value) = self.symbol_table.get_enum_value(&ident) {
+                    println!("  push {}", value);
+                    return;
+                }
                 self.gen_lval(&ident);
                 let ty = self.symbol_table.get_var_type(&ident);
                 if matches!(ty, Ty::Array(_, _) | Ty::Struct(_) | Ty::Union(_)) {

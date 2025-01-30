@@ -164,8 +164,11 @@ impl SymbolTable {
             return LvarOffset::Global;
         }
 
-        let string_id = self.strings.get(var_name).expect("Undeclared variable");
-        LvarOffset::String(*string_id)
+        if let Some(string_id) = self.strings.get(var_name) {
+            return LvarOffset::String(*string_id);
+        }
+
+        panic!("Undeclared variable: {}", var_name);
     }
 
     pub fn get_var_type(&self, var_name: &str) -> Ty {
