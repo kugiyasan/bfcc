@@ -1,3 +1,5 @@
+use std::io::{BufWriter, Write};
+
 use crate::{
     analyzer::{LvarOffset, SymbolTable, Ty},
     parser::{
@@ -9,22 +11,24 @@ use crate::{
 
 const ARGUMENT_REGISTERS: [&str; 6] = ["rdi", "rsi", "rdx", "rcx", "r8", "r9"];
 
+macro_rules! w {
+    ($dst:expr, $($arg:tt)*) => {
+        writeln!($dst, $($arg)*).unwrap()
+    };
+}
+
 pub struct Codegen {
+    w: BufWriter<Box<dyn Write>>,
     label_index: usize,
     symbol_table: SymbolTable,
 
     loop_labels: Vec<(String, String)>,
 }
 
-fn epilogue() {
-    println!("  mov rsp, rbp");
-    println!("  pop rbp");
-    println!("  ret");
-}
-
 impl Codegen {
-    pub fn new(symbol_table: SymbolTable) -> Self {
+    pub fn new(w: Box<dyn Write>, symbol_table: SymbolTable) -> Self {
         Self {
+            w: BufWriter::new(w),
             label_index: 0,
             symbol_table,
             loop_labels: Vec::new(),
@@ -32,10 +36,16 @@ impl Codegen {
     }
 
     pub fn generate(&mut self, translation_unit: TranslationUnit) {
-        println!(".intel_syntax noprefix");
-        println!(".globl main");
+        w!(&mut self.w, ".intel_syntax noprefix");
+        w!(&mut self.w, ".globl main");
         self.gen_strings();
         self.gen_translation_unit(translation_unit);
+    }
+
+    fn epilogue(&mut self) {
+        w!(&mut self.w, "  mov rsp, rbp");
+        w!(&mut self.w, "  pop rbp");
+        w!(&mut self.w, "  ret");
     }
 
     fn new_label(&mut self) -> String {
@@ -45,33 +55,33 @@ impl Codegen {
     }
 
     fn gen_oneop(&mut self, s: &str) {
-        println!("  pop rax");
-        println!("{}", s);
-        println!("  push rax");
+        w!(&mut self.w, "  pop rax");
+        w!(&mut self.w, "{}", s);
+        w!(&mut self.w, "  push rax");
     }
 
     fn _gen_binop(&mut self, s: &str) {
-        println!("  pop rdi");
-        println!("  pop rax");
-        println!("{}", s);
-        println!("  push rax");
+        w!(&mut self.w, "  pop rdi");
+        w!(&mut self.w, "  pop rax");
+        w!(&mut self.w, "{}", s);
+        w!(&mut self.w, "  push rax");
     }
 
     fn gen_lval(&mut self, name: &str) {
         match self.symbol_table.get_lvar_offset(name) {
             LvarOffset::Local(offset) => {
-                println!("  mov rax, rbp");
-                println!("  sub rax, {}", offset);
-                println!("  push rax");
+                w!(&mut self.w, "  mov rax, rbp");
+                w!(&mut self.w, "  sub rax, {}", offset);
+                w!(&mut self.w, "  push rax");
             }
             LvarOffset::Global => {
-                println!("  lea rax, QWORD PTR {}[rip]", name);
-                println!("  push rax");
+                w!(&mut self.w, "  lea rax, QWORD PTR {}[rip]", name);
+                w!(&mut self.w, "  push rax");
             }
             LvarOffset::String(string_id) => {
                 let name = format!(".LC{}", string_id);
-                println!("  lea rax, QWORD PTR {}[rip]", name);
-                println!("  push rax");
+                w!(&mut self.w, "  lea rax, QWORD PTR {}[rip]", name);
+                w!(&mut self.w, "  push rax");
             }
         }
     }
@@ -101,8 +111,8 @@ impl Codegen {
 
     fn gen_strings(&mut self) {
         for (s, i) in self.symbol_table.get_strings() {
-            println!(".LC{i}:");
-            println!("  .string \"{}\"", s);
+            w!(&mut self.w, ".LC{i}:");
+            w!(&mut self.w, "  .string \"{}\"", s);
         }
     }
 
@@ -128,9 +138,9 @@ impl Codegen {
                                 return;
                             }
 
-                            println!(".data");
-                            println!("{}:", d.direct.get_name());
-                            println!("  .zero {}", ty.sizeof(&self.symbol_table));
+                            w!(&mut self.w, ".data");
+                            w!(&mut self.w, "{}:", d.direct.get_name());
+                            w!(&mut self.w, "  .zero {}", ty.sizeof(&self.symbol_table));
                         }
                         InitDeclarator::DeclaratorAndInitializer(d, i) => {
                             let ty = self.symbol_table.from_specs_and_declarator(&specs, &d);
@@ -139,8 +149,8 @@ impl Codegen {
                                 return;
                             }
 
-                            println!(".data");
-                            println!("{}:", d.direct.get_name());
+                            w!(&mut self.w, ".data");
+                            w!(&mut self.w, "{}:", d.direct.get_name());
                             self.gen_global_initializer(i, &ty);
                         }
                     }
@@ -156,16 +166,16 @@ impl Codegen {
                 let assign_ty = a.get_type(&mut self.symbol_table);
                 match primary {
                     Primary::Num(value) => match assign_ty.sizeof(&self.symbol_table) {
-                        1 => println!("  .byte {}", value),
-                        2 => println!("  .value {}", value),
-                        4 => println!("  .long {}", value),
-                        8 => println!("  .quad {}", value),
+                        1 => w!(&mut self.w, "  .byte {}", value),
+                        2 => w!(&mut self.w, "  .value {}", value),
+                        4 => w!(&mut self.w, "  .long {}", value),
+                        8 => w!(&mut self.w, "  .quad {}", value),
                         s => panic!("Invalid type size: {}", s),
                     },
                     Primary::String(s) => {
                         let s = s.iter().map(|c| *c as char).collect::<String>();
                         let label = self.symbol_table.get_strings().get(&s).unwrap();
-                        println!("  .quad .LC{}", label);
+                        w!(&mut self.w, "  .quad .LC{}", label);
                     }
                     _ => unreachable!(),
                 };
@@ -225,18 +235,18 @@ impl Codegen {
             panic!("Function name is not an identifier: {:?}", dd);
         };
 
-        println!(".text");
-        println!("{ident}:");
-        println!("  push rbp");
-        println!("  mov rbp, rsp");
+        w!(&mut self.w, ".text");
+        w!(&mut self.w, "{ident}:");
+        w!(&mut self.w, "  push rbp");
+        w!(&mut self.w, "  mov rbp, rsp");
         for reg in ARGUMENT_REGISTERS.iter().take(param_type_list.params.len()) {
-            println!("  push {reg}");
+            w!(&mut self.w, "  push {reg}");
         }
         let local_offset = self.symbol_table.get_offset(&ident);
-        println!("  sub rsp, {}", local_offset);
+        w!(&mut self.w, "  sub rsp, {}", local_offset);
 
         self.gen_compound_stmt(stmt);
-        epilogue();
+        self.epilogue();
 
         assert!(self.loop_labels.is_empty());
     }
@@ -246,10 +256,10 @@ impl Codegen {
             Stmt::SemiColon => (),
             Stmt::Expr(expr) => {
                 self.gen_expr(expr);
-                println!("  pop rax");
+                w!(&mut self.w, "  pop rax");
             }
             Stmt::Label(ident, stmt) => {
-                println!("{}:", ident);
+                w!(&mut self.w, "{}:", ident);
                 self.gen_stmt(*stmt);
             }
             Stmt::Compound(stmt) => self.gen_compound_stmt(stmt),
@@ -262,29 +272,29 @@ impl Codegen {
                 self.gen_for_with_declaration(decl, expr2, expr3, *stmt)
             }
             Stmt::Goto(ident) => {
-                println!("  jmp {}", ident);
+                w!(&mut self.w, "  jmp {}", ident);
             }
             Stmt::Continue => {
                 let (continue_label, _) = self
                     .loop_labels
                     .last()
                     .unwrap_or_else(|| panic!("Continue not in a loop"));
-                println!("  jmp {}", continue_label);
+                w!(&mut self.w, "  jmp {}", continue_label);
             }
             Stmt::Break => {
                 let (_, break_label) = self
                     .loop_labels
                     .last()
                     .unwrap_or_else(|| panic!("Break not in a loop"));
-                println!("  jmp {}", break_label);
+                w!(&mut self.w, "  jmp {}", break_label);
             }
             Stmt::Return(Some(expr)) => {
                 self.gen_expr(expr);
-                println!("  pop rax");
-                epilogue();
+                w!(&mut self.w, "  pop rax");
+                self.epilogue();
             }
             Stmt::Return(None) => {
-                epilogue();
+                self.epilogue();
             }
             s => todo!("{:?}", s),
         };
@@ -302,11 +312,11 @@ impl Codegen {
     fn gen_if(&mut self, expr: Expr, stmt: Stmt) {
         let end_label = self.new_label();
         self.gen_expr(expr);
-        println!("  pop rax");
-        println!("  cmp rax, 0");
-        println!("  je {end_label}");
+        w!(&mut self.w, "  pop rax");
+        w!(&mut self.w, "  cmp rax, 0");
+        w!(&mut self.w, "  je {end_label}");
         self.gen_stmt(stmt);
-        println!("{end_label}:");
+        w!(&mut self.w, "{end_label}:");
     }
 
     fn gen_if_else(&mut self, expr: Expr, stmt: Stmt, else_stmt: Stmt) {
@@ -314,40 +324,40 @@ impl Codegen {
         let else_label = self.new_label();
 
         self.gen_expr(expr);
-        println!("  pop rax");
-        println!("  cmp rax, 0");
-        println!("  je {else_label}");
+        w!(&mut self.w, "  pop rax");
+        w!(&mut self.w, "  cmp rax, 0");
+        w!(&mut self.w, "  je {else_label}");
         self.gen_stmt(stmt);
-        println!("  jmp {end_label}");
-        println!("{else_label}:",);
+        w!(&mut self.w, "  jmp {end_label}");
+        w!(&mut self.w, "{else_label}:",);
         self.gen_stmt(else_stmt);
-        println!("{end_label}:");
+        w!(&mut self.w, "{end_label}:");
     }
 
     fn gen_while(&mut self, expr: Expr, stmt: Stmt) {
         let begin_label = self.new_label();
         let end_label = self.new_label();
 
-        println!("{begin_label}:");
+        w!(&mut self.w, "{begin_label}:");
         self.gen_expr(expr);
-        println!("  pop rax");
-        println!("  cmp rax, 0");
-        println!("  je {end_label}");
+        w!(&mut self.w, "  pop rax");
+        w!(&mut self.w, "  cmp rax, 0");
+        w!(&mut self.w, "  je {end_label}");
 
         self.loop_labels
             .push((begin_label.clone(), end_label.clone()));
         self.gen_stmt(stmt);
         self.loop_labels.pop().unwrap();
 
-        println!("  jmp {begin_label}");
-        println!("{end_label}:");
+        w!(&mut self.w, "  jmp {begin_label}");
+        w!(&mut self.w, "{end_label}:");
     }
 
     fn gen_do_while(&mut self, stmt: Stmt, expr: Expr) {
         let begin_label = self.new_label();
         let end_label = self.new_label();
 
-        println!("{begin_label}:");
+        w!(&mut self.w, "{begin_label}:");
 
         self.loop_labels
             .push((begin_label.clone(), end_label.clone()));
@@ -355,11 +365,11 @@ impl Codegen {
         self.loop_labels.pop().unwrap();
 
         self.gen_expr(expr);
-        println!("  pop rax");
-        println!("  cmp rax, 0");
-        println!("  jne {begin_label}");
+        w!(&mut self.w, "  pop rax");
+        w!(&mut self.w, "  cmp rax, 0");
+        w!(&mut self.w, "  jne {begin_label}");
 
-        println!("{end_label}:");
+        w!(&mut self.w, "{end_label}:");
     }
 
     fn gen_for(
@@ -376,12 +386,12 @@ impl Codegen {
         if let Some(e) = expr1 {
             self.gen_expr(e);
         }
-        println!("{begin_label}:");
+        w!(&mut self.w, "{begin_label}:");
         if let Some(e) = expr2 {
             self.gen_expr(e);
-            println!("  pop rax");
-            println!("  cmp rax, 0");
-            println!("  je {end_label}");
+            w!(&mut self.w, "  pop rax");
+            w!(&mut self.w, "  cmp rax, 0");
+            w!(&mut self.w, "  je {end_label}");
         }
 
         self.loop_labels
@@ -389,12 +399,12 @@ impl Codegen {
         self.gen_stmt(stmt);
         self.loop_labels.pop().unwrap();
 
-        println!("{continue_label}:");
+        w!(&mut self.w, "{continue_label}:");
         if let Some(e) = expr3 {
             self.gen_expr(e);
         }
-        println!("  jmp {begin_label}");
-        println!("{end_label}:");
+        w!(&mut self.w, "  jmp {begin_label}");
+        w!(&mut self.w, "{end_label}:");
     }
 
     fn gen_for_with_declaration(
@@ -409,12 +419,12 @@ impl Codegen {
         let end_label = self.new_label();
 
         self.gen_declaration(decl);
-        println!("{begin_label}:");
+        w!(&mut self.w, "{begin_label}:");
         if let Some(e) = expr2 {
             self.gen_expr(e);
-            println!("  pop rax");
-            println!("  cmp rax, 0");
-            println!("  je {end_label}");
+            w!(&mut self.w, "  pop rax");
+            w!(&mut self.w, "  cmp rax, 0");
+            w!(&mut self.w, "  je {end_label}");
         }
 
         self.loop_labels
@@ -422,12 +432,12 @@ impl Codegen {
         self.gen_stmt(stmt);
         self.loop_labels.pop().unwrap();
 
-        println!("{continue_label}:");
+        w!(&mut self.w, "{continue_label}:");
         if let Some(e) = expr3 {
             self.gen_expr(e);
         }
-        println!("  jmp {begin_label}");
-        println!("{end_label}:");
+        w!(&mut self.w, "  jmp {begin_label}");
+        w!(&mut self.w, "{end_label}:");
     }
 
     fn gen_expr(&mut self, expr: Expr) {
@@ -435,7 +445,7 @@ impl Codegen {
         for (i, assign) in expr.0.into_iter().enumerate() {
             self.gen_assign(assign);
             if i + 1 < len {
-                println!("  pop rax");
+                w!(&mut self.w, "  pop rax");
             }
         }
     }
@@ -480,10 +490,10 @@ impl Codegen {
             8 => "rdi",
             _ => panic!("Unexpected variable type size: {}", var_type_size),
         };
-        println!("  pop rdi");
-        println!("  pop rax");
-        println!("  mov [rax], {}", src_reg);
-        println!("  push rdi");
+        w!(&mut self.w, "  pop rdi");
+        w!(&mut self.w, "  pop rax");
+        w!(&mut self.w, "  mov [rax], {}", src_reg);
+        w!(&mut self.w, "  push rdi");
     }
 
     fn gen_constant_expr(&mut self, c: ConstantExpr) {
@@ -494,16 +504,16 @@ impl Codegen {
                 let end_label = self.new_label();
 
                 self.gen_binop(cond);
-                println!("  pop rax");
-                println!("  cmp al, 0");
-                println!("  je {}", false_label);
+                w!(&mut self.w, "  pop rax");
+                w!(&mut self.w, "  cmp al, 0");
+                w!(&mut self.w, "  je {}", false_label);
 
                 self.gen_expr(expr);
-                println!("  jmp {}", end_label);
+                w!(&mut self.w, "  jmp {}", end_label);
 
-                println!("{}:", false_label);
+                w!(&mut self.w, "{}:", false_label);
                 self.gen_constant_expr(*constant_expr);
-                println!("{}:", end_label);
+                w!(&mut self.w, "{}:", end_label);
             }
         }
     }
@@ -529,21 +539,21 @@ impl Codegen {
         let end_label = self.new_label();
 
         self.gen_binop(left);
-        println!("  pop rax");
-        println!("  cmp rax, 0");
-        println!("  jne {}", true_label);
+        w!(&mut self.w, "  pop rax");
+        w!(&mut self.w, "  cmp rax, 0");
+        w!(&mut self.w, "  jne {}", true_label);
 
         self.gen_binop(right);
-        println!("  pop rax");
-        println!("  cmp rax, 0");
-        println!("  je {}", false_label);
+        w!(&mut self.w, "  pop rax");
+        w!(&mut self.w, "  cmp rax, 0");
+        w!(&mut self.w, "  je {}", false_label);
 
-        println!("{}:", true_label);
-        println!("  push 1");
-        println!("  jmp {}", end_label);
-        println!("{}:", false_label);
-        println!("  push 0");
-        println!("{}:", end_label);
+        w!(&mut self.w, "{}:", true_label);
+        w!(&mut self.w, "  push 1");
+        w!(&mut self.w, "  jmp {}", end_label);
+        w!(&mut self.w, "{}:", false_label);
+        w!(&mut self.w, "  push 0");
+        w!(&mut self.w, "{}:", end_label);
     }
 
     fn gen_logical_and(&mut self, left: BinOp, right: BinOp) {
@@ -551,20 +561,20 @@ impl Codegen {
         let end_label = self.new_label();
 
         self.gen_binop(left);
-        println!("  pop rax");
-        println!("  cmp rax, 0");
-        println!("  je {}", false_label);
+        w!(&mut self.w, "  pop rax");
+        w!(&mut self.w, "  cmp rax, 0");
+        w!(&mut self.w, "  je {}", false_label);
 
         self.gen_binop(right);
-        println!("  pop rax");
-        println!("  cmp rax, 0");
-        println!("  je {}", false_label);
+        w!(&mut self.w, "  pop rax");
+        w!(&mut self.w, "  cmp rax, 0");
+        w!(&mut self.w, "  je {}", false_label);
 
-        println!("  push 1");
-        println!("  jmp {}", end_label);
-        println!("{}:", false_label);
-        println!("  push 0");
-        println!("{}:", end_label);
+        w!(&mut self.w, "  push 1");
+        w!(&mut self.w, "  jmp {}", end_label);
+        w!(&mut self.w, "{}:", false_label);
+        w!(&mut self.w, "  push 0");
+        w!(&mut self.w, "{}:", end_label);
     }
 
     fn gen_bin_op_kind(&mut self, kind: BinOpKind) {
@@ -624,11 +634,11 @@ impl Codegen {
             }
             Unary::LogicalNot(u) => {
                 self.gen_unary(*u);
-                println!("  pop rax");
-                println!("  cmp rax, 0");
-                println!("  sete al");
-                println!("  movzx eax, al");
-                println!("  push rax");
+                w!(&mut self.w, "  pop rax");
+                w!(&mut self.w, "  cmp rax, 0");
+                w!(&mut self.w, "  sete al");
+                w!(&mut self.w, "  movzx eax, al");
+                w!(&mut self.w, "  push rax");
             }
 
             Unary::Call(unary, expr) => {
@@ -645,16 +655,16 @@ impl Codegen {
                 }
 
                 for reg in ARGUMENT_REGISTERS.iter().take(n_args).rev() {
-                    println!("  pop {}", reg);
+                    w!(&mut self.w, "  pop {}", reg);
                 }
 
-                println!("  push rbp");
-                println!("  mov rbp, rsp");
-                println!("  and rsp, {}", u64::MAX - 15);
-                println!("  call {ident}");
-                println!("  mov rsp, rbp");
-                println!("  pop rbp");
-                println!("  push rax");
+                w!(&mut self.w, "  push rbp");
+                w!(&mut self.w, "  mov rbp, rsp");
+                w!(&mut self.w, "  and rsp, {}", u64::MAX - 15);
+                w!(&mut self.w, "  call {ident}");
+                w!(&mut self.w, "  mov rsp, rbp");
+                w!(&mut self.w, "  pop rbp");
+                w!(&mut self.w, "  push rax");
             }
             u => unreachable!("{:?} should have been desugared", u),
         }
@@ -664,7 +674,7 @@ impl Codegen {
         match primary {
             Primary::Ident(ident) => {
                 if let Some(value) = self.symbol_table.get_enum_value(&ident) {
-                    println!("  push {}", value);
+                    w!(&mut self.w, "  push {}", value);
                     return;
                 }
                 self.gen_lval(&ident);
@@ -676,9 +686,9 @@ impl Codegen {
                 self.gen_deref(&ty);
             }
             Primary::Num(num) if !(-0x80000000..=0x80000000).contains(&num) => {
-                println!("  mov rax, {}\n  push rax", num)
+                w!(&mut self.w, "  mov rax, {}\n  push rax", num)
             }
-            Primary::Num(num) => println!("  push {}", num),
+            Primary::Num(num) => w!(&mut self.w, "  push {}", num),
             Primary::String(b) => self.gen_lval(&b.iter().map(|&b| b as char).collect::<String>()),
             Primary::Expr(expr) => self.gen_expr(*expr),
         }

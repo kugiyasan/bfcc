@@ -4,7 +4,8 @@
 use clap::Parser;
 use clap_stdin::FileOrStdin;
 use std::{
-    io::Write,
+    fs::File,
+    io::{self, Write},
     path::PathBuf,
     process::{Command, Stdio},
 };
@@ -74,6 +75,11 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
         return Ok(());
     }
 
-    bfcc::compile(&preprocessed_content);
+    let output: Box<dyn Write> = if let Some(f) = cli.output_file {
+        Box::new(File::create(f)?)
+    } else {
+        Box::new(io::stdout())
+    };
+    bfcc::compile(&preprocessed_content, output);
     Ok(())
 }

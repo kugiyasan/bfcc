@@ -3,12 +3,14 @@ pub mod codegen;
 pub mod lexer;
 pub mod parser;
 
+use std::io::Write;
+
 use analyzer::SemanticVisitor;
 use codegen::Codegen;
 use lexer::Lexer;
 use parser::Parser;
 
-pub fn compile(user_input: &str) {
+pub fn compile(user_input: &str, output: Box<dyn Write>) {
     let tokens = Lexer::tokenize(user_input);
     // let token_kinds = tokens.iter().map(|t| &t.kind).collect::<Vec<_>>();
     // dbg!(token_kinds);
@@ -23,6 +25,6 @@ pub fn compile(user_input: &str) {
     // dbg!(&translation_unit);
     dbg!(&symbol_table);
 
-    let mut codegen = Codegen::new(symbol_table);
+    let mut codegen = Codegen::new(output, symbol_table);
     codegen.generate(translation_unit);
 }
