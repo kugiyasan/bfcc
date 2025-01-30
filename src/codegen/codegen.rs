@@ -12,6 +12,8 @@ const ARGUMENT_REGISTERS: [&str; 6] = ["rdi", "rsi", "rdx", "rcx", "r8", "r9"];
 pub struct Codegen {
     label_index: usize,
     symbol_table: SymbolTable,
+
+    loop_labels: Vec<(String, String)>,
 }
 
 fn epilogue() {
@@ -25,6 +27,7 @@ impl Codegen {
         Self {
             label_index: 0,
             symbol_table,
+            loop_labels: Vec::new(),
         }
     }
 
@@ -180,6 +183,8 @@ impl Codegen {
             match init {
                 InitDeclarator::Declarator(_) => (),
                 InitDeclarator::DeclaratorAndInitializer(d, i) => {
+                    self.gen_lval(&d.direct.get_name());
+
                     let ty = self
                         .symbol_table
                         .from_specs_and_declarator(&declaration.specs, &d);
@@ -232,6 +237,8 @@ impl Codegen {
 
         self.gen_compound_stmt(stmt);
         epilogue();
+
+        assert!(self.loop_labels.is_empty());
     }
 
     fn gen_stmt(&mut self, stmt: Stmt) {
@@ -256,6 +263,20 @@ impl Codegen {
             }
             Stmt::Goto(ident) => {
                 println!("  jmp {}", ident);
+            }
+            Stmt::Continue => {
+                let (continue_label, _) = self
+                    .loop_labels
+                    .last()
+                    .unwrap_or_else(|| panic!("Continue not in a loop"));
+                println!("  jmp {}", continue_label);
+            }
+            Stmt::Break => {
+                let (_, break_label) = self
+                    .loop_labels
+                    .last()
+                    .unwrap_or_else(|| panic!("Break not in a loop"));
+                println!("  jmp {}", break_label);
             }
             Stmt::Return(Some(expr)) => {
                 self.gen_expr(expr);
@@ -312,20 +333,33 @@ impl Codegen {
         println!("  pop rax");
         println!("  cmp rax, 0");
         println!("  je {end_label}");
+
+        self.loop_labels
+            .push((begin_label.clone(), end_label.clone()));
         self.gen_stmt(stmt);
+        self.loop_labels.pop().unwrap();
+
         println!("  jmp {begin_label}");
         println!("{end_label}:");
     }
 
     fn gen_do_while(&mut self, stmt: Stmt, expr: Expr) {
         let begin_label = self.new_label();
+        let end_label = self.new_label();
 
         println!("{begin_label}:");
+
+        self.loop_labels
+            .push((begin_label.clone(), end_label.clone()));
         self.gen_stmt(stmt);
+        self.loop_labels.pop().unwrap();
+
         self.gen_expr(expr);
         println!("  pop rax");
         println!("  cmp rax, 0");
         println!("  jne {begin_label}");
+
+        println!("{end_label}:");
     }
 
     fn gen_for(
@@ -336,6 +370,7 @@ impl Codegen {
         stmt: Stmt,
     ) {
         let begin_label = self.new_label();
+        let continue_label = self.new_label();
         let end_label = self.new_label();
 
         if let Some(e) = expr1 {
@@ -344,11 +379,17 @@ impl Codegen {
         println!("{begin_label}:");
         if let Some(e) = expr2 {
             self.gen_expr(e);
+            println!("  pop rax");
+            println!("  cmp rax, 0");
+            println!("  je {end_label}");
         }
-        println!("  pop rax");
-        println!("  cmp rax, 0");
-        println!("  je {end_label}");
+
+        self.loop_labels
+            .push((continue_label.clone(), end_label.clone()));
         self.gen_stmt(stmt);
+        self.loop_labels.pop().unwrap();
+
+        println!("{continue_label}:");
         if let Some(e) = expr3 {
             self.gen_expr(e);
         }
@@ -364,17 +405,24 @@ impl Codegen {
         stmt: Stmt,
     ) {
         let begin_label = self.new_label();
+        let continue_label = self.new_label();
         let end_label = self.new_label();
 
         self.gen_declaration(decl);
         println!("{begin_label}:");
         if let Some(e) = expr2 {
             self.gen_expr(e);
+            println!("  pop rax");
+            println!("  cmp rax, 0");
+            println!("  je {end_label}");
         }
-        println!("  pop rax");
-        println!("  cmp rax, 0");
-        println!("  je {end_label}");
+
+        self.loop_labels
+            .push((continue_label.clone(), end_label.clone()));
         self.gen_stmt(stmt);
+        self.loop_labels.pop().unwrap();
+
+        println!("{continue_label}:");
         if let Some(e) = expr3 {
             self.gen_expr(e);
         }

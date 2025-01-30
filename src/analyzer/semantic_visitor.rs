@@ -159,8 +159,8 @@ impl SemanticVisitor {
                 self.visit_stmt(stmt);
             }
             Stmt::Goto(_) => (),
-            Stmt::Continue => todo!(),
-            Stmt::Break => todo!(),
+            Stmt::Continue => (),
+            Stmt::Break => (),
             Stmt::Return(Some(expr)) => {
                 self.visit_expr(expr);
             }
@@ -314,7 +314,7 @@ impl SemanticVisitor {
 
     fn visit_binop(&mut self, binop: &mut BinOp) -> Ty {
         match binop {
-            BinOp::Binary(_kind, left, right) => {
+            BinOp::Binary(kind, left, right) => {
                 let t1 = self.visit_binop(left);
                 let t2 = self.visit_binop(right);
 
@@ -349,6 +349,14 @@ impl SemanticVisitor {
                         )));
                         *left = Box::new(BinOp::Binary(BinOpKind::Mul, left.clone(), Box::new(s)));
                         Ty::Array(t, size)
+                    }
+                    (Ty::Ptr(p1), Ty::Ptr(p2)) if p1 == p2 => {
+                        assert_eq!(*kind, BinOpKind::Sub);
+                        let size = BinOp::Unary(Unary::Identity(Primary::Num(
+                            p1.sizeof(&self.symbol_table) as i64,
+                        )));
+                        *binop = BinOp::Binary(BinOpKind::Div, Box::new(binop.clone()), Box::new(size));
+                        Ty::I64
                     }
                     (t1, t2) => {
                         t1.assert_compatible(&t2);

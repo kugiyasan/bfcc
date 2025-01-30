@@ -358,21 +358,17 @@ int *p;
 p = &arr[1];
 return 0;
 '
-
 assertImplicitMain 0 '
 struct Vec2 { int x, y; } v;
 v.x = 0;
 return v.x;
 '
-
 assertImplicitMain 0 '
 return 5 - 3 - 2;
 '
-
 assertImplicitMain 8 '
 return 32 / 2 / 2;
 '
-
 assertImplicitMain 11 '
 int* arr[5];
 int **p;
@@ -385,7 +381,6 @@ arr[3] = &a;
 p[4] = &b;
 return *arr[3] + *p[4];
 '
-
 assertImplicitMain 0 '
 struct S { int x; int y; } s;
 struct S *p;
@@ -395,7 +390,6 @@ s.x = 1;
 p->y = 2;
 return p->y + s.x - 3;
 '
-
 assertImplicitMain 3 '
 struct S { int x; int y; } s;
 struct S *p;
@@ -408,31 +402,33 @@ void (*__func) (void);
 int atexit(void (*__func) (void));
 int main() { return 0; }
 '
-
 assert 0 '
 typedef long unsigned int size_t;
 extern size_t __ctype_get_mb_cur_max (void) ;
 int main() { return 0; }
 '
-
 assert 0 '
 #include <stdlib.h>
 int main() { return 0; }
 '
-
 assert 0 '
 #include <ctype.h>
 int main() { return 0; }
 '
-
 assert 42 '
 int true_fn() { return 42; }
 int false_fn() { return 62; }
 int main() { return 2 < 4 ? true_fn() : false_fn(); }
 '
-
 assertImplicitMain 1 '
 return '"'abcdefgh'"' == 1633837924;
 '
-
+assertImplicitMain 45 '
+int sum = 0;
+for (int i = 0; i < 20; i++) {
+  if (i == 10) break;
+  sum += i;
+}
+return sum;
+'
 echo 'All tests passed!'

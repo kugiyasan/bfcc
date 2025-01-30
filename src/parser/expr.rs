@@ -271,7 +271,7 @@ pub enum Primary {
 impl Primary {
     pub fn get_type(&self, symbol_table: &mut SymbolTable) -> Ty {
         match self {
-            Primary::Num(_) => Ty::I32, // todo
+            Primary::Num(_) => Ty::I32,
             Primary::Ident(name) => symbol_table.get_var_type(name),
             Primary::String(b) => Ty::Array(Box::new(Ty::I8), Some(b.len())),
             Primary::Expr(e) => e.get_type(symbol_table),
