@@ -156,13 +156,20 @@ impl Codegen {
         }
     }
 
-    fn gen_global_initializer(&mut self, initializer: Initializer, ty: &Ty) {
+    fn gen_global_initializer(&mut self, initializer: Initializer, expected_ty: &Ty) {
         match initializer {
             Initializer::Assign(a) => {
+                if let Assign::Const(ConstantExpr::Identity(BinOp::Unary(Unary::Ref(u)))) = a {
+                    let Unary::Identity(Primary::Ident(i)) = *u else {
+                        panic!("Not an identifier");
+                    };
+                    w!(&mut self.w, "  .quad {}", i);
+                    return;
+                }
+
                 let primary = a.constant_fold(&mut self.symbol_table);
-                let assign_ty = a.get_type(&mut self.symbol_table);
                 match primary {
-                    Primary::Num(value) => match assign_ty.sizeof(&self.symbol_table) {
+                    Primary::Num(value) => match expected_ty.sizeof(&self.symbol_table) {
                         1 => w!(&mut self.w, "  .byte {}", value),
                         2 => w!(&mut self.w, "  .value {}", value),
                         4 => w!(&mut self.w, "  .long {}", value),
@@ -178,8 +185,17 @@ impl Codegen {
                 };
             }
             Initializer::Vec(v) => {
-                for i in v {
-                    self.gen_global_initializer(i, ty);
+                if let Ty::Array(ty, _) = expected_ty {
+                    for i in v {
+                        self.gen_global_initializer(i, ty);
+                    }
+                } else if let Ty::Struct(name) = expected_ty {
+                    let sds = self.symbol_table.get_struct_definition(name).clone();
+                    for (i, (_, ty)) in v.into_iter().zip(sds) {
+                        self.gen_global_initializer(i, &ty);
+                    }
+                } else {
+                    panic!("Illegal Vec initializer for ty {:?}", expected_ty);
                 }
             }
         }
