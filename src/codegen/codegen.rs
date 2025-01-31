@@ -21,8 +21,6 @@ pub struct Codegen {
     w: BufWriter<Box<dyn Write>>,
     label_index: usize,
     symbol_table: SymbolTable,
-
-    loop_labels: Vec<(String, String)>,
 }
 
 impl Codegen {
@@ -31,7 +29,6 @@ impl Codegen {
             w: BufWriter::new(w),
             label_index: 0,
             symbol_table,
-            loop_labels: Vec::new(),
         }
     }
 
@@ -245,47 +242,49 @@ impl Codegen {
         let local_offset = self.symbol_table.get_offset(&ident);
         w!(&mut self.w, "  sub rsp, {}", local_offset);
 
-        self.gen_compound_stmt(stmt);
+        self.gen_compound_stmt(stmt, None, None);
         self.epilogue();
-
-        assert!(self.loop_labels.is_empty());
     }
 
-    fn gen_stmt(&mut self, stmt: Stmt) {
+    fn gen_stmt(&mut self, stmt: Stmt, break_label: Option<&str>, continue_label: Option<&str>) {
         match stmt {
+            Stmt::Label(ident, stmt) => {
+                w!(&mut self.w, "{}:", ident);
+                self.gen_stmt(*stmt, break_label, continue_label);
+            }
+            Stmt::Case(_, _) => todo!(),
+            Stmt::Default(_) => todo!(),
+
             Stmt::SemiColon => (),
             Stmt::Expr(expr) => {
                 self.gen_expr(expr);
                 w!(&mut self.w, "  pop rax");
             }
-            Stmt::Label(ident, stmt) => {
-                w!(&mut self.w, "{}:", ident);
-                self.gen_stmt(*stmt);
+            Stmt::Compound(stmt) => self.gen_compound_stmt(stmt, break_label, continue_label),
+
+            Stmt::If(expr, stmt, None) => self.gen_if(expr, *stmt, break_label, continue_label),
+            Stmt::If(expr, stmt, Some(else_stmt)) => {
+                self.gen_if_else(expr, *stmt, *else_stmt, break_label, continue_label)
             }
-            Stmt::Compound(stmt) => self.gen_compound_stmt(stmt),
-            Stmt::If(expr, stmt, None) => self.gen_if(expr, *stmt),
-            Stmt::If(expr, stmt, Some(else_stmt)) => self.gen_if_else(expr, *stmt, *else_stmt),
+            Stmt::Switch(expr, stmt) => self.gen_switch(expr, *stmt, continue_label),
+
             Stmt::While(expr, stmt) => self.gen_while(expr, *stmt),
             Stmt::DoWhile(stmt, expr) => self.gen_do_while(*stmt, expr),
             Stmt::For(expr1, expr2, expr3, stmt) => self.gen_for(expr1, expr2, expr3, *stmt),
             Stmt::ForWithDeclaration(decl, expr2, expr3, stmt) => {
                 self.gen_for_with_declaration(decl, expr2, expr3, *stmt)
             }
+
             Stmt::Goto(ident) => {
                 w!(&mut self.w, "  jmp {}", ident);
             }
             Stmt::Continue => {
-                let (continue_label, _) = self
-                    .loop_labels
-                    .last()
-                    .unwrap_or_else(|| panic!("Continue not in a loop"));
+                let continue_label =
+                    continue_label.unwrap_or_else(|| panic!("Continue not in a loop"));
                 w!(&mut self.w, "  jmp {}", continue_label);
             }
             Stmt::Break => {
-                let (_, break_label) = self
-                    .loop_labels
-                    .last()
-                    .unwrap_or_else(|| panic!("Break not in a loop"));
+                let break_label = break_label.unwrap_or_else(|| panic!("Break not in a loop"));
                 w!(&mut self.w, "  jmp {}", break_label);
             }
             Stmt::Return(Some(expr)) => {
@@ -296,30 +295,47 @@ impl Codegen {
             Stmt::Return(None) => {
                 self.epilogue();
             }
-            s => todo!("{:?}", s),
         };
     }
 
-    fn gen_compound_stmt(&mut self, stmt: CompoundStmt) {
+    fn gen_compound_stmt(
+        &mut self,
+        stmt: CompoundStmt,
+        break_label: Option<&str>,
+        continue_label: Option<&str>,
+    ) {
         for ds in stmt.0 {
             match ds {
-                DeclarationOrStmt::Stmt(s) => self.gen_stmt(s),
+                DeclarationOrStmt::Stmt(s) => self.gen_stmt(s, break_label, continue_label),
                 DeclarationOrStmt::Declaration(d) => self.gen_declaration(d),
             }
         }
     }
 
-    fn gen_if(&mut self, expr: Expr, stmt: Stmt) {
+    fn gen_if(
+        &mut self,
+        expr: Expr,
+        stmt: Stmt,
+        break_label: Option<&str>,
+        continue_label: Option<&str>,
+    ) {
         let end_label = self.new_label();
         self.gen_expr(expr);
         w!(&mut self.w, "  pop rax");
         w!(&mut self.w, "  cmp rax, 0");
         w!(&mut self.w, "  je {end_label}");
-        self.gen_stmt(stmt);
+        self.gen_stmt(stmt, break_label, continue_label);
         w!(&mut self.w, "{end_label}:");
     }
 
-    fn gen_if_else(&mut self, expr: Expr, stmt: Stmt, else_stmt: Stmt) {
+    fn gen_if_else(
+        &mut self,
+        expr: Expr,
+        stmt: Stmt,
+        else_stmt: Stmt,
+        break_label: Option<&str>,
+        continue_label: Option<&str>,
+    ) {
         let end_label = self.new_label();
         let else_label = self.new_label();
 
@@ -327,11 +343,18 @@ impl Codegen {
         w!(&mut self.w, "  pop rax");
         w!(&mut self.w, "  cmp rax, 0");
         w!(&mut self.w, "  je {else_label}");
-        self.gen_stmt(stmt);
+        self.gen_stmt(stmt, break_label, continue_label);
         w!(&mut self.w, "  jmp {end_label}");
         w!(&mut self.w, "{else_label}:",);
-        self.gen_stmt(else_stmt);
+        self.gen_stmt(else_stmt, break_label, continue_label);
         w!(&mut self.w, "{end_label}:");
+    }
+
+    fn gen_switch(&mut self, expr: Expr, stmt: Stmt, continue_label: Option<&str>) {
+        let break_label = self.new_label();
+        self.gen_expr(expr);
+        self.gen_stmt(stmt, Some(&break_label), continue_label);
+        todo!();
     }
 
     fn gen_while(&mut self, expr: Expr, stmt: Stmt) {
@@ -344,10 +367,7 @@ impl Codegen {
         w!(&mut self.w, "  cmp rax, 0");
         w!(&mut self.w, "  je {end_label}");
 
-        self.loop_labels
-            .push((begin_label.clone(), end_label.clone()));
-        self.gen_stmt(stmt);
-        self.loop_labels.pop().unwrap();
+        self.gen_stmt(stmt, Some(&end_label), Some(&begin_label));
 
         w!(&mut self.w, "  jmp {begin_label}");
         w!(&mut self.w, "{end_label}:");
@@ -359,10 +379,7 @@ impl Codegen {
 
         w!(&mut self.w, "{begin_label}:");
 
-        self.loop_labels
-            .push((begin_label.clone(), end_label.clone()));
-        self.gen_stmt(stmt);
-        self.loop_labels.pop().unwrap();
+        self.gen_stmt(stmt, Some(&end_label), Some(&begin_label));
 
         self.gen_expr(expr);
         w!(&mut self.w, "  pop rax");
@@ -394,10 +411,7 @@ impl Codegen {
             w!(&mut self.w, "  je {end_label}");
         }
 
-        self.loop_labels
-            .push((continue_label.clone(), end_label.clone()));
-        self.gen_stmt(stmt);
-        self.loop_labels.pop().unwrap();
+        self.gen_stmt(stmt, Some(&end_label), Some(&continue_label));
 
         w!(&mut self.w, "{continue_label}:");
         if let Some(e) = expr3 {
@@ -427,10 +441,7 @@ impl Codegen {
             w!(&mut self.w, "  je {end_label}");
         }
 
-        self.loop_labels
-            .push((continue_label.clone(), end_label.clone()));
-        self.gen_stmt(stmt);
-        self.loop_labels.pop().unwrap();
+        self.gen_stmt(stmt, Some(&end_label), Some(&continue_label));
 
         w!(&mut self.w, "{continue_label}:");
         if let Some(e) = expr3 {

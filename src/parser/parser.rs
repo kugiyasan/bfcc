@@ -600,13 +600,11 @@ impl Parser {
     }
 
     /// stmt = ";"
-    ///      | expr ";"
-    ///      | ident ":" stmt
-    ///      | case constant-expr ":" stmt
-    ///      | default ":" stmt
+    ///      | "case" constant-expr ":" stmt
+    ///      | "default" ":" stmt
     ///      | "{" stmt* "}"
     ///      | "if" "(" expr ")" stmt ("else" stmt)?
-    ///      | switch "(" expr ")" stmt
+    ///      | "switch" "(" expr ")" stmt
     ///      | "while" "(" expr ")" stmt
     ///      | "do" stmt "while" "(" expr ")" ";"
     ///      | "for" "(" declaration expr? ";" expr? ")" stmt
@@ -614,14 +612,12 @@ impl Parser {
     ///      | "goto" ident ";"
     ///      | "continue" ";"
     ///      | "break" ";"
-    ///      | "return" expr ";"
+    ///      | "return" expr? ";"
+    ///      | ident ":" stmt
+    ///      | expr ";"
     fn parse_stmt(&mut self) -> Stmt {
         if self.consume(&TokenKind::SemiColon) {
             Stmt::SemiColon
-        } else if self.peek(1) == &TokenKind::Colon {
-            let ident = self.expect_ident();
-            self.expect(&TokenKind::Colon);
-            Stmt::Label(ident, Box::new(self.parse_stmt()))
         } else if self.consume(&TokenKind::Case) {
             let expr = self.parse_constant_expr();
             self.expect(&TokenKind::Colon);
@@ -646,6 +642,12 @@ impl Parser {
                 None
             };
             Stmt::If(expr, Box::new(stmt), else_stmt)
+        } else if self.consume(&TokenKind::Switch) {
+            self.expect(&TokenKind::LeftParen);
+            let expr = self.parse_expr();
+            self.expect(&TokenKind::RightParen);
+            let stmt = self.parse_stmt();
+            Stmt::Switch(expr, Box::new(stmt))
         } else if self.consume(&TokenKind::While) {
             self.expect(&TokenKind::LeftParen);
             let expr = self.parse_expr();
@@ -679,6 +681,10 @@ impl Parser {
                 self.expect(&TokenKind::SemiColon);
                 Stmt::Return(Some(expr))
             }
+        } else if self.peek(1) == &TokenKind::Colon {
+            let ident = self.expect_ident();
+            self.expect(&TokenKind::Colon);
+            Stmt::Label(ident, Box::new(self.parse_stmt()))
         } else {
             let expr = self.parse_expr();
             self.expect(&TokenKind::SemiColon);
