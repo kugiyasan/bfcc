@@ -282,7 +282,7 @@ impl Primary {
         match self {
             Primary::Ident(i) => {
                 if let Some(v) = symbol_table.get_enum_value(i) {
-                    return Primary::Num(v as i64)
+                    return Primary::Num(v as i64);
                 }
                 panic!("Found identifier {:?} while trying to constant fold", i);
             }

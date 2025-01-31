@@ -355,7 +355,8 @@ impl SemanticVisitor {
                         let size = BinOp::Unary(Unary::Identity(Primary::Num(
                             p1.sizeof(&self.symbol_table) as i64,
                         )));
-                        *binop = BinOp::Binary(BinOpKind::Div, Box::new(binop.clone()), Box::new(size));
+                        *binop =
+                            BinOp::Binary(BinOpKind::Div, Box::new(binop.clone()), Box::new(size));
                         Ty::I64
                     }
                     (t1, t2) => {

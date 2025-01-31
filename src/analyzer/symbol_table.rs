@@ -510,7 +510,9 @@ impl SymbolTable {
                 let size = e
                     .as_ref()
                     .map(|e| e.constant_fold(self).expect_num())
-                    .unwrap_or_else(|| unreachable!("Implicit sized array should have been desugared"));
+                    .unwrap_or_else(|| {
+                        unreachable!("Implicit sized array should have been desugared")
+                    });
                 Ty::Array(Box::new(ty), Some(size as usize))
             }
             DirectAbstractDeclarator::ParamTypeList(_, _) => todo!(),
