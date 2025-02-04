@@ -23,7 +23,7 @@ pub fn compile(user_input: &str, output: Box<dyn Write>) {
     let mut visitor = SemanticVisitor::new(typedefs.clone());
     let symbol_table = visitor.visit_translation_unit(&mut translation_unit);
     // dbg!(&translation_unit);
-    dbg!(&symbol_table);
+    // dbg!(&symbol_table);
 
     let mut codegen = Codegen::new(output, symbol_table);
     codegen.generate(translation_unit);
