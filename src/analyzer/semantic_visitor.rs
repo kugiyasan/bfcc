@@ -1,8 +1,7 @@
 use crate::parser::{
-    AbstractDeclarator, Assign, AssignOpKind, BinOp, BinOpKind, CompoundStmt, ConstantExpr,
-    Declaration, DeclarationOrStmt, Declarator, DirectDeclarator, Expr, ExternalDeclaration,
-    FuncDef, InitDeclarator, Initializer, ParamDeclaration, Pointer, Primary, SpecifierQualifier,
-    Stmt, TranslationUnit, TypeName, TypeSpecifier, Typedefs, Unary,
+    Assign, AssignOpKind, BinOp, BinOpKind, CompoundStmt, ConstantExpr, Declaration,
+    DeclarationOrStmt, Declarator, DirectDeclarator, Expr, ExternalDeclaration, FuncDef,
+    InitDeclarator, Initializer, ParamDeclaration, Primary, Stmt, TranslationUnit, Typedefs, Unary,
 };
 
 use super::{symbol_table::SymbolTable, Ty};
@@ -360,6 +359,9 @@ impl SemanticVisitor {
                         Ty::I64
                     }
                     (t1, t2) => {
+                        if *kind == BinOpKind::LogicalAnd || *kind == BinOpKind::LogicalOr {
+                            return Ty::I64;
+                        }
                         t1.assert_compatible(&t2);
                         t1
                     }
@@ -471,15 +473,8 @@ impl SemanticVisitor {
                     panic!("Accessing a field on a non-struct type");
                 };
                 let (offset, ty) = self.symbol_table.get_struct_field(&name, f);
-                let ty = ty.clone();
 
-                let tn = TypeName {
-                    specs: vec![SpecifierQualifier::TypeSpecifier(TypeSpecifier::Char)],
-                    declarator: Some(AbstractDeclarator::Pointer(Pointer {
-                        qualifiers: vec![],
-                        pointer: Box::new(None),
-                    })),
-                };
+                let tn = Ty::Ptr(Box::new(Ty::I8)).to_typename();
                 let u = Unary::Cast(Box::new(tn), Box::new(*u.clone()));
                 let offset = Box::new(BinOp::Unary(Unary::Identity(Primary::Num(offset as i64))));
                 let binop = BinOp::Binary(BinOpKind::Add, Box::new(BinOp::Unary(u)), offset);
@@ -492,8 +487,7 @@ impl SemanticVisitor {
                 ));
                 let expr = Expr(vec![Assign::Const(ConstantExpr::Identity(binop))]);
                 *unary = Unary::Deref(Box::new(Unary::Identity(Primary::Expr(Box::new(expr)))));
-                self.visit_unary(unary);
-                ty
+                self.visit_unary(unary)
             }
             Unary::PointerField(u, f) => {
                 // desugar from u->f to (*u).f
