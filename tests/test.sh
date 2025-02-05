@@ -441,5 +441,14 @@ switch (x) {
 }
 return y;
 '
+assertImplicitMain 3 '
+int a;
+int b = (a = 3);
+return b;
+'
+assertImplicitMain 0 '
+int;
+return 0;
+'
 
 echo 'All tests passed!'

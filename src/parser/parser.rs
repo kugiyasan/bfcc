@@ -137,7 +137,7 @@ impl Parser {
             ExternalDeclaration::FuncDef(fd)
         } else {
             let init_declarator = self._parse_init_declarator(declarator);
-            let d = self._parse_declaration(specs, init_declarator);
+            let d = self._parse_declaration(specs, Some(init_declarator));
             ExternalDeclaration::Declaration(d)
         }
     }
@@ -164,9 +164,13 @@ impl Parser {
     fn _parse_declaration(
         &mut self,
         specs: Vec<DeclarationSpecifier>,
-        init_declarator: InitDeclarator,
+        init_declarator: Option<InitDeclarator>,
     ) -> Declaration {
-        let mut inits = vec![init_declarator];
+        let mut inits = if let Some(init) = init_declarator {
+            vec![init]
+        } else {
+            vec![]
+        };
 
         if self.consume(&TokenKind::SemiColon) {
             self.insert_to_typedefs(&specs, &inits);
@@ -174,7 +178,7 @@ impl Parser {
         }
 
         while self.consume(&TokenKind::Comma) {
-            inits.push(self.parse_init_declarator());
+            inits.push(self.parse_init_declarator().unwrap());
         }
 
         self.expect(&TokenKind::SemiColon);
@@ -322,9 +326,9 @@ impl Parser {
 
     /// init-declarator = declarator
     ///                 | declarator "=" initializer
-    fn parse_init_declarator(&mut self) -> InitDeclarator {
-        let d = self.parse_declarator().unwrap();
-        self._parse_init_declarator(d)
+    fn parse_init_declarator(&mut self) -> Option<InitDeclarator> {
+        let d = self.parse_declarator()?;
+        Some(self._parse_init_declarator(d))
     }
 
     fn _parse_init_declarator(&mut self, declarator: Declarator) -> InitDeclarator {

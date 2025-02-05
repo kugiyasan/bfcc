@@ -70,6 +70,7 @@ impl Ty {
             (t1, t2) if t1.is_numeric() && t2.is_numeric() => true,
             (Ty::Ptr(p1), Ty::Ptr(p2)) => p1.is_compatible(p2),
             (Ty::Void, _) | (_, Ty::Void) => true,
+            (Ty::Enum(_), t) | (t, Ty::Enum(_)) if t.is_numeric() => true,
             _ => false,
         }
     }

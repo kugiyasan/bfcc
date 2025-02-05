@@ -39,7 +39,7 @@ printf 'int main() { return 0; }' | bfcc - 2>/dev/null | gcc -x assembler -o a.o
 - Rui Ueyama's book:
 https://www.sigbus.info/compilerbook
 
-- C-testsuite (A testsuite against which BFCC is tested, BFCC passes 122 out of the 220 tests):
+- C-testsuite (A testsuite against which BFCC is tested, BFCC passes 155 out of the 220 tests):
 https://github.com/c-testsuite/c-testsuite
 
 - ANSI C grammar in BNF:

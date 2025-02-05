@@ -1,3 +1,5 @@
+use std::iter;
+
 use super::{
     token::{KEYWORDS, ONE_SYMBOL_TOKENS, THREE_SYMBOLS_TOKENS, TWO_SYMBOLS_TOKENS},
     TokenKind,
@@ -23,6 +25,16 @@ impl Lexer {
     }
 
     fn new_token(&mut self, kind: TokenKind, len: usize) {
+        if let Some(t) = self.tokens.last_mut() {
+            if let TokenKind::String(s1) = &mut t.kind {
+                if let TokenKind::String(s2) = kind {
+                    s1.extend_from_slice(&s2);
+                    self.index += len;
+                    return;
+                }
+            }
+        }
+
         self.tokens.push(Token { kind });
         self.index += len;
     }
@@ -81,26 +93,49 @@ impl Lexer {
         }
     }
 
-    fn parse_char(&mut self, chars: &[char]) {
-        let mut i = 0;
-        while chars[i] != '\'' {
-            i += 1;
+    fn parse_char(&mut self, chars: &[char]) -> (usize, u8) {
+        let c = chars[0];
+        if c != '\\' {
+            return (1, c as u8);
         }
-        let len = i.min(4);
-        let bytes = match len {
-            1 => [0, 0, 0, chars[0] as u8],
-            2 => [0, 0, chars[0] as u8, chars[1] as u8],
-            3 => [0, chars[0] as u8, chars[1] as u8, chars[2] as u8],
-            4 => [
-                chars[0] as u8,
-                chars[1] as u8,
-                chars[2] as u8,
-                chars[3] as u8,
-            ],
-            _ => panic!("Invalid constant char literal"),
+
+        let b = match chars[1] {
+            '\'' => 39,
+            '"' => 34,
+            '?' => 63,
+            '\\' => 92,
+            'a' => 7,
+            'b' => 8,
+            'f' => 12,
+            'n' => 10,
+            'r' => 13,
+            't' => 9,
+            'v' => 1,
+            '0' => 0, // remove this and tokenize octal numbers
+            _ => todo!("Cant tokenize escape sequence {:?}", &chars[0..4]),
         };
-        let n = u32::from_be_bytes(bytes);
-        self.new_token(TokenKind::Num(n as i64), i);
+
+        (2, b)
+    }
+
+    fn parse_multichar(&mut self, chars: &[char]) {
+        let mut bytes = vec![];
+        let mut index = 0;
+        while chars[index] != '\'' {
+            if chars[index] == '\n' {
+                panic!("Illegal newline inside char literal");
+            }
+            let (i, b) = self.parse_char(&chars[index..]);
+            index += i;
+            bytes.push(b);
+        }
+
+        let len = bytes.len().min(4);
+        let bytes = iter::repeat_n(0, 4 - len)
+            .chain(bytes.into_iter().take(len))
+            .collect::<Vec<_>>();
+        let n = u32::from_be_bytes(bytes.try_into().unwrap());
+        self.new_token(TokenKind::Num(n as i64), index);
     }
 
     fn parse_string(&mut self, chars: &[char]) {
@@ -155,7 +190,7 @@ impl Lexer {
                 self.new_token(kind.clone(), 1);
             } else if c == '\'' {
                 self.index += 1;
-                self.parse_char(&chars[self.index..]);
+                self.parse_multichar(&chars[self.index..]);
                 self.index += 1;
             } else if c == '"' {
                 self.index += 1;

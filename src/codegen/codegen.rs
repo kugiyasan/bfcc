@@ -443,8 +443,8 @@ impl Codegen {
         let break_label = self.new_label();
         let switch_label = self.new_label();
 
-        w!(&mut self.w, "  jmp {}", switch_label);
         self.gen_expr(expr);
+        w!(&mut self.w, "  jmp {}", switch_label);
         let sd = self.gen_stmt(stmt, Some(&break_label), continue_label);
 
         w!(&mut self.w, "  jmp {}", break_label);
