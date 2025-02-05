@@ -431,4 +431,15 @@ for (int i = 0; i < 20; i++) {
 }
 return sum;
 '
+assertImplicitMain 100 '
+int x = 3, y;
+switch (x) {
+  case 1:  { y = 5; break; }
+  case 2:    y = 7; break;
+  case 3:  { y = 9; }
+  default: { y = 100; }
+}
+return y;
+'
+
 echo 'All tests passed!'

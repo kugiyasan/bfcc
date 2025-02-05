@@ -147,7 +147,9 @@ impl SymbolTable {
 
     pub fn declare_string(&mut self, s: Vec<u8>) {
         let name = s.iter().map(|&b| b as char).collect::<String>();
-        self.strings.insert(name, self.strings.len());
+        if !self.strings.contains_key(&name) {
+            self.strings.insert(name, self.strings.len());
+        }
     }
 
     pub fn get_strings(&self) -> &HashMap<String, usize> {

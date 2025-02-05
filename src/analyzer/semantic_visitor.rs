@@ -1,7 +1,8 @@
 use crate::parser::{
-    Assign, AssignOpKind, BinOp, BinOpKind, CompoundStmt, ConstantExpr, Declaration,
-    DeclarationOrStmt, Declarator, DirectDeclarator, Expr, ExternalDeclaration, FuncDef,
-    InitDeclarator, Initializer, ParamDeclaration, Primary, Stmt, TranslationUnit, Typedefs, Unary,
+    AbstractDeclarator, Assign, AssignOpKind, BinOp, BinOpKind, CompoundStmt, ConstantExpr,
+    Declaration, DeclarationOrStmt, Declarator, DirectAbstractDeclarator, DirectDeclarator, Expr,
+    ExternalDeclaration, FuncDef, InitDeclarator, Initializer, ParamDeclaration, Primary,
+    Stmt, TranslationUnit, Typedefs, Unary,
 };
 
 use super::{symbol_table::SymbolTable, Ty};
@@ -88,8 +89,41 @@ impl SemanticVisitor {
                 self.symbol_table
                     .declare_local_with_offset(specs.clone(), *d.clone(), 8);
             }
-            ParamDeclaration::AbstractDeclarator(_, _ad) => todo!(),
+            ParamDeclaration::AbstractDeclarator(_, ad) => {
+                if let Some(a) = ad {
+                    self.visit_abstract_declarator(a);
+                }
+            }
         };
+    }
+
+    fn visit_abstract_declarator(&mut self, ad: &mut AbstractDeclarator) {
+        match ad {
+            AbstractDeclarator::Pointer(_) => (),
+            AbstractDeclarator::DirectAbstractDeclarator(_, dad) => {
+                self.visit_direct_abstract_declarator(dad)
+            }
+        }
+    }
+
+    fn visit_direct_abstract_declarator(&mut self, dad: &mut DirectAbstractDeclarator) {
+        match dad {
+            DirectAbstractDeclarator::AbstractDeclarator(ad) => self.visit_abstract_declarator(ad),
+            DirectAbstractDeclarator::Array(dad, c) => {
+                if let Some(dad) = dad {
+                    self.visit_direct_abstract_declarator(dad.as_mut());
+                }
+                if let Some(c) = c {
+                    self.visit_constant_expr(c);
+                }
+            }
+            DirectAbstractDeclarator::ParamTypeList(dad, ptl) => {
+                if let Some(dad) = dad {
+                    self.visit_direct_abstract_declarator(dad.as_mut());
+                }
+                todo!("{:?}", ptl);
+            }
+        }
     }
 
     fn visit_stmt(&mut self, stmt: &mut Stmt) {
@@ -191,12 +225,6 @@ impl SemanticVisitor {
                     }
                 }
                 InitDeclarator::DeclaratorAndInitializer(d, i) => {
-                    if is_global {
-                        self.symbol_table.declare_global(&declaration.specs, d);
-                    } else {
-                        self.symbol_table.declare_local(&declaration.specs, d);
-                    }
-
                     let left_ty = self
                         .symbol_table
                         .from_specs_and_declarator(&declaration.specs, d);
@@ -207,6 +235,12 @@ impl SemanticVisitor {
                                 Primary::Num(size as i64),
                             ))));
                         }
+                    }
+
+                    if is_global {
+                        self.symbol_table.declare_global(&declaration.specs, d);
+                    } else {
+                        self.symbol_table.declare_local(&declaration.specs, d);
                     }
                 }
             }
@@ -305,7 +339,7 @@ impl SemanticVisitor {
                 self.visit_binop(binop);
                 let t2 = self.visit_expr(expr);
                 let t3 = self.visit_constant_expr(constant_expr);
-                assert_eq!(t2, t3);
+                t2.assert_compatible(&t3);
                 t2
             }
         }
@@ -350,13 +384,23 @@ impl SemanticVisitor {
                         Ty::Array(t, size)
                     }
                     (Ty::Ptr(p1), Ty::Ptr(p2)) if p1 == p2 => {
-                        assert_eq!(*kind, BinOpKind::Sub);
-                        let size = BinOp::Unary(Unary::Identity(Primary::Num(
-                            p1.sizeof(&self.symbol_table) as i64,
-                        )));
-                        *binop =
-                            BinOp::Binary(BinOpKind::Div, Box::new(binop.clone()), Box::new(size));
-                        Ty::I64
+                        assert!(!matches!(
+                            kind,
+                            BinOpKind::Add | BinOpKind::Mul | BinOpKind::Div | BinOpKind::Mod
+                        ));
+
+                        if *kind == BinOpKind::Sub {
+                            let size = BinOp::Unary(Unary::Identity(Primary::Num(
+                                p1.sizeof(&self.symbol_table) as i64,
+                            )));
+                            *binop = BinOp::Binary(
+                                BinOpKind::Div,
+                                Box::new(binop.clone()),
+                                Box::new(size),
+                            );
+                        }
+
+                        Ty::I32
                     }
                     (t1, t2) => {
                         if *kind == BinOpKind::LogicalAnd || *kind == BinOpKind::LogicalOr {
