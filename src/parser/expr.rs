@@ -217,7 +217,7 @@ impl Unary {
                 symbol_table.from_specs_and_abstract_declarator(&tn.specs, &tn.declarator)
             }
             Unary::Call(u, _) => u.get_type(symbol_table).get_return_type().unwrap(),
-            Unary::Index(_, _) => panic!("Semantic visitor should have desugared indexing"),
+            Unary::Index(u, _) => u.get_type(symbol_table).get_inner().unwrap(),
             Unary::Field(u, f) => {
                 let Ty::Struct(name) = u.get_type(symbol_table) else {
                     panic!("Accessing a field on a non-struct type");
@@ -225,7 +225,13 @@ impl Unary {
                 let (_, ty) = symbol_table.get_struct_field(&name, f);
                 ty.clone()
             }
-            Unary::PointerField(_, _) => unreachable!(),
+            Unary::PointerField(u, f) => {
+                let Ty::Struct(name) = u.get_type(symbol_table).get_inner().unwrap() else {
+                    panic!("Accessing a field on a non-struct type");
+                };
+                let (_, ty) = symbol_table.get_struct_field(&name, f);
+                ty.clone()
+            }
 
             Unary::Ref(u) => Ty::Ptr(Box::new(u.get_type(symbol_table))),
             Unary::Deref(u) => u.get_type(symbol_table).get_inner().unwrap(),

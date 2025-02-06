@@ -33,9 +33,9 @@ impl Ty {
     pub fn sizeof(&self, symbol_table: &SymbolTable) -> usize {
         match self {
             Ty::Void => 0,
-            Ty::Bool | Ty::I8 | Ty::U8 | Ty::Enum(_) => 1,
+            Ty::Bool | Ty::I8 | Ty::U8 => 1,
             Ty::I16 | Ty::U16 => 2,
-            Ty::I32 | Ty::U32 | Ty::F32 => 4,
+            Ty::I32 | Ty::U32 | Ty::F32 | Ty::Enum(_) => 4,
             Ty::I64 | Ty::U64 | Ty::F64 | Ty::Ptr(_) => 8,
             Ty::F128 => 16,
             Ty::Array(t, Some(size)) => t.sizeof(symbol_table) * size,

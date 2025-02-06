@@ -24,12 +24,16 @@ pub enum DeclarationSpecifier {
 }
 
 impl DeclarationSpecifier {
-    pub fn is_typedef(&self) -> bool {
-        *self == DeclarationSpecifier::StorageClassSpecifier(StorageClassSpecifier::Typedef)
-    }
-
     pub fn is_extern(&self) -> bool {
         *self == DeclarationSpecifier::StorageClassSpecifier(StorageClassSpecifier::Extern)
+    }
+
+    pub fn is_static(&self) -> bool {
+        *self == DeclarationSpecifier::StorageClassSpecifier(StorageClassSpecifier::Static)
+    }
+
+    pub fn is_typedef(&self) -> bool {
+        *self == DeclarationSpecifier::StorageClassSpecifier(StorageClassSpecifier::Typedef)
     }
 }
 

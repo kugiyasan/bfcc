@@ -498,8 +498,6 @@ impl SemanticVisitor {
             }
             Unary::Field(u, f) => {
                 // desugar from u.f to *(T*)u if u is an union
-                self.visit_unary(u);
-
                 if let Ty::Union(name) = u.get_type(&mut self.symbol_table) {
                     let ty = self.symbol_table.get_union_field(&name, f);
                     let ty = ty.clone();

@@ -70,7 +70,6 @@ impl Codegen {
 
     pub fn generate(&mut self, translation_unit: TranslationUnit) {
         w!(&mut self.w, ".intel_syntax noprefix");
-        w!(&mut self.w, ".globl main");
         self.gen_strings();
         self.gen_translation_unit(translation_unit);
     }
@@ -171,8 +170,12 @@ impl Codegen {
                                 return;
                             }
 
+                            let name = d.direct.get_name();
+                            if !specs.iter().any(|s| s.is_static()) {
+                                w!(&mut self.w, ".globl {}", name);
+                            }
                             w!(&mut self.w, ".data");
-                            w!(&mut self.w, "{}:", d.direct.get_name());
+                            w!(&mut self.w, "{}:", name);
                             w!(&mut self.w, "  .zero {}", ty.sizeof(&self.symbol_table));
                         }
                         InitDeclarator::DeclaratorAndInitializer(d, i) => {
@@ -182,8 +185,12 @@ impl Codegen {
                                 return;
                             }
 
+                            let name = d.direct.get_name();
+                            if !specs.iter().any(|s| s.is_static()) {
+                                w!(&mut self.w, ".globl {}", name);
+                            }
                             w!(&mut self.w, ".data");
-                            w!(&mut self.w, "{}:", d.direct.get_name());
+                            w!(&mut self.w, "{}:", name);
                             self.gen_global_initializer(i, &ty);
                         }
                     }
@@ -266,7 +273,7 @@ impl Codegen {
     fn gen_func_def(
         &mut self,
         FuncDef {
-            specs: _,
+            specs,
             declarator,
             stmt,
         }: FuncDef,
@@ -280,18 +287,21 @@ impl Codegen {
                 declarator.direct
             );
         };
-        let DirectDeclarator::Ident(ident) = *dd else {
+        let DirectDeclarator::Ident(name) = *dd else {
             panic!("Function name is not an identifier: {:?}", dd);
         };
 
         w!(&mut self.w, ".text");
-        w!(&mut self.w, "{ident}:");
+        if !specs.iter().any(|s| s.is_static()) {
+            w!(&mut self.w, ".globl {}", name);
+        }
+        w!(&mut self.w, "{}:", name);
         w!(&mut self.w, "  push rbp");
         w!(&mut self.w, "  mov rbp, rsp");
         for reg in ARGUMENT_REGISTERS.iter().take(param_type_list.params.len()) {
             w!(&mut self.w, "  push {reg}");
         }
-        let local_offset = self.symbol_table.get_offset(&ident);
+        let local_offset = self.symbol_table.get_offset(&name);
         w!(&mut self.w, "  sub rsp, {}", local_offset);
 
         self.gen_compound_stmt(stmt, None, None);
