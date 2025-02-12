@@ -1,8 +1,8 @@
 use crate::parser::{
     AbstractDeclarator, Assign, AssignOpKind, BinOp, BinOpKind, CompoundStmt, ConstantExpr,
     Declaration, DeclarationOrStmt, Declarator, DirectAbstractDeclarator, DirectDeclarator, Expr,
-    ExternalDeclaration, FuncDef, InitDeclarator, Initializer, ParamDeclaration, Primary,
-    Stmt, TranslationUnit, Typedefs, Unary,
+    ExternalDeclaration, FuncDef, InitDeclarator, Initializer, ParamDeclaration, Primary, Stmt,
+    TranslationUnit, Typedefs, Unary,
 };
 
 use super::{symbol_table::SymbolTable, Ty};
@@ -523,10 +523,12 @@ impl SemanticVisitor {
                 let expr = Expr(vec![Assign::Const(ConstantExpr::Identity(binop))]);
 
                 let tn = Ty::Ptr(Box::new(ty.clone())).to_typename();
-                let binop = BinOp::Unary(Unary::Cast(
+                let cast = Unary::Cast(
                     Box::new(tn),
                     Box::new(Unary::Identity(Primary::Expr(Box::new(expr)))),
-                ));
+                );
+
+                let binop = BinOp::Unary(cast);
                 let expr = Expr(vec![Assign::Const(ConstantExpr::Identity(binop))]);
                 *unary = Unary::Deref(Box::new(Unary::Identity(Primary::Expr(Box::new(expr)))));
                 self.visit_unary(unary)
