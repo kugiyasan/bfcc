@@ -753,11 +753,11 @@ impl Codegen {
             Unary::Deref(unary) => {
                 let ty = unary.get_type(&mut self.symbol_table);
                 self.gen_unary(*unary);
-                let inner = ty.get_inner();
-                if matches!(inner, Some(Ty::Struct(_) | Ty::Union(_))) {
+                let inner = ty.get_inner().unwrap();
+                if matches!(inner, Ty::Array(_, _) | Ty::Struct(_) | Ty::Union(_)) {
                     return;
                 }
-                self.gen_deref(&inner.unwrap());
+                self.gen_deref(&inner);
             }
             Unary::BitwiseNot(u) => {
                 self.gen_unary(*u);

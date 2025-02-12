@@ -450,5 +450,15 @@ assertImplicitMain 0 '
 int;
 return 0;
 '
+assertImplicitMain 69 '
+int arr[10][10];
+for (int i = 0; i < 10; i++) {
+  for (int j = 0; j < 10; j++) {
+    arr[i][j] = i * 10 + j;
+  }
+}
+
+return arr[6][9];
+'
 
 echo 'All tests passed!'
