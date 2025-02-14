@@ -490,8 +490,8 @@ impl SymbolTable {
         match declarator {
             AbstractDeclarator::Pointer(p) => self.parse_pointer(ty, &Some(p.clone())),
             AbstractDeclarator::DirectAbstractDeclarator(p, dad) => {
-                ty = self.parse_pointer(ty, p);
-                self.parse_direct_abstract_declarator(ty, dad)
+                ty = self.parse_direct_abstract_declarator(ty, dad);
+                self.parse_pointer(ty, p)
             }
         }
     }
